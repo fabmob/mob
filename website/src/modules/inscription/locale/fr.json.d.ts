@@ -1,0 +1,40 @@
+interface Fr {
+  'affiliation.activation': string;
+  'affiliation.activation.action': string;
+  'affiliation.exists': string;
+  'affiliation.failed': string;
+  'affiliation.success': string;
+  'affiliation.success.action': string;
+  'affiliation.success.button': string;
+  'affiliation.title': string;
+  'affiliation.button': string;
+  'affiliation.profile': string;
+  'page.indisponible.line1.create': string;
+  'page.indisponible.line1.account': string;
+  'page.indisponible.message1.line1': string;
+  'page.indisponible.message1.line2': string;
+  'page.indisponible.message2.line1': string;
+  'page.indisponible.contactUs': string;
+  'creation.line1.create': string;
+  'creation.line2.account': string;
+  'creation.bravo.message': string;
+  'creation.territoire.pilote': string;
+  'creation.territoire.message': string;
+  'creation.complete.inscription': string;
+  'creation.success.thanks': string;
+  'creation.success.message': string;
+  'creation.success.activate.inscription.message': string;
+  'password.composition.message': string;
+  'password.composition.condition.1': string;
+  'password.composition.condition.2': string;
+  'password.composition.condition.3': string;
+  'password.composition.condition.4': string;
+  'password.composition.condition.5': string;
+  'pilote1.message': string;
+  'pilote1.territoire.pilote': string;
+  'pilote1.response.negative': string;
+  'pilote1.response.positive': string;
+}
+  declare const value: Fr;
+  export = value;
+  

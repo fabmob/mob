@@ -1,0 +1,49 @@
+stages:
+  - deploy-common
+  # Prepare context for build stages: fetch thirdparty source code, compile build tools, etc.
+  - prepare
+  # Compile, generally turn source code into derived objects
+  - pre-image
+  - build
+  # Build, tag and push container images
+  - image
+  # First level of testing e.g. unit tests
+  - test
+  - static-assessment
+  # Assemble derived object into deployment units e.g. prepare WAR archives
+  - package
+  # Prepare additional deployment descriptors e.g. K8s manifests, Helm charts, etc.
+  #- bundle
+  - verify
+  - verify_all
+  # Deploy to development environment, from feature branch, time-limited (24 hrs)
+  - deploy-preview
+  - smoke-tests
+  - prime_preview
+  # Deploy to testing environment, from feature branch, time-limited (24 hrs)
+  - dump
+  - deploy-testing
+  - deploy-preprod
+  - smoke-test
+  - functional-test
+  - check_publication
+  - publication
+  - handover
+  - cleanup
+
+include:
+  - local: "commons/.gitlab-ci.yml"
+  - local: "idp/.gitlab-ci.yml"
+  - local: "api/.gitlab-ci.yml"
+  - local: "administration/.gitlab-ci.yml"
+  - local: "s3/.gitlab-ci.yml"
+  - local: "vault/.gitlab-ci.yml"
+  - local: "analytics/.gitlab-ci.yml"
+  - local: "test/.gitlab-ci.yml"
+  - local: "website/.gitlab-ci.yml"
+  - local: "simulation-maas/.gitlab-ci.yml"
+  - local: "antivirus/.gitlab-ci.yml"
+  - local: "mailhog/.gitlab-ci.yml"
+  - local: "commons/dump/.gitlab-ci.yml"
+
+  #- local: "publication/.gitlab-ci.yml"

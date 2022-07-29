@@ -1,0 +1,287 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-family);
+  font-weight: 400;
+  color: var(--color-dark);
+}
+
+button:focus {
+  outline: none;
+}
+
+// Utilities
+
+// margin-top
+.mt-xxs {
+  margin-top: var(--spacing-xxs);
+}
+.mt-xs {
+  margin-top: var(--spacing-xs);
+}
+.mt-s {
+  margin-top: var(--spacing-s);
+}
+.mt-m {
+  margin-top: var(--spacing-m);
+}
+.mt-l {
+  margin-top: var(--spacing-l);
+}
+.mt-xl {
+  margin-top: var(--spacing-xl);
+}
+
+// margin-right
+.mr-xxs {
+  margin-right: var(--spacing-xxs);
+}
+.mr-xs {
+  margin-right: var(--spacing-xs);
+}
+.mr-s {
+  margin-right: var(--spacing-s);
+}
+.mr-m {
+  margin-right: var(--spacing-m);
+}
+.mr-l {
+  margin-right: var(--spacing-l);
+}
+.mr-xl {
+  margin-right: var(--spacing-xl);
+}
+
+// margin-bottom
+.mb-xxs {
+  margin-bottom: var(--spacing-xxs);
+}
+.mb-xs {
+  margin-bottom: var(--spacing-xs);
+}
+.mb-s {
+  margin-bottom: var(--spacing-s);
+}
+.mb-m {
+  margin-bottom: var(--spacing-m);
+}
+.mb-l {
+  margin-bottom: var(--spacing-l);
+}
+.mb-xl {
+  margin-bottom: var(--spacing-xl);
+}
+
+// margin-left
+.ml-xxs {
+  margin-left: var(--spacing-xxs);
+}
+.ml-xs {
+  margin-left: var(--spacing-xs);
+}
+.ml-s {
+  margin-left: var(--spacing-s);
+}
+.ml-m {
+  margin-left: var(--spacing-m);
+}
+.ml-l {
+  margin-left: var(--spacing-l);
+}
+.ml-xl {
+  margin-left: var(--spacing-xl);
+}
+
+// padding-top
+.pt-xxs {
+  padding-top: var(--spacing-xxs);
+}
+.pt-xs {
+  padding-top: var(--spacing-xs);
+}
+.pt-s {
+  padding-top: var(--spacing-s);
+}
+.pt-m {
+  padding-top: var(--spacing-m);
+}
+.pt-l {
+  padding-top: var(--spacing-l);
+}
+.pt-xl {
+  padding-top: var(--spacing-xl);
+}
+
+.breadcrumb {
+  margin: var(--spacing-s) 0;
+  ol {
+    display: flex;
+    a {
+      margin-right: 8px;
+    }
+    span {
+      margin-right: 8px;
+    }
+  }
+  ol li:last-child {
+    font-weight: 600;
+  }
+}
+.link-in-text {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-green-leaf);
+  text-decoration: underline;
+  &:hover {
+    filter: brightness(85%);
+  }
+}
+.link-in-text_blue {
+  color: var(--color-blue-petrol);
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.o-bg-wrapper {
+  position: relative;
+  &::before {
+    content: '';
+    position: absolute;
+    background: url('../svg/letter-o.svg') no-repeat;
+    top: -50px;
+    left: -43vw;
+    width: 100%;
+    padding-top: 38%;
+    min-width: 340px;
+    max-width: 567px;
+    z-index: -1;
+    @media screen and (min-width: 768px) {
+      left: -365px;
+    }
+    @media screen and (min-width: 1024px) {
+      top: -70px;
+    }
+  }
+}
+
+.o-bg-wrapper-right {
+  position: relative;
+  &::before {
+    content: '';
+    position: absolute;
+    background: url('../svg/letter-o.svg') no-repeat;
+    top: -50px;
+    right: -43vw;
+    width: 100%;
+    padding-top: 38%;
+    min-width: 340px;
+    max-width: 567px;
+    z-index: -1;
+    @media screen and (min-width: 768px) {
+      right: -365px;
+    }
+    @media screen and (min-width: 1024px) {
+      top: -70px;
+    }
+  }
+}
+
+.m-bg-wrapper {
+  position: relative;
+  &::after {
+    content: none;
+    position: absolute;
+    background: url('../svg/letter-m-blue.svg') no-repeat;
+    @media screen and (min-width: 1024px) {
+      content: '';
+      bottom: -70px;
+      right: -7vw;
+      width: 382px;
+      height: 212px;
+      z-index: -1;
+    }
+  }
+}
+
+.m-yellow-bg-wrapper {
+  position: relative;
+  &::after {
+    content: none;
+    position: absolute;
+    background: url('../svg/letter-m.svg') no-repeat;
+    @media screen and (min-width: 1024px) {
+      content: '';
+      bottom: -210px;
+      right: -7vw;
+      width: 382px;
+      height: 212px;
+      z-index: -1;
+    }
+  }
+}
+
+.o-blue-bg-wrapper {
+  position: relative;
+  &::after {
+    content: '';
+    z-index: -1;
+    transition: all 500ms ease-out;
+    position: absolute;
+    background: url('../svg/letter-o-blue.svg') no-repeat;
+    @media screen and (max-width: 600px) {
+      bottom: -80px;
+      left: -36vw;
+      width: 340px;
+      height: 172px;
+    }
+    @media screen and (min-width: 601px) and (max-width: 1023px) {
+      bottom: -122px;
+      left: -25vw;
+      width: 453px;
+      height: 229px;
+    }
+    @media screen and (min-width: 1024px) {
+      bottom: -126px;
+      left: -21vw;
+      width: 567px;
+      height: 286px;
+    }
+  }
+}
+.mcm-informations-text {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: var(--spacing-l);
+  h1 {
+    margin-bottom: var(--spacing-s);
+    margin-top: var(--spacing-xs);
+  }
+  h2 {
+    margin-bottom: var(--spacing-xxs);
+    margin-top: var(--spacing-s);
+  }
+  p {
+    margin: var(--spacing-xxs) 0px;
+  }
+}
+
+// @see https://snook.ca/archives/html_and_css/hiding-content-for-accessibility
+.is-hidden {
+  position: absolute !important;
+  height: 1px;
+  width: 1px;
+  overflow: hidden;
+  clip: rect(1px 1px 1px 1px); /* IE6, IE7 */
+  clip: rect(1px, 1px, 1px, 1px);
+}
+
+.highlighting {
+  background-color: var(--color-grey-ultralight);
+}
+
+.button-margin-link {
+  margin-right: 20px;
+}

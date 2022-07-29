@@ -1,0 +1,38 @@
+.mcm-progress-bar-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.mcm-progress-bar-text-group {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.mcm-progress-bar-part-count-text {
+  color: var(--color-green-leaf);
+}
+
+.mcm-progress-bar-total-count-text {
+  color: var(--color-blue-petrol);
+}
+
+.mcm-progress-bar-body {
+  margin-top: 8px;
+  width: 100%;
+}
+
+.mcm-total-count-progress {
+  background-color: var(--color-blue-petrol);
+  border-radius: 10px;
+  height: 10px;
+  width: 100%;
+}
+
+.mcm-partial-count-progress {
+  background-color: var(--color-green-leaf);
+  border-radius: 10px;
+  margin-top: -10px;
+  height: 10px;
+}

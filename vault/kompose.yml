@@ -1,0 +1,19 @@
+version: '3'
+
+services:
+  vault:
+    image: ${VAULT_IMAGE_NAME}
+    networks:
+      - web-nw
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_LOCAL_CONFIG: '{"backend": {"file": {"path": "/vault/file"}}, "default_lease_ttl": "168h", "max_lease_ttl": "720h"}'
+    ports:
+      - '8200'
+    labels:
+      - 'kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}'
+      - 'kompose.service.type=clusterip'
+
+networks:
+  web-nw:

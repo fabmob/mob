@@ -1,0 +1,4 @@
+ARG PUBLICATION_BASE_IMAGE_NAME
+FROM ${PUBLICATION_BASE_IMAGE_NAME}
+
+RUN pip install nexus-api-python-client

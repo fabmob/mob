@@ -1,0 +1,5 @@
+# Check out https://hub.docker.com/_/mongo to select a new base image
+ARG BASE_IMAGE_MONGO
+FROM ${BASE_IMAGE_MONGO}
+
+COPY ./mongo/databaseConfig/*.js /docker-entrypoint-initdb.d/

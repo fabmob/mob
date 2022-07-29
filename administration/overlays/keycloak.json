@@ -1,0 +1,8 @@
+{
+  "keycloakConfig": {
+    "url": "https://${IDP_FQDN}/auth",
+    "realm": "${MCM_IDP_REALM}",
+    "clientId": "${MCM_IDP_CLIENTID_ADMIN}"
+  },
+  "apiConfig": "https://${API_FQDN}/"
+}

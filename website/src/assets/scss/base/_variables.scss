@@ -1,0 +1,68 @@
+:root {
+  // Default breakpoints
+  $breakpoints: (
+    sm: 576px,
+    md: 768px,
+    l: 1024px,
+    xl: 1440px,
+  ) !default;
+
+  // Font
+  --font-family: 'sofia-pro', sans-serif;
+
+  // Colors
+  --color-green-leaf: #01bf7d;
+  --color-green-leaf-dark: #00a76e;
+  --color-blue-petrol: #464cd0;
+  --color-blue-petrol-dark: #3a3e96;
+  --color-yellow-sun: #ffd314;
+  --color-yellow-sun-dark: #ffc714;
+  --color-red-error: #e35447;
+  --color-dark: #363757;
+  --color-grey-dark: #74747f;
+  --color-grey-mid: #adadb5;
+  --color-grey-light: #d5d6df;
+  --color-grey-ultralight: #f7f7f9;
+  --color-white: #ffffff;
+
+  // Transition
+  --transition: 0.2s ease-in-out all;
+
+  // Border radius
+  --radius-s: 3px;
+  --radius-m: 27px;
+  --radius-l: 34px;
+  --radius-circle: 50%;
+
+  // Spacing for devices until 1024px
+  --spacing-xxs: 8px;
+  --spacing-xs: 12px;
+  --spacing-s: 24px;
+  --spacing-m: 36px;
+  --spacing-l: 48px;
+  --spacing-xl: 80px;
+
+  // Large devices (desktops, 1024px and up)
+  @media screen and (min-width: 1024px) {
+    --spacing-xxs: 12px;
+    --spacing-xs: 20px;
+    --spacing-s: 40px;
+    --spacing-m: 60px;
+    --spacing-l: 80px;
+    --spacing-xl: 120px;
+  }
+}
+
+// Toast Variable styling is here
+$rt-namespace: 'Toastify';
+$rt-color-progress-default: linear-gradient(
+  to right,
+  #4cd964,
+  #5ac8fa,
+  #007aff,
+  #34aadc,
+  #5856d6,
+  #ff2d55
+) !default;
+$rt-color-progress-dark: #bb86fc !default;
+$rt-z-index: 9999 !default;

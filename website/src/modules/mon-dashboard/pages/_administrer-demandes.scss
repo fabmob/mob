@@ -1,0 +1,89 @@
+$laptop-breakpoint: 1024px;
+
+.mcm-administrer-demandes {
+  .mcm-search-form {
+    > .button {
+      display: none;
+      margin-bottom: none;
+    }
+
+    /**
+    * Changement des paddings pour avoir une hauteur égale au bouton.
+    * TODO: Il faudrait modifier tous les champs pour qu'ils aient la même hauteur (cf. maquette)
+    */
+    > .search-field {
+      padding-top: 13px;
+      padding-bottom: 17px;
+    }
+    @media screen and (min-width: 768px) {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: center;
+
+      > .search-field {
+        margin-right: 36px;
+        max-width: 580px;
+      }
+      > .button {
+        display: inline-block;
+      }
+    }
+  }
+}
+
+.page-container__list-section {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0px auto;
+  padding: 0px 24px;
+}
+.mcm-search-form {
+  width: 100%;
+  text-align: center;
+  @media screen and (max-width: $laptop-breakpoint - 1) {
+    width: 100%;
+  }
+}
+.mcm-info-length {
+  color: gray;
+  font-size: 12px;
+}
+.mcm-download-validee {
+  display: flex;
+  justify-content: end;
+  width: 100%;
+  color: var(--color-green-leaf);
+  & > a {
+    display: flex;
+    justify-content: end;
+    width: 350px;
+  }
+}
+.bloc-sections {
+  justify-content: space-between;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.svg-download {
+  margin-right: 9px;
+}
+
+@media screen and (max-width: 1032px) {
+  .bloc-sections {
+    justify-content: space-between;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .dashboard-group-first {
+    display: flex;
+    flex-direction: column-reverse;
+  }
+
+  .mcm-download-validee {
+    justify-content: start;
+    margin-top: 15px;
+  }
+}

@@ -1,0 +1,38 @@
+backend:
+  name: gitlab                                                                  
+  repo: soextreme/soextreme-website # Path to your GitLab repository            
+  auth_type: implicit # Required for implicit grant                             
+  app_id: %GITLAB_APP_ID% # Application ID from your GitLab settings            
+  api_root: %GITLAB_API_URL%                                                    
+  base_url: %GITLAB_URL%                                                        
+  auth_endpoint: oauth/authorize                                                
+  branch: %GITLAB_BRANCH%
+
+#media_folder: static/assets
+#public_folder: assets
+
+media_folder: "static/assets/images/upload" # Media files will be stored in the repo under images/upload
+public_folder: "/images/upload"                                                 
+                                                                                
+logo_url: "/admin/images/logo.png"  
+
+collections:
+  - name: blog
+    label: Blog
+    folder: static/assets/blog
+    create: true
+    fields:
+      - { name: path, label: Path }
+      - { name: date, label: Date, widget: date }
+      - { name: title, label: Title }
+      - { name: body, label: Body, widget: markdown }
+  - name: products
+    label: Products
+    folder: static/assets/products
+    create: true
+    fields:
+      - { name: path, label: Path }
+      - { name: date, label: Date, widget: date }
+      - { name: title, label: Title }
+      - { name: price, label: Price }
+      - { name: body, label: Body, widget: markdown }

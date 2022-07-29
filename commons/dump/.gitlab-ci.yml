@@ -1,0 +1,30 @@
+commons-dump-image:
+    extends:
+        - .image-job
+        - .only-testing
+        - .manual
+        - .except-sast
+    stage: prepare
+    variables:
+        MODULE_NAME: dump
+        MODULE_PATH: commons/dump
+
+commons-dump-execute:
+    extends:
+        - .only-testing
+        - .manual
+        - .commons
+        - .image-job-tags
+        - .except-sast
+        - .no-needs
+    stage: dump
+    image: ${DUMP_IMAGE_NAME}
+    script: 
+        - |
+          cd commons/dump
+          python3 /usr/local/bin/mongo_dump.py
+          ls
+    artifacts:
+        when: always
+        paths:
+            - commons/dump/dump

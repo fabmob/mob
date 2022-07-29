@@ -1,0 +1,7 @@
+commons-kubetools-image:
+  extends:
+    - .image-job
+  stage: prepare
+  variables:
+    MODULE_NAME: kubetools
+    MODULE_PATH: commons/kubetools

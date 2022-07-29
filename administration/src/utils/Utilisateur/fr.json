@@ -1,0 +1,7 @@
+{
+  "citizens.error.required": "Attention, ce champ est obligatoire",
+  "users.roles.error": "Problème durant la récupération des roles",
+  "users.error.roles.mismatch": "Les roles selectionnés ne sont pas adéquats",
+  "users.error.communities.mismatch": "Les communautés selectionnées ne sont pas adéquates",
+  "email.error.emailFormat": "L'email ne respecte pas les formats de l'entreprise"
+}

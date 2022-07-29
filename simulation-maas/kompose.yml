@@ -1,0 +1,24 @@
+version: "3"
+
+services:
+  simulation-maas:
+    image: ${SIMULATION_MAAS_IMAGE_NAME}
+    build:
+      context: .
+      args:
+        BASE_IMAGE_NGINX: ${NEXUS_IMAGE_NGINX}
+    networks:
+      - web-nw
+    environment:
+      - IDP_FQDN
+      - API_FQDN
+      - MCM_IDP_REALM
+      - MCM_IDP_CLIENTID_MAAS
+    ports:
+      - "8888"
+    labels:
+      - "kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}"
+      - "kompose.service.type=clusterip"
+
+networks:
+  web-nw:

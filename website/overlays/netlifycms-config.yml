@@ -1,0 +1,127 @@
+backend:
+  name: gitlab
+  repo: ${GITLAB_PROJECT_PATH} # Path to your GitLab repository
+  auth_type: implicit # Required for implicit grant
+  app_id: ${MCM_GK_CLIENTID} # Client ID from your Keycloak settings
+  api_root: https://${GK_FQDN}/api/v4/
+  base_url: https://${IDP_FQDN}/auth/realms/${MCM_IDP_REALM}/protocol/openid-connect
+  auth_endpoint: auth
+  branch: ${GITLAB_BRANCH}
+
+media_folder: website/static/img
+public_folder: /img
+logo_url: /img/netlify_cms.logo.png
+locale: fr
+
+collections:
+  - name: 'blog'
+    label: 'Blog'
+    folder: 'src/content/blog'
+    create: true
+    slug: '{{year}}-{{month}}-{{day}}-{{slug}}'
+    fields:
+      - {
+          label: 'ID du modèle',
+          name: 'templateKey',
+          widget: 'hidden',
+          default: 'blog-post',
+        }
+      - { label: 'Titre', name: 'title', widget: 'string' }
+      - { label: 'Date de publication', name: 'date', widget: 'datetime' }
+      - { label: 'Description', name: 'description', widget: 'text' }
+      - { label: 'Corps', name: 'body', widget: 'markdown' }
+      - { label: 'Tags', name: 'tags', widget: 'list' }
+
+  - name: 'pages'
+    label: 'Pages'
+    files:
+      - file: 'src/pages/index.md'
+        label: "Page d'accueil"
+        name: 'Index Page'
+        fields:
+          - {
+              label: 'ID du modèle',
+              name: 'templateKey',
+              widget: 'hidden',
+              default: 'index-page',
+            }
+          - { label: 'Titre', name: title, widget: string }
+          - { label: 'Corps', name: 'body', widget: 'markdown' }
+
+  - name: 'settings'
+    label: 'Configurations'
+    delete: false
+    files:
+      - name: 'signup'
+        file: 'src/settings/signup.md'
+        label: "Configuration des pages d'inscription"
+        fields:
+          - {
+              label: 'Template Key',
+              name: 'templateKey',
+              widget: 'hidden',
+              default: 'signup-settings',
+            }
+          - { label: 'Titre de la page', name: 'title', widget: 'string' }
+          - {
+              label: 'Question de déplacement',
+              name: 'question',
+              widget: 'string',
+            }
+          - {
+              label: "Nom de l'agglomération",
+              name: 'agglomeration',
+              widget: 'string',
+            }
+          - label: Page d'authentification
+            summary: Texte affiché sur la page de connexion au dessus du bouton "Créer mon compte".
+            name: singin
+            widget: object
+            collapsed: true
+            fields:
+              - {
+                  label: 'Titre création compte',
+                  name: 'title',
+                  widget: 'string',
+                }
+              - {
+                  label: 'Text création compte',
+                  name: 'text',
+                  widget: 'string',
+                }
+          - label: Page d'inscription
+            summary: Texte affiché sur la page de création de compte à côté du formulaire.
+            name: singup
+            widget: object
+            collapsed: true
+            fields:
+              - { label: 'Texte', name: 'text', widget: 'string' }
+              - { label: 'Sous texte', name: 'sub_text', widget: 'string' }
+          - label: Page de confirmation
+            summary: Texte affiché sur la page de confirmation.
+            name: confirm
+            widget: object
+            collapsed: true
+            fields:
+              - { label: 'Titre', name: 'title', widget: 'string' }
+              - { label: 'Texte', name: 'text', widget: 'string' }
+              - {
+                  label: 'Title première étape',
+                  name: 'stepOneTitle',
+                  widget: 'string',
+                }
+              - {
+                  label: 'Texte première étape',
+                  name: 'stepOneText',
+                  widget: 'string',
+                }
+              - {
+                  label: 'Title deuxième étape',
+                  name: 'stepTwoTitle',
+                  widget: 'string',
+                }
+              - {
+                  label: 'Texte deuxième étape',
+                  name: 'stepTwoText',
+                  widget: 'string',
+                }

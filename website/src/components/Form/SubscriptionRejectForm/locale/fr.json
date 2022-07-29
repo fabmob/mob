@@ -1,0 +1,12 @@
+{
+  "subscriptions.error.required": "Attention, ce champ est obligatoire",
+  "subscriptions.reject.type.label": "Motif du rejet de la demande *",
+  "subscriptions.reject.type.placeholder": "Selectionner",
+  "subscriptions.reject.other.placeholder": "Détaillez le motif de rejet (80 max)",
+  "subscriptions.reject.comments.placeholder": "Saisissez toutes les informations complémentaires utiles concernant la demande du citoyen",
+  "subscriptions.reject.comments.label": "Commentaires",
+  "eligibility.conditions": "Conditions d'éligibilité non respectées",
+  "missing.receipt": "Justificatif manquant",
+  "invalid.unreadable.receipt": "Justificatif invalide ou non lisible",
+  "other.detail": "Autre (précisez)"
+}

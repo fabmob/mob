@@ -1,0 +1,18 @@
+{
+  "subscriptions.error.required": "Attention, ce champ est obligatoire",
+  "subscriptions.error.minimalValue": "Attention, la valeur doit être supérieure à 0",
+  "subscriptions.error.lastPayment.minimalDate": "Attention, la date du dernier versement doit être plus lointaine pour réaliser plusieurs versements",
+  "subscriptions.error.lastPayment.format": "Attention, ce champ n'est pas au bon format",
+  "subscriptions.validate.modeUnique.label": "Versement unique",
+  "subscriptions.validate.amountSingle.placeholder": "Saisir le montant",
+  "subscriptions.validate.amountSingle.label": "Montant en euros *",
+  "subscriptions.validate.modeMultiple.label": "Versements multiples",
+  "subscriptions.validate.frequency.label": "Fréquence du versement *",
+  "subscriptions.validate.amountMultiple.placeholder": "Saisir le montant",
+  "subscriptions.validate.amountMultiple.label": "Montant en euros par palier de versements *",
+  "subscriptions.validate.lastPayment.placeholder": "JJ/MM/AAAA",
+  "subscriptions.validate.lastPayment.label": "Date du dernier versement *",
+  "subscriptions.validate.modeNone.label": "Aucun versement",
+  "subscriptions.validate.comments.placeholder": "Saisissez toutes les informations complémentaires utiles concernant la demande du citoyen",
+  "subscriptions.validate.comments.label": "Commentaires"
+}

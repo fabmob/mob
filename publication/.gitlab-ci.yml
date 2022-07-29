@@ -1,0 +1,130 @@
+.publication-base:
+  variables:
+    MODULE_PATH: publication
+    REGISTRY_USER: ${CI_REGISTRY_USER}
+    REGISTRY_PASSWORD: ${CI_REGISTRY_PASSWORD}
+    REGISTRY_URL: ${CI_REGISTRY}
+    NEXUS_DOCKER_REGISTRY_URL: ${NEXUS_DOCKER_REGISTRY}
+    PUBLICATION_IMAGE_NAME: ${CI_REGISTRY_IMAGE}/mcm-publication:${CI_COMMIT_REF_SLUG}-${CI_PIPELINE_ID}
+    TEST_GITLAB_TO_PUBLISH_URL: ${TEST_PUBLICATION_URL}
+    USERNAME_TO_PUBLISH: ${PUBLICATION_USERNAME}
+    PASSWORD_TO_PUBLISH: ${PUBLICATION_PASSWORD}
+    PUBLIC_GITLAB_TO_PUBLISH_URL: ${PUBLICATION_URL}
+    EMAIL_TO_COMMIT: ${PUBLICATION_EMAIL}
+    NEXUS_LOGIN_BASE64: ${NEXUS_LOGIN_BASE64}
+    NEXUS_URL: ${NEXUS_URL}
+
+.publication_init_vars: &publication_init_vars |
+  export PUBLICATION_IMAGE_NAME=${REGISTRY_BASE_NAME}/mcm-publication:${IMAGE_TAG_NAME}
+
+.publication_image_script: &publication_image_script |
+  docker login -u ${REGISTRY_USER} -p ${REGISTRY_PASSWORD} ${REGISTRY_URL}
+  docker build --build-arg PUBLICATION_BASE_IMAGE_NAME=${NEXUS_DOCKER_REGISTRY}/python:3.9 -f publication-dockerfile.yml -t ${PUBLICATION_IMAGE_NAME} .
+  docker push ${PUBLICATION_IMAGE_NAME}
+
+publication_image_build:
+  extends:
+    - .no-sast
+    - .commons
+    - .publication-base
+    - .image-job-tags
+    - .except-clean
+    - .no-needs
+  stage: prepare
+  image: ${NEXUS_DOCKER_REGISTRY_URL}/tiangolo/docker-with-compose:2021-09-18
+  script:
+    - *publication_init_vars
+    - *publication_image_script
+
+.extract_components_nexus: &extract_components_nexus |
+  python extract_components_nexus.py
+
+check_publication:
+  extends:
+    - .no-sast
+    - .commons
+    - .publication-base
+    - .test-job-tags
+    - .no-dependencies
+    - .manual
+  environment: publication
+  stage: check_publication
+  image: ${PUBLICATION_IMAGE_NAME}
+  script:
+    - *extract_components_nexus
+  artifacts:
+    when: always
+    paths:
+      - ${MODULE_PATH}/nexus/npm_packages.json
+      - ${MODULE_PATH}/nexus/docker_images.json
+      - ${MODULE_PATH}/nexus/helm_charts.json
+
+.gitleaks: &gitleaks |
+    echo "Launch gitleaks"
+    rm website/yarn.lock # This file contains false leaks but it not published
+    gitleaks -v --path .. --no-git
+
+gitleak:
+    extends:
+        - .no-sast
+        - .publication-base
+        - .test-job-tags
+        - .no-dependencies
+    stage: check_publication
+    image:
+        name: ${NEXUS_DOCKER_REGISTRY_URL}/zricethezav/gitleaks:v7.6.0
+        entrypoint: [""]
+    script:
+        - *gitleaks
+
+.prepare_to_publish: &prepare_to_publish |
+  mkdir output
+  echo -e '>>> STEP 1 : PREPARE URL TO PUBLISH'
+  echo -e '>>> STEP 1 : PREPARE URL TO PUBLISH' >> output/publication.log
+
+  if [[ $(expr match "$BRANCH_NAME" publish-.*) != 0 ]]
+  then
+    echo "branch is publish-.*" >> output/publication.log
+    export URL_TO_PUBLISH=$PUBLIC_GITLAB_TO_PUBLISH_URL
+  else
+    echo "branch is NOT publish-.*" >> output/publication.log
+    export URL_TO_PUBLISH=$TEST_GITLAB_TO_PUBLISH_URL
+  fi
+  echo -e '>>> WILL BE PUBLISHED TO '$URL_TO_PUBLISH
+  echo -e '>>> WILL BE PUBLISHED TO '$URL_TO_PUBLISH >> output/publication.log
+
+.clone_repo_publication: &clone_repo_publication |
+  echo -e '>>> STEP 2 : Clone Public repository'
+  ./clone_repo_publication.sh >> output/publication.log
+
+.clean_project_to_commit: &clean_project_to_commit |
+  echo -e '>>> STEP 3 : Clean project before commit'
+  ./clean_project_to_commit.sh >> output/publication.log
+
+.commit_changes_n_push: &commit_changes_n_push |
+  echo -e '>>> STEP 4 : Add, Commit and Push'
+  ./commit_changes_n_push.sh >> output/publication.log
+
+publication:
+  extends:
+    - .no-sast
+    - .commons
+    - .publication-base
+    - .build-job-tags
+    - .no-dependencies
+    - .manual
+  environment: publication
+  stage: publication
+  image:
+    name: ${NEXUS_DOCKER_REGISTRY_URL}/alpine/git:v2.32.0
+    entrypoint: [""]
+  script:
+    - *prepare_to_publish
+    - *clone_repo_publication
+    - *clean_project_to_commit
+    - *commit_changes_n_push
+  needs: ["gitleak"]
+  artifacts:
+    when: always
+    paths:
+      - ${MODULE_PATH}/output/publication.log

@@ -1,0 +1,9 @@
+version: "3"
+
+services:
+  kubetools:
+    image: ${KUBETOOLS_IMAGE_TAGNAME}
+    build:
+      context: .
+      args:
+        BASE_IMAGE_UBUNTU: ${NEXUS_DOCKER_REGISTRY}/ubuntu:20.04

@@ -1,0 +1,9 @@
+version: "3"
+
+services:
+  dump:
+    image: ${DUMP_IMAGE_NAME}
+    build:
+      context: .
+      args:
+        BASE_IMAGE_UBUNTU: ${NEXUS_DOCKER_REGISTRY}/ubuntu:20.04

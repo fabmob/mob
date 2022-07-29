@@ -1,0 +1,132 @@
+version: '3.8'
+services:
+  mariadb:
+    image: ${MARIADB_IMAGE_NAME}
+    command: --max_allowed_packet=67108864 # Set max_allowed_packet to 64MB (default value is 16MB and Matomo need of 64MB min for performed)
+    environment:
+      - MYSQL_USER=${IDP_DATABASE_USER_NAME}
+      - MYSQL_PASSWORD=${IDP_DATABASE_USER_PWD}
+      - MYSQL_DATABASE=${IDP_DATABASE_NAME}
+      - MYSQL_ROOT_PASSWORD=${IDP_DATABASE_ROOT_PWD}
+      - MYSQL_SERVICE_USER=${IDP_DB_SERVICE_USER}
+      - MYSQL_SERVICE_PASSWORD=${IDP_DB_SERVICE_PASSWORD}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    networks:
+      - stack_web-nw
+      - maria_nw
+    deploy:
+      labels:
+        - "traefik.enable=false"
+
+  louketo:
+    image: ${GK_IMAGE_NAME}
+    command:
+      - '--discovery-url=https://${IDP_FQDN}/auth/realms/${MCM_IDP_REALM}'
+      - '--client-id=${MCM_GK_CLIENTID}'
+      - '--client-secret=${MCM_GK_CLIENTSECRET}'
+      - '--listen=:3000'
+      - '--enable-refresh-tokens=true'
+      - '--encryption-key=AgXa7xRcoClDEU0ZDSH4X0XhL5Qy2Z2j'
+      - '--secure-cookie=false'
+      - '--cookie-domain=${BASE_DOMAIN}'
+      - '--enable-authorization-header=false'
+      - '--redirection-url=https://${GK_FQDN}'
+      - '--upstream-url=${GITLAB_URL}'
+      - '--resources=uri=/*|roles=${MCM_CMS_ACCESS_ROLE}'
+      - '--headers=Authorization=Bearer ${MCM_CMS_GITLAB_TOKEN}' # personal access token
+    networks:
+      - dev_web-nw
+    deploy:
+      labels:
+        - 'traefik.http.routers.gk-${STACK_NAME}.entrypoints=http'
+        - 'traefik.http.routers.gk-${STACK_NAME}.service=gk-${STACK_NAME}'
+        - 'traefik.http.routers.gk-${STACK_NAME}.middlewares=gk-${STACK_NAME},gk-${STACK_NAME}-cors'
+        - 'traefik.http.routers.gk-${STACK_NAME}.rule=Host(`${GK_FQDN}`)'
+        - 'traefik.http.middlewares.gk-${STACK_NAME}.headers.customrequestheaders.X-Forwarded-Proto=https'
+        - 'traefik.http.middlewares.gk-${STACK_NAME}.headers.customrequestheaders.X-Forwarded-Port=443'
+        - 'traefik.http.middlewares.gk-${STACK_NAME}-cors.headers.accesscontrolalloworiginlist=https://${API_FQDN},https://${WEBSITE_FQDN},https://${SIMULATION_MAAS_FQDN}'
+        - 'traefik.http.middlewares.gk-${STACK_NAME}-cors.headers.accesscontrolallowcredentials=true'
+        - 'traefik.http.middlewares.gk-${STACK_NAME}-cors.headers.accesscontrolallowmethods=GET,PUT,POST,DELETE,PATCH,OPTIONS'
+        - 'traefik.http.middlewares.gk-${STACK_NAME}-cors.headers.accesscontrolallowheaders=Origin, X-Requested-With, Content-Type, Accept, Authorization'
+        - 'traefik.http.middlewares.gk-${STACK_NAME}-cors.headers.accesscontrolmaxage=100'
+        - 'traefik.http.middlewares.gk-${STACK_NAME}-cors.headers.addvaryheader=true'
+        - 'traefik.http.services.gk-${STACK_NAME}.loadbalancer.server.port=3000'
+        - 'traefik.http.services.gk-${STACK_NAME}.loadbalancer.server.scheme=http'
+        - 'traefik.docker.network=dev_web-nw'
+  idp:
+    build:
+      context: .
+      dockerfile: ./keycloak-dockerfile.yml
+    image: ${KEYCLOAK_IMAGE_NAME}
+    command:
+      [
+        '-b',
+        '0.0.0.0',
+        '-Dkeycloak.migration.action=import',
+        '-Dkeycloak.migration.provider=singleFile',
+        '-Dkeycloak.migration.file=/tmp/mcm-realm.json',
+        '-Dkeycloak.migration.strategy=OVERWRITE_EXISTING',
+      ]
+    configs:
+      - source: realm-json
+        target: /tmp/mcm-realm.json
+    networks:
+      - dev_web-nw
+      - maria_nw
+      # - dev_storage_idp-nw
+    deploy:
+      labels:
+        - 'traefik.http.routers.${STACK_NAME}.entrypoints=http'
+        - 'traefik.http.routers.${STACK_NAME}.service=${STACK_NAME}'
+        - 'traefik.http.routers.${STACK_NAME}.middlewares=${STACK_NAME}-crh,${STACK_NAME}-cors'
+        - 'traefik.http.routers.${STACK_NAME}.rule=Host(`${IDP_FQDN}`)'
+        - 'traefik.http.middlewares.${STACK_NAME}-crh.headers.customrequestheaders.X-Forwarded-Proto=https'
+        - 'traefik.http.middlewares.${STACK_NAME}-crh.headers.customrequestheaders.X-Forwarded-Port=443'
+        - 'traefik.http.middlewares.${STACK_NAME}-cors.headers.accesscontrolallowmethods=GET,OPTIONS,PUT'
+        - 'traefik.http.middlewares.${STACK_NAME}-cors.headers.accesscontrolallowheaders=Authorization, X-Requested-With'
+        - 'traefik.http.middlewares.${STACK_NAME}-cors.headers.accesscontrolalloworiginlist=https://${API_FQDN},https://${WEBSITE_FQDN},https://${GK_FQDN},http://localhost:8000'
+        - 'traefik.http.middlewares.${STACK_NAME}-cors.headers.accesscontrolallowcredentials=true'
+        - 'traefik.http.middlewares.${STACK_NAME}-cors.headers.accesscontrolmaxage=100'
+        - 'traefik.http.middlewares.${STACK_NAME}-cors.headers.addvaryheader=true'
+        - 'traefik.http.services.${STACK_NAME}.loadbalancer.server.port=8080'
+        - 'traefik.http.services.${STACK_NAME}.loadbalancer.server.scheme=http'
+        - 'traefik.docker.network=dev_web-nw'
+    environment:
+      - KEYCLOAK_USER
+      - KEYCLOAK_PASSWORD
+      - PROXY_ADDRESS_FORWARDING=true
+      #- KEYCLOAK_IMPORT=/tmp/mcm-realm.json
+      - WEBSITE_FQDN
+      - DB_VENDOR=mariadb
+      - DB_DATABASE=${IDP_DATABASE_NAME}
+      - DB_USER=${IDP_DATABASE_USER_NAME}
+      - DB_PASSWORD=${IDP_DATABASE_USER_PWD}
+    volumes:
+      - keycloak-data:/opt/jboss/keycloak/standalone/data
+    depends_on:
+      - mariadb
+
+configs:
+  realm-json:
+    file: ./mcm-realm.json
+    name: realm-json.${MCM_REALM_VERSION}
+
+volumes:
+  mariadb_data:
+  keycloak-data:
+
+networks:
+  dev_web-nw:
+    external: true
+    name: dev_web-nw
+  stack_web-nw:
+    external: true
+    name: ${BRANCH_NAME}_web-nw
+  maria_nw:
+    internal: true
+  # dev_storage_idp-nw:
+  #   # external: true
+  #   # name: dev_storage_idp-nw
+  #   internal: true
+  #   attachable: true

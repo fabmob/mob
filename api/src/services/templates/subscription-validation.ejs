@@ -1,0 +1,15 @@
+<%- include('commons/header'); %>
+
+<div>
+  <p>
+    Votre demande d'aide : "<%- incentiveTitle %>" en date du <%- date %> auprès de votre
+    <%- funderType %> <%- funderName %> a été validée.
+  </p>
+  <p><%- comment %></p>
+  <p>
+    Vous pourrez retrouver l'ensemble de vos demandes depuis votre Compte Mobilité en
+    <a target="_blank" href="<%= subscriptionsLink %>">cliquant ici</a>.
+  </p>
+</div>
+
+<%- include('commons/footer'); %>

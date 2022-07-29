@@ -1,0 +1,124 @@
+*:focus {
+  outline: none;
+}
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(60, 58, 70, 0.55);
+}
+
+.content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  right: auto;
+  bottom: auto;
+  margin-right: -50%;
+  transform: translate(-50%, -50%);
+  padding: 32px;
+  width: 700px;
+  display: block;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  h3 {
+    padding-left: 8px;
+  }
+  svg {
+    position: absolute;
+    right: 8px;
+    top: 2px;
+    cursor: pointer;
+    fill: var(--color-green-leaf);
+  }
+  .align-title-icon {
+    display: flex;
+    align-items: center;
+    padding-left: 8px;
+    svg {
+      position: relative;
+      margin-right: 5px;
+      cursor: default;
+    }
+    h2 {
+      margin-bottom: 0px;
+    }
+  }
+}
+
+.modal-body {
+  padding-left: 8px;
+  margin-top: 24px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 32px;
+}
+
+.submit-btn {
+  button:first-child {
+    font-size: 14px;
+    margin-right: 10px;
+  }
+}
+
+.cancel-btn {
+  button:first-child {
+    font-size: 14px;
+  }
+
+  button:first-child:hover {
+    border-color: var(--color-red-error);
+  }
+}
+
+.modal-subtitle {
+  padding-left: 8px;
+  margin-top: 20px;
+}
+
+@media screen and (max-width: 1032px) {
+  .content {
+    top: 50%;
+    left: 0;
+    right: 0;
+    transform: translate(0, -50%);
+    padding: 32px;
+    width: 100%;
+  }
+
+  .modal-footer {
+    display: block;
+    margin-top: 32px;
+  }
+
+  .submit-btn {
+    margin-bottom: 16px;
+    button:first-child {
+      font-size: 14px;
+      width: 100%;
+    }
+  }
+
+  .cancel-btn {
+    button:first-child {
+      font-size: 14px;
+      width: 100%;
+    }
+
+    button:first-child:hover {
+      border-color: var(--color-red-error);
+    }
+  }
+}

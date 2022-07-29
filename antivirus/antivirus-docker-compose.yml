@@ -1,0 +1,47 @@
+version: "3.8"
+
+services:
+  clamav:
+    image: ${ANTIVIRUS_IMAGE_NAME}
+    networks:
+      - clamav-nw
+    volumes:
+      - clamav-data:/var/lib/clamav
+    deploy:
+      labels:
+        - "traefik.enable=false"
+
+  antivirus:
+    image: ${ANTIVIRUS_REST_IMAGE_NAME}
+    depends_on:
+      - clamav
+    networks:
+      - dev_web-nw
+      - clamav-nw
+    environment:
+      - NODE_ENV=development
+      - CLAMD_IP=${STACK_NAME}_clamav
+      - APP_FORM_KEY=FILES
+      - APP_PORT=3020
+      - APP_MAX_FILES_NUMBER=10
+    deploy:
+      labels:
+        - "traefik.http.routers.${STACK_NAME}.entrypoints=http"
+        - "traefik.http.routers.${STACK_NAME}.service=${STACK_NAME}"
+        - "traefik.http.routers.${STACK_NAME}.rule=Host(`${CLAMAV_FQDN}`)"
+        - "traefik.http.routers.${STACK_NAME}.middlewares=${STACK_NAME}"
+        - "traefik.http.middlewares.${STACK_NAME}.headers.customrequestheaders.X-Forwarded-Proto=https"
+        - "traefik.http.middlewares.${STACK_NAME}.headers.customrequestheaders.X-Forwarded-Port=443"
+        - "traefik.http.services.${STACK_NAME}.loadbalancer.server.port=3020"
+        - "traefik.http.services.${STACK_NAME}.loadbalancer.server.scheme=http"
+        - "traefik.docker.network=dev_web-nw"
+
+volumes:
+  clamav-data:
+
+networks:
+  dev_web-nw:
+    external: true
+    name: dev_web-nw
+  clamav-nw:
+    internal: true

@@ -1,0 +1,76 @@
+version: "3.8"
+
+services:
+  s3:
+    image: ${MINIO_IMAGE_NAME}
+    networks:
+      - dev_web-nw
+    volumes:
+      - /dataminio/:/data/
+    environment:
+      MINIO_ROOT_USER: ${S3_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${S3_ROOT_PASSWORD}
+      # MINIO_SERVER_URL: http://127.0.0.1:9000
+      # Disable dashboard
+      # MINIO_BROWSER: 'off'
+    command: server /data --console-address ":9001"
+    deploy:
+      labels:
+        - "traefik.http.routers.${STACK_NAME}.entrypoints=http"
+        - "traefik.http.routers.${STACK_NAME}.service=${STACK_NAME}"
+        - "traefik.http.routers.${STACK_NAME}.rule=Host(`${S3_FQDN}`)"
+        - "traefik.http.services.${STACK_NAME}.loadbalancer.server.port=9001"
+        - "traefik.http.services.${STACK_NAME}.loadbalancer.server.scheme=http"
+        - "traefik.http.routers.${STACK_NAME}-serveur.entrypoints=http"
+        - "traefik.http.routers.${STACK_NAME}-serveur.service=${STACK_NAME}-serveur"
+        - "traefik.http.routers.${STACK_NAME}-serveur.rule=Host(`serveur-${S3_FQDN}`)"
+        - "traefik.http.services.${STACK_NAME}-serveur.loadbalancer.server.port=9000"
+        - "traefik.http.services.${STACK_NAME}-serveur.loadbalancer.server.scheme=http"
+        - "traefik.docker.network=dev_web-nw"
+
+  s3mc:
+    image: ${MINIO_MC_IMAGE_NAME}
+    depends_on:
+      - s3
+    networks:
+      - dev_web-nw
+    entrypoint: >
+      /bin/sh -c "
+      chmod +x /usr/bin/mc;
+      bash +o history;
+      until (mc alias set s3alias https://serveur-${S3_FQDN} ${S3_ROOT_USER} ${S3_ROOT_PASSWORD} --api S3v4) do echo '...waiting...' && sleep 1; done;
+      mc admin info s3alias;
+      mc admin user add s3alias ${S3_SUPPORT_USER} ${S3_SUPPORT_PASSWORD};
+      mc admin policy set s3alias diagnostics user=${S3_SUPPORT_USER};
+      mc admin user add s3alias ${S3_SERVICE_USER} ${S3_SERVICE_PASSWORD};
+      mc admin policy set s3alias readwrite user=${S3_SERVICE_USER};
+      bash -o history;
+      exit 0;
+      "
+  # minio_kes:
+  #   image: "minio/kes:latest"
+  #   expose:
+  #     - "https://play.min.io:7373"
+  #   environment:
+  #     KES_SERVER: "${KES_SERVER}"
+  #     KES_CLIENT_KEY: "${KES_CLIENT_KEY}"
+  #     KES_CLIENT_CERT: "${KES_CLIENT_CERT}"
+  #     KES_ROOT_IDENTITY: "${KES_ROOT_CERT}"
+  #   command: server --key="$KES_CLIENT_KEY" --cert="$KES_CLIENT_CERT" --root="$KES_ROOT_IDENTITY" --auth=off
+  #   networks:
+  #     - dev_web-nw
+
+networks:
+  # Minio internal network when dashboard is disabled
+  # dev_s3-nw:
+  #   internal: true
+  #   attachable: true
+  #   name: dev_s3-nw
+  dev_web-nw:
+    external: true
+    name: dev_web-nw
+
+## By default this config uses default local driver,
+## For custom volumes replace with volume driver configuration.
+volumes:
+  minio-data:

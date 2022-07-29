@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  webserver:
+    # build:
+    #   context: ./webserver-docker-context
+    #   dockerfile: ../webserver-dockerfile.yml
+    #   args:
+    #     WEBSERVER_BASE_IMAGE_NAME: nginx:1.14.2
+    image: ${WEBSITE_IMAGE_NAME}
+    #hostname: webserver
+    environment:
+      - GITLAB_PROJECT_PATH
+      - GITLAB_BRANCH
+      - IDP_FQDN
+      - MCM_IDP_REALM
+      - MCM_IDP_CLIENTID
+      - GK_FQDN
+      - MCM_GK_CLIENTID
+      - MATOMO_FQDN
+      - MATOMO_ID
+    configs:
+      - source: keycloak-json
+        target: /usr/share/nginx/html/keycloak.json
+      - source: netlifycms-config-yml
+        target: /usr/share/nginx/html/admin/config.yml
+    networks:
+      - dev_web-nw
+    deploy:
+      labels:
+        - 'traefik.http.routers.${STACK_NAME}-web.entrypoints=http'
+        - 'traefik.http.routers.${STACK_NAME}-web.service=${STACK_NAME}'
+        - 'traefik.http.routers.${STACK_NAME}-web.rule=Host(`${WEBSITE_FQDN}`)'
+        - 'traefik.http.routers.${STACK_NAME}-web.priority=1'
+        - 'traefik.http.routers.${STACK_NAME}-api.entrypoints=http'
+        - 'traefik.http.routers.${STACK_NAME}-api.service=${API_STACK_NAME}'
+        - 'traefik.http.routers.${STACK_NAME}-api.rule=Host(`${WEBSITE_FQDN}`) && PathPrefix(`/api/`)'
+        - 'traefik.http.routers.${STACK_NAME}-api.priority=2'
+        - 'traefik.http.routers.${STACK_NAME}-api.middlewares=${STACK_NAME}'
+        - 'traefik.http.middlewares.${STACK_NAME}.stripprefix.prefixes=/api'
+        - 'traefik.http.services.${STACK_NAME}.loadbalancer.server.port=80'
+        - 'traefik.http.services.${STACK_NAME}.loadbalancer.server.scheme=http'
+        - 'traefik.docker.network=dev_web-nw'
+
+configs:
+  keycloak-json:
+    template_driver: golang
+    file: ./keycloak.json
+    name: keycloak-json.${KEYCLOAK_JSON_VERSION}
+  netlifycms-config-yml:
+    template_driver: golang
+    file: ./netlifycms-config.yml
+    name: netlifycms-yml.${NETLIFYCMS_CONFIG_VERSION}
+
+networks:
+  dev_web-nw:
+    external: true
+    name: dev_web-nw

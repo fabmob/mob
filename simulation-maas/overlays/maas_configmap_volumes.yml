@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simulation-maas
+spec:
+  template:
+    spec:
+      containers:
+        - name: simulation-maas
+          volumeMounts:
+            - name: maas-config
+              mountPath: /usr/share/nginx/html/static/config.json
+              subPath: config.json
+      securityContext:
+        fsGroup: 1000
+      volumes:
+        - name: maas-config
+          configMap:
+            name: simulation-maas-config

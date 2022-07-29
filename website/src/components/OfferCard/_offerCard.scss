@@ -1,0 +1,63 @@
+.mcm-offer-card-content {
+  display: grid;
+  column-gap: 24px;
+  grid-template-columns: 341px 341px 341px;
+  margin-top: 40px;
+  row-gap: 24px;
+  width: 100%;
+}
+
+.mcm-offer-card {
+  background-color: var(--color-grey-ultralight);
+  border-radius: 8px;
+  padding: 24px 24px 20px 24px;
+}
+
+.mcm-offer-card-title {
+  font-size: 18px;
+  font-weight: bold;
+  white-space: pre-wrap;
+}
+
+.mcm-offer-card-comment {
+  color: var(--color-grey-dark);
+  font-size: 12px;
+  margin-top: 12px;
+  white-space: pre-wrap;
+}
+
+.mcm-offer-card-percentage {
+  display: flex;
+  margin-top: 12px;
+  &__percentageText {
+    color: var(--color-green-leaf);
+    font-size: 40px;
+    font-weight: bold;
+    margin-right: 24px;
+  }
+}
+
+@media screen and (max-width: 1023px) {
+  .mcm-offer-card-container {
+    width: 100%;
+    margin-left: -12px;
+    .mcm-offer-card-content {
+      white-space: nowrap;
+      overflow-x: scroll;
+      display: flex;
+      grid-template-columns: 0 0 0;
+      column-gap: 0;
+      row-gap: 0;
+      margin: var(--spacing-xs);
+      .mcm-offer-card {
+        display: inline-block;
+        margin-right: var(--spacing-s);
+        margin-bottom: var(--spacing-xxs);
+        width: 100%;
+        .mcm-progress-bar-container {
+          width: 120px;
+        }
+      }
+    }
+  }
+}

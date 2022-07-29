@@ -1,0 +1,15 @@
+.note-required-field {
+  color: var(--color-grey-dark);
+  font-size: small;
+  padding-left: var(--spacing-xs);
+}
+
+@media screen and (max-width: 1024px) {
+  .reverse-order {
+    display: flex;
+    flex-direction: column-reverse;
+  }
+  .margin-button {
+    margin-top: var(--spacing-xs);
+  }
+}

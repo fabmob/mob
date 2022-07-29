@@ -1,0 +1,5 @@
+{
+  "communautés.error": "Problème durant la récupération des communautés",
+  "communities.error.name.required": "Merci de renseigner le nom de la communauté",
+  "communities.error.name.unique": "Attention, ce nom de communauté est déjà utilisé"
+}

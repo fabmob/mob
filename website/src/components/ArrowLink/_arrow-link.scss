@@ -1,0 +1,38 @@
+.mcm-arrow-link {
+  display: flex;
+  align-items: center;
+
+  &__label {
+    margin-right: 20px;
+    padding-bottom: 4px;
+  }
+  &__icon {
+    padding: 8px 14px;
+    border: 1px solid white;
+    border-radius: 15px;
+    svg {
+      fill: white;
+      width: 22px;
+      height: 13px;
+    }
+  }
+  &:hover {
+    .mcm-arrow-link__icon {
+      animation-duration: 0.5s;
+      animation-name: bounce;
+    }
+  }
+}
+
+@keyframes bounce {
+  0% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(15px);
+  }
+
+  100% {
+    transform: translateX(0);
+  }
+}

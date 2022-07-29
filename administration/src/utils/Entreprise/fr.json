@@ -1,0 +1,6 @@
+{
+  "enterprises.error.required": "Attention, ce champ est obligatoire",
+  "enterprises.error.name.required": "Merci de renseigner le nom d'entreprise",
+  "enterprises.error.name.unique": "Attention, ce nom d'entreprise est déjà utilisé",
+  "enterprises.error.emailFormat.type": "Attention, un format d'email est invalide (@exemple.com)"
+}

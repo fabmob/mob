@@ -1,0 +1,229 @@
+.idp-base:
+    variables:
+        MODULE_NAME: idp
+        MODULE_PATH: ${MODULE_NAME}
+        MCM_IDP_REALM: ${MCM_IDP_REALM}
+        MCM_GK_CLIENTID: ${MCM_GK_CLIENTID}
+        MCM_GK_CLIENTSECRET: ${MCM_GK_CLIENTSECRET}
+        MCM_CMS_ACCESS_ROLE: ${MCM_CMS_ACCESS_ROLE}
+        MCM_CMS_GITLAB_TOKEN: ${MCM_CMS_GITLAB_TOKEN}
+        IDP_DATABASE_USER_NAME: ${IDP_DB_USER}
+        IDP_DATABASE_USER_PWD: ${IDP_DB_PASSWORD}
+        IDP_DATABASE_ROOT_PWD: ${IDP_DB_ROOT_PASSWORD}
+        IDP_DB_SERVICE_USER: ${IDP_DB_SERVICE_USER}
+        IDP_DB_SERVICE_PASSWORD: ${IDP_DB_SERVICE_PASSWORD}
+        NEXUS_POSTGRES_IMAGE_NAME: ${NEXUS_DOCKER_REGISTRY}/postgres:13.6
+        NEXUS_IMAGE_KEYCLOAK: ${NEXUS_DOCKER_REGISTRY}/jboss/keycloak:11.0.2
+    only:
+        changes:
+            - '*'
+            - 'commons/**/*'
+            - 'idp/**/*'
+
+.idp_init_vars: &idp_init_vars |
+    export GITLAB_IMAGE_PULL_SECRET_NAME=${IMAGE_PULL_SECRET_PREFIX}-${MODULE_NAME}
+    export KEYCLOAK_IMAGE_NAME=${REGISTRY_BASE_NAME}/keycloak:${IMAGE_TAG_NAME}
+    export GK_IMAGE_NAME=${REGISTRY_BASE_NAME}/louketo:${IMAGE_TAG_NAME}
+    export MCM_REALM_VERSION=${CI_PIPELINE_ID}
+    export POSTGRES_IMAGE_NAME=${REGISTRY_BASE_NAME}/postgres:${IMAGE_TAG_NAME}
+    export BASE_POSTGRES_IMAGE_NAME=${NEXUS_POSTGRES_IMAGE_NAME}
+
+postgres_image_build:
+    extends:
+        - .idp-base
+        - .image-job
+        - .except-clean
+        - .no-needs
+    script:
+        - *idp_init_vars
+        - |
+          cd idp
+          image
+
+# .idp_gk_fetch_script: &idp_gk_fetch_script |
+#     apk add git
+#     git clone https://github.com/louketo/louketo-proxy.git
+
+# idp_gk_fetch:
+#     extends:
+#         - .build-job
+#         - .idp-base
+#         - .no-needs
+#     script:
+#         - *idp_init_vars
+#         - *idp_gk_fetch_script
+#     artifacts:
+#         paths:
+#             - ${MODULE_PATH}/louketo-proxy
+
+# .idp_gk_image_script: &idp_gk_image_script |
+#     docker pull ${NEXUS_DOCKER_REGISTRY_URL}/golang:1.14.4
+#     docker build -f ./louketo-proxy/Dockerfile -t ${GK_IMAGE_NAME} ./louketo-proxy/
+#     docker push ${GK_IMAGE_NAME}
+
+# idp_gk_image_build:
+#     extends:
+#         - .image-job
+#         - .except-clean
+#         - .idp-base
+#     script:
+#         - *idp_init_vars
+#         - image
+#         - *idp_gk_image_script
+#     needs: [ "idp_gk_fetch" ]
+
+.idp_image_script: &idp_image_script |
+    export GITLAB_IMAGE_PULL_SECRET_NAME=${IMAGE_PULL_SECRET_PREFIX}-${MODULE_NAME}
+    export WEBSITE_FQDN=${WEBSITE_FQDN}
+    export API_FQDN=${API_FQDN}
+    export IDP_FQDN=${IDP_FQDN}
+    export GK_FQDN=${GK_FQDN}
+
+idp_image_build:
+    extends:
+        - .image-job
+        - .except-clean
+        - .idp-base
+    script:
+        - *idp_init_vars
+        - image
+        # - *idp_image_script
+    # needs: ['idp_gk_fetch']
+
+# Build of api image and deploy towards differents productions
+.idp_deploy_script: &idp_deploy_script |
+    export MCM_REALM_VERSION=${CI_PIPELINE_ID}
+    # MCM REALM
+    sed -i 's/%CLIENT_SECRET_KEY_KEYCLOAK_API%/'${CLIENT_SECRET_KEY_KEYCLOAK_API}'/g' overlays/mcm-realm.json
+    sed -i 's/%CLIENT_SECRET_KEY_KEYCLOAK_SIMULATION_MAAS_BACKEND%/'${CLIENT_SECRET_KEY_KEYCLOAK_SIMULATION_MAAS_BACKEND}'/g' overlays/mcm-realm.json
+    sed -i 's/%CLIENT_SECRET_KEY_KEYCLOAK_SIRH%/'${SIRH_SECRET_KEY}'/g' overlays/mcm-realm.json
+    sed -i 's/%SIMULATION_MAAS_FQDN%/https:\/\/'${SIMULATION_MAAS_FQDN}'\/*/g' overlays/mcm-realm.json
+    sed -i 's/%WEBSITE_FQDN%/https:\/\/'${WEBSITE_FQDN}'\/*/g' overlays/mcm-realm.json
+    sed -i 's/%API_FQDN%/https:\/\/'${API_FQDN}'\/*/g' overlays/mcm-realm.json
+    sed -i 's/%ADMINISTRATION_FQDN%/https:\/\/'${ADMIN_FQDN}'\/*/g' overlays/mcm-realm.json
+
+    if [ ${LANDSCAPE} == "preview" ]
+    then
+        while [ -z "$(pod_namespace mailhog)" ]
+        do
+            echo "Wait mailhog"
+            sleep 10
+        done
+        export KUBERNETES_MAILHOG_NAMESPACE=$(pod_namespace mailhog)
+        echo "this new mh host = ${KUBERNETES_MAILHOG_NAMESPACE}"
+        export MAILHOG_HOST=mailhog.${KUBERNETES_MAILHOG_NAMESPACE}.svc.cluster.local
+        echo "this new mh host = ${MAILHOG_HOST}"
+        sed -i 's/%MAIL_HOST%/'${MAILHOG_HOST}'/g' overlays/mcm-realm.json
+        sed -i 's/%EMAIL_FROM_KC%/'${MAILHOG_EMAIL_FROM_KC}'/g' overlays/mcm-realm.json
+        sed -i 's/%MAIL_PORT%/1025/g' overlays/mcm-realm.json
+        sed -i 's/%SMTP_AUTH%/false/g' overlays/mcm-realm.json
+    else
+        sed -i 's/%MAIL_API_KEY%/'${SENDGRID_API_KEY}'/g' overlays/mcm-realm.json
+        sed -i 's/%MAIL_HOST%/'${SENDGRID_HOST}'/g' overlays/mcm-realm.json
+        sed -i 's/%MAIL_PORT%/'${SENDGRID_PORT}'/g' overlays/mcm-realm.json
+        sed -i 's/%EMAIL_FROM_KC%/'${SENDGRID_EMAIL_FROM_KC}'/g' overlays/mcm-realm.json
+        sed -i 's/%SMTP_AUTH%/true/g' overlays/mcm-realm.json
+        sed -i 's/%MAIL_USER%/'${SENDGRID_USER}'/g' overlays/mcm-realm.json
+    fi
+
+    ### IDENTITY PROVIDER ###
+    if [ ${LANDSCAPE} == "preview" ] || [ ${LANDSCAPE} == "testing" ]
+    then
+        # MCM REALM
+        sed -i 's/%MCM_IDENTITY_PROVIDER_ID%/'${IDP_MCM_IDENTITY_PROVIDER_ID}'/g' overlays/mcm-realm.json
+        sed -i 's/%MCM_IDENTITY_PROVIDER_SECRET%/'${IDP_MCM_IDENTITY_PROVIDER_SECRET}'/g' overlays/mcm-realm.json
+
+        # MASTER REALM
+        sed -i 's/%MASTER_IDENTITY_PROVIDER_ID%/'${IDP_MCM_IDENTITY_PROVIDER_ID}'/g' overlays/master-realm.json
+        sed -i 's/%MASTER_IDENTITY_PROVIDER_SECRET%/'${IDP_MCM_IDENTITY_PROVIDER_SECRET}'/g' overlays/master-realm.json
+    fi
+
+    if [ ${LANDSCAPE} == "preprod"]
+    then
+        # MCM REALM
+        sed -i 's/%MCM_IDENTITY_PROVIDER_ID%/'${PPRD_IDP_MCM_IDENTITY_PROVIDER_ID}'/g' overlays/mcm-realm.json
+        sed -i 's/%MCM_IDENTITY_PROVIDER_SECRET%/'${PPRD_IDP_MCM_IDENTITY_PROVIDER_SECRET}'/g' overlays/mcm-realm.json
+
+        # MASTER REALM
+        sed -i 's/%MASTER_IDENTITY_PROVIDER_ID%/'${PPRD_IDP_MCM_IDENTITY_PROVIDER_ID}'/g' overlays/master-realm.json
+        sed -i 's/%MASTER_IDENTITY_PROVIDER_SECRET%/'${PPRD_IDP_MCM_IDENTITY_PROVIDER_SECRET}'/g' overlays/master-realm.json
+    fi
+
+    if [ ${LANDSCAPE} == "prod"]
+    then
+        # MCM REALM
+        sed -i 's/%MCM_IDENTITY_PROVIDER_ID%/'${PROD_IDP_MCM_IDENTITY_PROVIDER_ID}'/g' overlays/mcm-realm.json
+        sed -i 's/%MCM_IDENTITY_PROVIDER_SECRET%/'${PROD_IDP_MCM_IDENTITY_PROVIDER_SECRET}'/g' overlays/mcm-realm.json
+
+        # MASTER REALM
+        sed -i 's/%MASTER_IDENTITY_PROVIDER_ID%/'${PROD_IDP_MCM_IDENTITY_PROVIDER_ID}'/g' overlays/master-realm.json
+        sed -i 's/%MASTER_IDENTITY_PROVIDER_SECRET%/'${PROD_IDP_MCM_IDENTITY_PROVIDER_SECRET}'/g' overlays/master-realm.json
+    fi
+
+
+    ### REALM STRATEGY ###
+    export MIGRATION_STRATEGY_REALM=IGNORE_EXISTING
+    if [ "$MIGRATION_STRATEGY" == "yes" ]
+    then
+        echo "Migration strategy override"
+        export MIGRATION_STRATEGY_REALM=OVERWRITE_EXISTING
+    fi
+
+    # CONCATENATE REALMS INTO ONE
+    jq -s '.' overlays/*-realm.json > overlays/all-realm.json
+
+
+idp_preview_deploy:
+    extends:
+        - .preview-deploy-job
+        - .idp-base
+    script:
+        - *idp_init_vars
+        - *idp_deploy_script
+        - |
+            wait_pod mailhog
+            deploy
+            wait_pod postgres-keycloak
+            config_volume postgres-keycloak-data
+    needs: [ "idp_image_build"  ]
+    environment:
+        on_stop: idp_preview_cleanup
+
+idp_testing_deploy:
+    extends:
+        - .testing-deploy-job
+        - .idp-base
+    script:
+        - *idp_init_vars
+        - *idp_deploy_script
+        - |
+            deploy ./kompose-testing.yml
+    needs: [ "idp_image_build"  ]
+    environment:
+        on_stop: idp_testing_cleanup
+
+idp_clean_data:
+    extends:
+        - .postgres-clean-data
+        - .manual
+
+# Deploy for DevOps : manifests to ops git repository
+idp_release:
+  extends:
+    - .handover-job
+    - .idp-base
+
+# Cleanup : undeploy of image
+idp_testing_cleanup:
+    extends:
+        - .testing-undeploy-job
+        - .idp-base
+
+idp_preview_cleanup:
+    extends:
+        - .preview-undeploy-job
+        - .idp-base
+    script:
+        - |
+          delete_volume mariadb-keycloak-data
+          undeploy

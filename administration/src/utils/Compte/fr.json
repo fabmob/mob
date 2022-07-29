@@ -1,0 +1,6 @@
+{
+  "password.error.format": "Attention, le format de votre mot de passe est incorrect",
+  "email.error.unique": "Attention, cette adresse mail est déjà utilisée par une autre personne",
+  "email.error.format": "Attention, le format de votre email est incorrect",
+  "email.error.emailFormat": "Attention, le format de votre email n'est pas adéquat avec le format d'adresse de votre employeur"
+}

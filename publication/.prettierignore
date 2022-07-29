@@ -1,0 +1,4 @@
+.cache
+.gitlab-ci.yml
+coverage
+.scannerwork

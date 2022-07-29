@@ -1,0 +1,32 @@
+{
+  "subscription.processRequest.crumb.label.new.request": "Nouvelle demande",
+  "subscription.processRequest.visualize": "Veuillez vérifier que les informations et justificatifs fournis sont en adéquation avec les conditions d'obtention de l'aide.",
+  "subscription.processRequest.validate": "Les informations fournies sont conformes aux conditions d'obtention de l'aide",
+  "subscription.processRequest.reject": "Le rejet de cette demande d'aide entrainera la suppresion des informations et justificatifs envoyés. Seul le motif de rejet sera conservé dans MOB",
+  "subscription.processRequest.confirmValidate": "L'aide a bien été activée",
+  "subscription.processRequest.confirmReject": "La demande d'aide a bien été rejetée",
+  "subscription.processRequest.confirmValidate.modal.title": "Activer le dispositif",
+  "subscription.processRequest.confirmValidate.modal.button.submit": "Oui, activer le dispositif",
+  "subscription.processRequest.confirmValidate.modal.button.cancel": "Annuler",
+  "subscription.processRequest.confirmReject.modal.title": "Rejeter la demande",
+  "subscription.processRequest.confirmReject.modal.button.submit": "Oui, rejeter cette demande",
+  "subscription.processRequest.confirmReject.modal.button.cancel": "Annuler",
+  "subscription.processRequest.confirmReject.modal.body": "Êtes-vous sûr de vouloir rejeter cette demande ?",
+  "subscription.processRequest.confirmValidate.modal.children.mode": "Êtes-vous sûr de vouloir activer ce dispositif d’aide ",
+  "subscription.processRequest.confirmValidate.modal.mode.none": "sans aucun versement ?",
+  "subscription.processRequest.confirmValidate.modal.mode.single": "avec un montant de: {montant}€ ?",
+  "subscription.processRequest.confirmValidate.modal.mode.multiple": "avec un montant de: {montant}€ / {frequence} avec une date de fin de validité au {date} ?",
+  "request.validate.heading.title": "Modalités du financement de l'aide",
+  "subscription.processRequest.return.button": "Retour à l'étape précédente",
+  "subscription.processRequest.refuse.button": "Refuser la demande",
+  "subscription.processRequest.validate.button": "Activer l'aide",
+  "request.confirm.button.admin.another.helps": "Administrer d'autres aides",
+  "request.information.to.verify": "Informations à vérifier",
+  "request.information.no.informations.to.verify": "Pas d'informations à verifier",
+  "request.information.obligatory.proof": "Justificatifs obligatoires",
+  "request.information.no.file.to.download": "Pas de fichiers telechargables",
+  "request.information.reject.request": "Rejeter la demande",
+  "request.information.validate.informations.conforrmity": "Valider la conformité des informations"
+
+} 
+

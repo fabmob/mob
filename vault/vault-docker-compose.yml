@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  vault:
+    image: ${VAULT_IMAGE_NAME}
+    networks:
+      - dev_web-nw
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_LOCAL_CONFIG: '{"backend": {"file": {"path": "/vault/file"}}, "default_lease_ttl": "168h", "max_lease_ttl": "720h"}'
+    deploy:
+      labels:
+        - 'traefik.http.routers.${STACK_NAME}.entrypoints=http'
+        - 'traefik.http.routers.${STACK_NAME}.service=${STACK_NAME}'
+        - 'traefik.http.routers.${STACK_NAME}.rule=Host(`${VAULT_FQDN}`)'
+        #- "traefik.http.routers.${STACK_NAME}.tls=true"
+        #- "traefik.http.routers.${STACK_NAME}.tls.certresolver=le"
+        - 'traefik.http.services.${STACK_NAME}.loadbalancer.server.port=8200'
+        - 'traefik.http.services.${STACK_NAME}.loadbalancer.server.scheme=http'
+        - 'traefik.docker.network=dev_web-nw'
+
+networks:
+  dev_web-nw:
+    external: true
+    name: dev_web-nw

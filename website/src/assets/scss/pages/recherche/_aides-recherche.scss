@@ -1,0 +1,75 @@
+.mcm-aides {
+  &__header {
+    width: 100%;
+
+    .page-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      text-align: center;
+      max-width: 650px;
+    }
+
+    p {
+      text-align: center;
+      max-width: 650px;
+    }
+  }
+
+  &__body {
+    background: var(--color-grey-ultralight);
+
+    .mcm-dispositifs {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(295px, 1fr));
+      grid-gap: 24px;
+      padding: var(--spacing-m) 0 var(--spacing-xl);
+    }
+  }
+
+  .search-section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+.mcm-filters {
+  display: block;
+
+  @media screen and (min-width: 720px) {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: var(--spacing-s);
+  }
+
+  &__dropdown {
+    width: 100%;
+    @media screen and (min-width: 720px) {
+      width: 320px;
+    }
+    .field.field__select > div > div {
+      margin-top: 0;
+    }
+    .checkbox-radio {
+      margin-top: 0;
+    }
+    .field__label {
+      font-weight: 600;
+      font-size: 16px;
+    }
+  }
+}
+
+.load-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: calc(var(--spacing-xl) * -1);
+  padding: var(--spacing-m) 0;
+}

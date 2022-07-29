@@ -1,0 +1,24 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: vault
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  entryPoints:
+    - web
+    # - websecure
+  routes:
+    - match: Host(`${VAULT_FQDN}`)
+      kind: Rule
+      services:
+        - kind: Service
+          name: vault
+          port: 8200
+  # tls:
+  #   secretName: ${SECRET_NAME} # vault-tls #cert-dev
+  #   domains:
+  #     - main: ${BASE_DOMAIN}
+  #       sans:
+  #         - "*.preview.${BASE_DOMAIN}"
+  #         - "*.testing.${BASE_DOMAIN}"

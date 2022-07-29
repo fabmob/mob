@@ -1,0 +1,16 @@
+{
+  "failOnStatusCode": false,
+  "chromeWebSecurity": false,
+  "redirectionLimit": 20,
+  "integrationFolder": "./cypress/integration/functional-tests/test-mcm/",
+  "screenshotsFolder": "./cypress/integration/functional-tests/screenshots/",
+  "videosFolder": "./cypress/integration/functional-tests/videos",
+  "pluginsFile": "./cypress/plugins/index.js",
+  "screenshotOnRunFailure": true,
+  "supportFile": "./cypress/support/index.js",
+  "retries": {
+    "runMode": 2,
+    "openMode": 1
+  },
+  "reporter": "mochawesome"
+}

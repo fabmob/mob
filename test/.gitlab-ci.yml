@@ -1,0 +1,127 @@
+.test-base:
+  variables:
+    MODULE_NAME: test
+    MODULE_PATH: ${MODULE_NAME}
+    POSTMAN_IMAGE_NAME: ${NEXUS_DOCKER_REGISTRY_URL}/postman/newman:5
+    CYPRESS_IMAGE_NAME: ${NEXUS_DOCKER_REGISTRY}/cypress/browsers:node16.14.0-chrome99-ff97
+  only:
+    changes:
+      - "*"
+      - "commons/**/*"
+      - "test/**/*"
+
+.cypress_env_setup: &cypress_env_setup |
+  export CYPRESS_API_FQDN=${API_FQDN}
+  export CYPRESS_IDP_FQDN=${IDP_FQDN}
+  export CYPRESS_WEBSITE_FQDN=${WEBSITE_FQDN}
+  export CYPRESS_ADMIN_FQDN=${ADMIN_FQDN}
+  export CYPRESS_STUDENT_PASSWORD=${CITOYEN_PASSWORD}
+
+.test_prime_preview_script: &test_prime_preview_script |
+  sed -i "s/%API_BASE_URL%/https:\/\/${API_FQDN}/g" api-tests/mcm.postman_environment.json;
+  sed -i "s/%IDP_BASE_URL%/https:\/\/${IDP_FQDN}/g" api-tests/mcm.postman_environment.json;
+  sed -i "s/%CLIENT_SECRET_KEY_KEYCLOAK_SIMULATION_MAAS_BACKEND%/${CLIENT_SECRET_KEY_KEYCLOAK_SIMULATION_MAAS_BACKEND}/g" api-tests/mcm.postman_environment.json;
+  sed -i "s/%ADMIN_USERNAME%/${KEYCLOAK_USER}/g" api-tests/mcm.postman_environment.json;
+  sed -i "s/%ADMIN_PASSWORD%/${KEYCLOAK_PASSWORD}/g" api-tests/mcm.postman_environment.json;
+  sed -i "s/%ADMIN_FONCTIONNEL_PASSWORD%/${ADMIN_FONCTIONNEL_PASSWORD}/g" api-tests/mcm.postman_environment.json;
+  sed -i "s/%UTILISATEUR_FINANCEUR_PASSWORD%/${UTILISATEUR_FINANCEUR_PASSWORD}/g" api-tests/mcm.postman_environment.json;
+  sed -i "s/%CITOYEN_PASSWORD%/${CITOYEN_PASSWORD}/g" api-tests/mcm.postman_environment.json;
+  sed -i "s/%API_KEY%/${API_KEY}/g" api-tests/mcm.postman_environment.json;
+  newman run api-tests/MCM.postman_collection.json -e api-tests/mcm.postman_environment.json;
+
+test_prime_preview:
+  extends:
+    - .commons
+    - .preview-env-vars
+    - .image-job
+    - .preview-deploy-tags
+    - .test-base
+    - .manual
+  image: ${POSTMAN_IMAGE_NAME}
+  stage: prime_preview
+  script:
+    - *test_prime_preview_script
+  allow_failure: true
+  except:
+    variables:
+      - $CLEAN_DATA != "yes"
+
+test_generate_prime_preview:
+  extends:
+    - .commons
+    - .preview-env-vars
+    - .image-job
+    - .preview-deploy-tags
+    - .test-base
+    - .manual
+  image: ${POSTMAN_IMAGE_NAME}
+  stage: prime_preview
+  script:
+    - *test_prime_preview_script
+  except:
+    variables:
+      - $CLEAN_DATA == "yes"
+
+.cypress_env_setup: &cypress_env_setup |
+  export CYPRESS_API_FQDN=${API_FQDN}
+  export CYPRESS_IDP_FQDN=${IDP_FQDN}
+  export CYPRESS_WEBSITE_FQDN=${WEBSITE_FQDN}
+  export CYPRESS_ADMIN_FQDN=${ADMIN_FQDN}
+  export CYPRESS_STUDENT_PASSWORD=${CITOYEN_PASSWORD}
+
+.smoke_tests_script: &smoke_tests_script |
+  cd ${MODULE_PATH}
+  npx cypress run \
+  --spec "cypress/integration/smoke-tests/test-mcm/smoke_test.spec.js" \
+  --config-file cypress-smoke.json \
+  --browser chrome | tee cypress-smoke-tests.log
+  cat cypress-smoke-tests.log
+
+.smoke_tests_script: &smoke_tests_script |
+  cd ${MODULE_PATH}
+  npm i mochawesome lodash del --save-dev
+  npx cypress run \
+  --spec "cypress/integration/smoke-tests/test-mcm/smoke_test.spec.js" \
+  --config-file cypress-smoke.json \
+  --browser chrome | tee cypress-smoke-tests.log
+  cat cypress-smoke-tests.log
+
+smoke_tests:
+  extends:
+    - .preview-env-vars
+    - .test-base
+    - .manual
+  image: ${CYPRESS_IMAGE_NAME}
+  stage: smoke-test
+  script:
+    - *cypress_env_setup
+    - *smoke_tests_script
+  artifacts:
+    when: always
+    paths:
+      - ${MODULE_PATH}/cypress-smoke-tests.log
+
+.functional_tests_script: &functional_tests_script |
+  cd ${MODULE_PATH}
+  npm i random-email
+  npx cypress run \
+  --spec "cypress/integration/functional-tests/test-mcm/*" \
+  --config-file cypress-functional.json \
+  --browser chrome | tee cypress-functional-tests.log
+  cat cypress-functional-tests.log
+
+functional_tests:
+  extends:
+    - .preview-env-vars
+    - .test-base
+    - .manual
+  image: ${CYPRESS_IMAGE_NAME}
+  stage: functional-test
+  script:
+    - *cypress_env_setup
+    - *functional_tests_script
+  artifacts:
+    when: always
+    paths:
+      - ${MODULE_PATH}/cypress-functional-tests.log
+      - ${MODULE_PATH}/cypress/integration/smoke-tests/screenshots/**/*.png

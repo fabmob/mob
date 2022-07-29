@@ -1,0 +1,74 @@
+{
+  "name": "administration",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@material-ui/core": "^4.11.4",
+    "@material-ui/icons": "^4.11.2",
+    "@react-keycloak/web": "^3.4.0",
+    "@testing-library/jest-dom": "^5.11.4",
+    "@testing-library/react": "^11.1.0",
+    "@testing-library/user-event": "^12.1.10",
+    "@types/jest": "^26.0.15",
+    "@types/node": "^12.0.0",
+    "@types/react": "^17.0.0",
+    "@types/react-dom": "^17.0.0",
+    "axios": "^0.21.1",
+    "final-form": "^4.20.2",
+    "keycloak-js": "^13.0.1",
+    "ra-data-json-server": "^3.15.2",
+    "ra-i18n-polyglot": "^3.16.3",
+    "ra-in-memory-jwt": "^1.0.0",
+    "ra-language-english": "^3.16.3",
+    "ra-language-french": "^3.16.3",
+    "react": "^17.0.2",
+    "react-admin": "^3.15.2",
+    "react-admin-lb4": "^1.0.3",
+    "react-dom": "^17.0.2",
+    "react-final-form": "^6.5.3",
+    "react-query": "^3.32.1",
+    "react-scripts": "^4.0.3",
+    "react-select": "^4.3.1",
+    "typescript": "^4.1.2",
+    "web-vitals": "^1.0.1"
+  },
+  "scripts": {
+    "start": "set PORT=3001 && react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "format": "npm run prettier:fix && npm run lint:fix",
+    "lint": "eslint src/* --ext js,ts,tsx",
+    "lint:fix": "npm run lint -- --fix",
+    "prettier": "prettier -c",
+    "prettier:fix": "npm run prettier -- --write"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^4.27.0",
+    "@typescript-eslint/parser": "^4.27.0",
+    "eslint": "^7.28.0",
+    "eslint-config-airbnb": "^18.2.1",
+    "eslint-config-airbnb-typescript": "^12.3.1",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-import-resolver-alias": "^1.1.2",
+    "eslint-import-resolver-typescript": "^2.4.0",
+    "eslint-plugin-import": "^2.23.4",
+    "eslint-plugin-jsx-a11y": "^6.4.1",
+    "eslint-plugin-prettier": "^3.4.0",
+    "eslint-plugin-react": "^7.24.0",
+    "eslint-plugin-react-hooks": "^4.2.0",
+    "prettier": "^2.3.0"
+  }
+}

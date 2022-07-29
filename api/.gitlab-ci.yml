@@ -1,0 +1,223 @@
+# Initialisation of specifique api variable
+.api-base:
+  variables:
+    MODULE_NAME: api
+    MODULE_PATH: ${MODULE_NAME}
+    S3_ROOT_USER: ${S3_ROOT_USER}
+    S3_ROOT_PASSWORD: ${S3_ROOT_PASSWORD}
+    MONGO_SERVICE_NAME: mongo
+    MONGO_USER: ${MONGO_USER}
+    MONGO_PWD: ${MONGO_PASSWORD}
+    COMMON_NAME: common
+    AFFILIATION_JWS_KEY: ${AFFILIATION_JWS_KEY}
+    IDP_DB_DATABASE_NAME: idp_db
+    IDP_DB_USER: ${IDP_DB_SERVICE_USER}
+    IDP_DB_PWD: ${IDP_DB_SERVICE_PASSWORD}
+    KUBERNETES_IDP_DB_NAMESPACE: ${KUBERNETES_IDP_DB_NAMESPACE}
+    KUBERNETES_BUS_NAMESPACE: ${KUBERNETES_BUS_NAMESPACE}
+    NEXUS_IMAGE_MONGO: ${NEXUS_DOCKER_REGISTRY}/mongo:5.0.6
+  only:
+    changes:
+      - '*'
+      - 'commons/**/*'
+      - 'api/**/*'
+
+# Build of testing environement image and creation of the cache
+.api_build_script: &api_build_script |
+  yarn install
+
+api_build:
+  extends:
+    - .build-job
+    - .api-base
+    - .no-needs
+  script:
+    - *api_build_script
+  cache:
+    key: ${MODULE_NAME}-${CI_COMMIT_REF_SLUG}
+    paths:
+      - ${MODULE_PATH}/node_modules/
+      - ${MODULE_PATH}/yarn.lock
+  artifacts:
+    paths:
+      - ${MODULE_PATH}/node_modules/
+      - ${MODULE_PATH}/yarn.lock
+
+# Build of api image and deploy towards differents productions
+.api_init_vars: &api_init_vars |
+  export GITLAB_IMAGE_PULL_SECRET_NAME=${IMAGE_PULL_SECRET_PREFIX}-${MODULE_NAME}
+  export PROD_MONGO_SERVICE_PORT=${PROD_MONGO_SERVICE_PORT}
+  export API_IMAGE_NAME=${REGISTRY_BASE_NAME}/api:${IMAGE_TAG_NAME}
+  export MONGO_IMAGE_NAME=${REGISTRY_BASE_NAME}/mongo:${IMAGE_TAG_NAME}
+  export KUBERNETES_IDP_DB_NAMESPACE=${KUBERNETES_IDP_DB_NAMESPACE}
+  export KUBERNETES_BUS_NAMESPACE=${KUBERNETES_BUS_NAMESPACE}
+  export S3_SERVEUR_FQDN=serveur-${S3_FQDN}
+
+mongo_image_build:
+  extends:
+    - .api-base
+    - .image-job
+    - .except-clean
+    - .no-needs
+  script:
+    - *api_init_vars
+
+# Unit test of api with the yarn cache
+.api_test_script: &api_test_script |
+  yarn test --reporter mocha-junit-reporter --reporter-options mochaFile=./junit.xml
+  yarn coverage
+
+api_test:
+  image: ${TEST_IMAGE_NAME}
+  extends:
+    - .test-job
+    - .api-base
+  script:
+    - *api_test_script
+  artifacts:
+    when: always
+    paths:
+      - ${MODULE_PATH}/coverage/lcov.info
+  needs: ['api_build']
+
+# Quality of code test in sonarqube with verify-job from common
+api_verify:
+  extends:
+    - .verify-job
+    - .api-base
+  variables:
+    SONAR_SOURCES: .
+    SONAR_EXCLUSIONS: 'sonar.exclusions=**/node_modules/**, dist/**, databaseConfig/**, public/**, coverage/**, **/__tests__/**, **.yml, **.json, **.md, eslintrc.js'
+    SONAR_CPD_EXCLUSIONS: '**/__tests__/**, src/datasources/**, src/models/**, src/repositories/**'
+  needs: ['sonarqube-verify-image-build', 'api_test']
+
+# Static Application Security Testing for know vulnerabilities
+api_sast:
+  extends:
+    - .sast-job
+    - .build-n-sast-job-tags
+    - .api-base
+    - .manual
+    - .only-testing
+  artifacts:
+    paths:
+      - ${MODULE_PATH}/node_modules/
+  needs: ['api_build']
+
+.api_documentation_script: &api_documentation_script |
+  yarn add curl
+  API_FQDN=https://api-${CI_COMMIT_REF_SLUG}.preview.${BASE_DOMAIN}
+  echo "this is api fqdn = ${API_FQDN}"
+  export OPENAPI_MAAS=${API_FQDN}/openapi.json
+  echo "$(curl --insecure $OPENAPI_MAAS)" > openapi.json
+  chmod u+x api/openapi-maas.js
+  node ./api/openapi-maas.js
+  ls -lart
+
+api_documentation:
+  extends:
+    - .api-base
+    - .manual
+    - .except-clean-or-skip
+  stage: prime_preview
+  image: ${NEXUS_DOCKER_REGISTRY}/node:14.4-stretch
+  script:
+    - *api_documentation_script
+  artifacts:
+    when: always
+    paths:
+      - openapi-maas.json
+
+api_image_build:
+  extends:
+    - .image-job
+    - .except-clean
+    - .api-base
+  script:
+    - *api_init_vars
+    - |
+      image
+  needs: ['api_build']
+
+.api_deploy_script: &api_deploy_script |
+  if [ $LANDSCAPE == "preview" ]
+  then
+    wait_pod mailhog
+    export KUBERNETES_MAILHOG_NAMESPACE=$(pod_namespace mailhog)
+    echo "this new mh host = ${KUBERNETES_MAILHOG_NAMESPACE}"
+    export MAILHOG_HOST=mailhog.${KUBERNETES_MAILHOG_NAMESPACE}.svc.cluster.local
+    echo "this new mh host = ${MAILHOG_HOST}"
+  fi
+
+api_preview_deploy:
+  extends:
+    - .preview-deploy-job
+    - .api-base
+  script:
+    - *api_init_vars
+    - *api_deploy_script
+    - |
+      wait_pod postgres-keycloak
+      wait_pod mailhog
+      KUBERNETES_IDP_DB_NAMESPACE=$(pod_namespace postgres-keycloak)
+      echo $KUBERNETES_IDP_DB_NAMESPACE
+      KUBERNETES_BUS_NAMESPACE=$(kubectl get pods -o wide --all-namespaces | grep arnaud | grep bus | awk '{ print $1 }')
+      echo $KUBERNETES_BUS_NAMESPACE
+      deploy
+      config_volume mongo
+  environment:
+    on_stop: api_preview_cleanup
+  needs: ['api_image_build']
+
+api_testing_deploy:
+  extends:
+    - .testing-deploy-job
+    - .api-base
+  script:
+    - *api_init_vars
+    - |
+      KUBERNETES_BUS_NAMESPACE=$(kubectl get pods -o wide --all-namespaces | grep arnaud | grep bus | awk '{ print $1 }')
+      deploy ./kompose-testing.yml
+  environment:
+    on_stop: api_testing_cleanup
+  needs: ['api_image_build']
+
+api_preprod_deploy:
+  extends:
+    - .preprod-deploy-job
+    - .api-base
+  script:
+    - *api_init_vars
+    - |
+      kubectl get pods -o wide --all-namespaces | grep mongo-preprod | awk '{ print $1 }'
+      echo "Get the namespace of mongo-preprod for connexion"
+      export KUBERNETES_MONGO_NAMESPACE=$(kubectl get pods -o wide --all-namespaces | grep mongo-preprod | awk '{ print $1 }')
+      echo $KUBERNETES_MONGO_NAMESPACE
+      deploy ./kompose-prod.yml
+  needs: ['api_image_build']
+
+# Deploy for DevOps : manifests to ops git repository
+api_release:
+  extends:
+    - .handover-job
+    - .api-base
+
+api_clean_data:
+  extends:
+    - .mongo-clean-data
+    - .manual
+
+# Cleanup : undeploy of image
+api_preview_cleanup:
+  extends:
+    - .preview-undeploy-job
+    - .api-base
+  script:
+    - |
+      delete_volume mongo-data
+      undeploy
+
+api_testing_cleanup:
+  extends:
+    - .testing-undeploy-job
+    - .api-base

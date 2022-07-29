@@ -1,0 +1,8 @@
+{
+  "pro.form.label.company": "Renseignez votre entreprise",
+  "pro.form.placeholder.company": "Votre entreprise",
+  "pro.form.label.no.company": "Je ne trouve pas mon entreprise / Je n'ai pas d'entreprise",
+  "pro.form.label.email": "Adresse email professionnelle",
+  "pro.form.placeholder.email": "Je n'ai pas d'email professionnel",
+  "pro.form.label.no.email": "Je n'ai pas d'email professionnel"
+}

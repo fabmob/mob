@@ -1,0 +1,96 @@
+version: '3'
+
+services:
+  mongo:
+    image: ${MONGO_IMAGE_NAME}
+    build:
+      context: .
+      dockerfile: ./mongo-dockerfile.yml
+      args:
+        BASE_IMAGE_MONGO: ${NEXUS_IMAGE_MONGO}
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGO_INITDB_DATABASE=${MONGO_DB_NAME}
+      - MONGO_INITDB_NON_ROOT_USERNAME=${MONGO_SERVICE_USER}
+      - MONGO_INITDB_NON_ROOT_PASSWORD=${MONGO_SERVICE_PASSWORD}
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - storage-nw
+    ports:
+      - '27017'
+    labels:
+      - 'kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}'
+      - 'kompose.service.type=clusterip'
+      - 'traefik.enable=false'
+      # - 'kompose.volume.size=500Mi'
+
+  api:
+    depends_on:
+      - mongo
+    image: ${API_IMAGE_NAME}
+    build:
+      context: .
+      dockerfile: ./api-dockerfile.yml
+      args:
+        NODE_IMAGE_NAME: ${BUILD_IMAGE_NAME}
+        CI_PROJECT_ID: ${CI_PROJECT_ID}
+        MCM_GITLAB_DEPLOY_NPM_TOKEN: ${MCM_GITLAB_DEPLOY_NPM_TOKEN}
+        NEXUS_NPM_PROXY_TOKEN: ${NEXUS_NPM_PROXY_TOKEN}
+    environment:
+      - MONGO_AUTH_SOURCE=${MONGO_DB_NAME}
+      - MONGO_HOST=${MONGO_SERVICE_NAME}
+      - MONGO_PORT=27017
+      - MONGO_SERVICE_USER
+      - MONGO_SERVICE_PASSWORD
+      - MONGO_DATABASE=${MONGO_DB_NAME}
+      - IDP_DB_HOST=postgres-keycloak.${KUBERNETES_IDP_DB_NAMESPACE}.svc.cluster.local
+      - IDP_DB_PORT=5432
+      - IDP_DB_AUTH_SOURCE=idp_db
+      - IDP_DB_SERVICE_USER=${IDP_DB_SERVICE_USER}
+      - IDP_DB_SERVICE_PASSWORD=${IDP_DB_SERVICE_PASSWORD}
+      - IDP_DB_DATABASE=idp_db
+      - CLIENT_SECRET_KEY_KEYCLOAK_API
+      - IDP_FQDN
+      - API_FQDN
+      - SENDGRID_EMAIL_FROM
+      - MAILHOG_EMAIL_FROM
+      - SENDGRID_API_KEY
+      - S3_SERVICE_USER
+      - S3_SERVICE_PASSWORD
+      - S3_SERVEUR_FQDN
+      - AFFILIATION_JWS_KEY
+      - WEBSITE_FQDN
+      - ANTIVIRUS_FQDN
+      - MAILHOG_FQDN
+      - LANDSCAPE
+      - MAILHOG_HOST
+      - MAILHOG_EMAIL_FROM_KC
+      - SENDGRID_HOST
+      - SENDGRID_USER
+      - SENDGRID_EMAIL_FROM_KC
+      - SENDGRID_EMAIL_CONTACT
+      - BUS_HOST=bus.${KUBERNETES_BUS_NAMESPACE}.svc.cluster.local
+      - BUS_MCM_USER
+      - BUS_MCM_PWD
+      - BUS_MCM_HEADERS
+      - BUS_MCM_MESSAGE_TYPE
+      - BUS_HRIS_SECRET_KEY
+      - API_KEY
+      - BUS_CONSUMER_QUEUE
+    networks:
+      - web-nw
+      - storage-nw
+    ports:
+      - '3000'
+    labels:
+      - 'kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}'
+      - 'kompose.service.type=clusterip'
+
+volumes:
+  mongo-data:
+
+networks:
+  web-nw:
+  storage-nw:

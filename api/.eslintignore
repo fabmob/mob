@@ -1,0 +1,7 @@
+mongo/
+node_modules/
+dist/
+coverage/
+.eslintrc.js
+databaseConfig/*.js
+openapi-maas.js

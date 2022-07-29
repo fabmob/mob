@@ -1,0 +1,98 @@
+version: '3'
+
+services:
+  postgres-keycloak:
+    image: ${POSTGRES_IMAGE_NAME}
+    build:
+      context: .
+      dockerfile: ./postgres-dockerfile.yml
+      args:
+        BASE_POSTGRES_IMAGE_NAME: ${BASE_POSTGRES_IMAGE_NAME}
+    environment:
+      - POSTGRES_USER=${IDP_DATABASE_USER_NAME}
+      - POSTGRES_PASSWORD=${IDP_DATABASE_USER_PWD}
+      - POSTGRES_DB=${IDP_DB_NAME}
+      - POSTGRES_SERVICE_USER=${IDP_DB_SERVICE_USER}
+      - POSTGRES_SERVICE_PASSWORD=${IDP_DB_SERVICE_PASSWORD}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      -  postgres_keycloak_data:/var/lib/postgresql/data
+    ports:
+      - '5432'
+    labels:
+      - 'kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}'
+      - 'kompose.service.type=clusterip'
+#      - "kompose.volume.size=500Mi"
+
+  idp:
+    image: ${KEYCLOAK_IMAGE_NAME}
+    build:
+      context: .
+      dockerfile: ./keycloak-dockerfile.yml
+      args:
+        BASE_IMAGE_KEYCLOAK: ${NEXUS_IMAGE_KEYCLOAK}
+    command:
+      [
+        '-b',
+        '0.0.0.0',
+        '-Djboss.modules.system.pkgs=org.jboss.logmanager',
+        '-Dkeycloak.migration.action=import',
+        '-Dkeycloak.migration.provider=singleFile',
+        '-Dkeycloak.migration.file=/tmp/all-realm.json',
+        '-Dkeycloak.migration.strategy=${MIGRATION_STRATEGY_REALM}',
+      ]
+    depends_on:
+      - postgres-keycloak
+    networks:
+      - web-nw
+    environment:
+      - KEYCLOAK_USER
+      - KEYCLOAK_PASSWORD
+      - PROXY_ADDRESS_FORWARDING=true
+      - KEYCLOAK_IMPORT=/tmp/mcm-realm.json
+      - WEBSITE_FQDN
+      - API_FQDN
+      - IMAGE_PULL_SECRET_NAME
+      - DB_ADDR=postgres-keycloak
+      - DB_PORT=5432
+      - DB_VENDOR=postgres
+      - DB_DATABASE=${IDP_DB_NAME}
+      - DB_USER=${IDP_DATABASE_USER_NAME}
+      - DB_PASSWORD=${IDP_DATABASE_USER_PWD}
+      - DB_SCHEMA=${IDP_DB_NAME}
+
+    ports:
+      - '8080'
+    labels:
+      - 'kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}'
+      - 'kompose.service.type=clusterip'
+
+volumes:
+  postgres_keycloak_data:
+
+networks:
+  web-nw:
+
+  # gk:
+  #   image: ${GK_IMAGE_NAME}
+  #   command:
+  #     - '--discovery-url=https://${IDP_FQDN}/auth/realms/${MCM_IDP_REALM}'
+  #     - '--client-id=${MCM_GK_CLIENTID}'
+  #     - '--client-secret=${MCM_GK_CLIENTSECRET}'
+  #     - '--listen=:3002'
+  #     - '--enable-refresh-tokens=true'
+  #     - '--encryption-key=AgXa7xRcoClDEU0ZDSH4X0XhL5Qy2Z2j'
+  #     - '--secure-cookie=false'
+  #     - '--cookie-domain=${BASE_DOMAIN}'
+  #     - '--enable-authorization-header=false'
+  #     - '--redirection-url=https://${GK_FQDN}'
+  #     - '--upstream-url=${GITLAB_URL}'
+  #     - '--resources=uri=/*|roles=${MCM_CMS_ACCESS_ROLE}'
+  #     - '--headers=Authorization=Bearer ${MCM_CMS_GITLAB_TOKEN}' # personal access token
+  #   networks:
+  #     - web-nw
+  #   ports:
+  #     - '3002'
+  #   labels:
+  #     - 'kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}'
+  #     - 'kompose.service.type=clusterip'

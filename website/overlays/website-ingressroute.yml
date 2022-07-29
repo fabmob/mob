@@ -1,0 +1,46 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: website
+spec:
+  entryPoints:
+    - web
+      #    - websecure
+  routes:
+    - match: Host(`${WEBSITE_FQDN}`)
+      kind: Rule
+      services:
+        - name: website
+          port: 80
+    - match: Host(`${WEBSITE_FQDN}`) && PathPrefix(`/api/`)
+      kind: Rule
+      middlewares:
+        - name: stripprefix
+      services:
+        - name: api
+          namespace: ${KUBERNETES_API_NAMESPACE}
+          port: 3000
+#   tls:
+#     secretName: ${SECRET_NAME} # website-tls
+#     domains:
+#       - main: ${BASE_DOMAIN}
+#         sans:
+#           - '*.preview.${BASE_DOMAIN}'
+#           - '*.testing.${BASE_DOMAIN}'
+# ---
+# apiVersion: traefik.containo.us/v1alpha1
+# kind: IngressRoute
+# metadata:
+#   name: website-http
+# spec:
+#   entryPoints:
+#     - web
+#   routes:
+#     - match: Host(`${WEBSITE_FQDN}`)
+#       kind: Rule
+#       middlewares:
+#         - name: redirectscheme
+#       services:
+#         - name: website
+#           port: 80
+

@@ -1,0 +1,73 @@
+.analytics-base:
+  variables:
+    MODULE_NAME: analytics
+    MODULE_PATH: ${MODULE_NAME}
+    MATOMO_DATABASE_NAME: matomo_db
+    MATOMO_DATABASE_USER_NAME: ${MATOMO_DB_USER}
+    MATOMO_DATABASE_USER_PWD: ${MATOMO_DB_PASSWORD}
+    MATOMO_USERNAME: ${MATOMO_SUPER_USER}
+    MATOMO_PASSWORD: ${MATOMO_SUPER_PASSWORD}
+    MATOMO_DATABASE_ROOT_PWD: ${MATOMO_DB_ROOT_PASSWORD}
+    MARIADB_SERVICE_NAME: mariadb
+  only:
+    changes:
+      - "*"
+      - "commons/**/*"
+      - "analytics/**/*"
+
+.analytics_init_vars: &analytics_init_vars |
+  export MATOMO_IMAGE_NAME=${NEXUS_DOCKER_REGISTRY}/bitnami/matomo:4.5.0
+  export WEBSITE_FQDN=${WEBSITE_FQDN}
+  export MARIADB_MATOMO_IMAGE_NAME=${NEXUS_DOCKER_REGISTRY}/mariadb:10.6
+
+analytics_preview_deploy:
+  extends:
+    - .preview-deploy-job
+    - .analytics-base
+    - .manual
+    - .no-needs
+  script:
+    - *analytics_init_vars
+    - |
+      deploy
+      config_volume matomo
+  environment:
+    on_stop: analytics_preview_cleanup
+
+analytics_testing_deploy:
+  extends:
+    - .testing-deploy-job
+    - .analytics-base
+    - .no-needs
+  script:
+    - *analytics_init_vars
+    - deploy
+  environment:
+    on_stop: analytics_testing_cleanup
+
+analytics_preprod_deploy:
+  extends:
+    - .preprod-deploy-job
+    - .analytics-base
+    - .no-needs
+  script:
+    - *analytics_init_vars
+    - |
+      deploy ./kompose-prod.yml
+
+# Deploy for DevOps : manifests to ops git repository
+analytics_release:
+  extends:
+    - .handover-job
+    - .analytics-base
+
+# Cleanup : undeploy of image
+analytics_preview_cleanup:
+  extends:
+    - .preview-undeploy-job
+    - .analytics-base
+
+analytics_testing_cleanup:
+  extends:
+    - .testing-undeploy-job
+    - .analytics-base

@@ -1,0 +1,16 @@
+.mcm-search-results-title {
+  padding-top: var(--spacing-s);
+  padding-bottom: var(--spacing-s);
+  @media screen and (min-width: 720px) {
+    padding-top: 0;
+    padding-bottom: 0;
+    max-width: 100%;
+  }
+  span.info {
+    font-size: 18px;
+  }
+
+  span.semi-bold {
+    font-weight: 600;
+  }
+}

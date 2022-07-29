@@ -1,0 +1,154 @@
+.btn-group {
+  display: flex;
+  justify-content: center;
+  div {
+    margin: 0 24px;
+  }
+}
+
+.mcm-consent-row-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: var(--spacing-xs);
+  margin-bottom: var(--spacing-xs);
+  border-bottom: 1.5px solid var(--color-grey-light);
+  flex: 5 1;
+  .mcm-consent-row-label {
+    color: var(--color-grey-dark);
+    flex: 1 1;
+    font-size: 18px;
+  }
+  p {
+    font-size: 18px;
+    text-transform: capitalize;
+  }
+  a {
+    font-size: 18px;
+  }
+  .mcm-consent-row-action {
+    color: var(--color-green-leaf-dark);
+    width: 200px;
+    text-align: end;
+  }
+  .actif {
+    color: var(--color-dark);
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    div {
+      margin-left: 0.6em;
+      margin-bottom: 0.3em;
+    }
+  }
+}
+
+.empty-consents {
+  font-size: medium;
+}
+
+@media screen and (max-width: 750px) {
+  .mcm-consent-row-container {
+    margin-bottom: 30px;
+    align-items: baseline;
+    flex-direction: column;
+    position: relative;
+    .actif {
+      color: var(--color-dark);
+
+      div {
+        display: none;
+        position: absolute;
+      }
+    }
+    .mcm-consent-row-label {
+      position: absolute;
+      left: 35px;
+      bottom: 10px;
+    }
+    .mcm-consent-row-action {
+      color: var(--color-green-leaf-dark);
+      position: absolute;
+      right: 0;
+      bottom: 14px;
+    }
+  }
+}
+
+.table-field-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1;
+  align-items: flex-start;
+}
+
+.mcm-profile-pro-form {
+  display: flex;
+  justify-content: flex-end;
+  padding-right: 250px;
+  .pro-form-content {
+    width: 50%;
+    .checkbox-radio {
+      margin-top: var(--spacing-xxs);
+      margin-bottom: var(--spacing-m);
+    }
+  }
+}
+
+.field {
+  flex: 1;
+}
+
+.mcm-edit-row-margin {
+  margin-right: 250px;
+}
+
+.profile-title-container {
+  display: flex;
+  justify-content: space-between;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+
+.mcm-download-rgpd {
+  color: var(--color-green-leaf);
+  padding-top: 50px;
+  svg.svg-download {
+    display: inline-block;
+  }
+}
+
+.delete-account-button {
+  color: var(--color-red-error);
+  margin-top: var(--spacing-s);
+  margin-bottom: var(--spacing-s);
+  text-decoration: underline;
+  cursor: pointer;
+  width: fit-content;
+}
+
+.mcm-funder-info-block {
+  margin-top: 40px;
+  font-size: 16px;
+}
+
+.mcm-funder-role-rights-info {
+  margin-top: 24px;
+  font-size: 14px;
+  color: var(--color-grey-mid);
+}
+
+@media screen and (max-width: 1023px) {
+  .mcm-profile-pro-form {
+    width: 100%;
+    display: block;
+    padding-right: 0;
+    .pro-form-content {
+      width: 100%;
+    }
+  }
+  .field {
+    width: -webkit-fill-available;
+  }
+}

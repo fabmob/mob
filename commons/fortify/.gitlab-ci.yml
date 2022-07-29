@@ -1,0 +1,90 @@
+.only-sast:
+  only:
+    variables:
+      - $DO_SAST == "yes"
+
+.except-sast:
+  except:
+    variables:
+      - $DO_SAST
+
+.sast_init_vars: &sast_init_vars |
+  export SAST_LOG_FILE=sast_data_${RELEASE_NAME}.log
+
+.archive_sast_script: &archive_sast_script |
+  # Check if node_modules exists
+  if [ ! -d node_modules ]; then
+      echo "node_modules is not there, SAST analysis can not be performed" && exit 1
+  fi
+  # Create an archive with data to scan
+  echo "Create archive "${RELEASE_NAME}.zip" with data to scan..."
+  zip -u -qq -r ${RELEASE_NAME}.zip .
+  echo "...archive created"
+
+.run_sast_script: &run_sast_script |
+  # Create a new FoD release if it not exists
+  [ -z '${SDLC_STATUS}' ] && export SDLC_STATUS=3
+
+  touch ${SAST_LOG_FILE}
+  touch ${SAST_RESULT_FILE}
+  ls -altr .
+  createCommandExit=""
+  runCommandExit=""
+
+  if [ "$COPY_FROM_RELEASE" = "" ]
+  then
+      createCommandExit=`java -jar /usr/lib/FodAPIClient.jar ${FOD_AUTHENTICATION_ARGS} create-release -an ${FOD_APPLICATION_NAME} -rn ${RELEASE_NAME} -sdlc ${SDLC_STATUS} -rd '${RELEASE_DESCRIPTION}' | awk -F ',' '{print($2)}'`
+  else
+      createCommandExit=`java -jar /usr/lib/FodAPIClient.jar ${FOD_AUTHENTICATION_ARGS} create-release -an ${FOD_APPLICATION_NAME} -rn ${RELEASE_NAME} -sdlc ${SDLC_STATUS} -rd '${RELEASE_DESCRIPTION}' -copy -copyRelease ${COPY_FROM_RELEASE} | awk -F ',' '{print($2)}'`
+  fi
+
+  echo $createCommandExit >> ${SAST_LOG_FILE}
+  releaseId=`echo $createCommandExit | awk -F '=' '{print($2)}'`
+
+  optionArgs=""
+
+  [ ${ALLOW_POLICY_FAIL} = 'false' ] && optionArgs="${optionArgs} -policy"
+  [ ${INCLUDE_THIRD_PARTY_LIBS} = 'true' ] && optionArgs="${optionArgs} -itp"
+  [ ${RUN_SONATYPE_SCAN} = 'true' ] && optionArgs="${optionArgs} -oss"
+
+  # Run the scan
+  runCommandExit=`java -jar /usr/lib/FodAPIClient.jar ${FOD_AUTHENTICATION_ARGS} static-scan -z ${RELEASE_NAME}.zip -tid ${FOD_TENANT_ID} -rid $releaseId -I ${POLLING_INTERVAL} ${optionArgs} -pp ${IN_PROGRESS_SCAN_ACTION_TYPE} -rp ${REMEDIATION_SCAN_PREFERENCE_TYPE} -tech ${TECHNOLOGY_TYPE} -o ${SAST_RESULT_FILE}`
+  scanId=`echo $runCommandExit | grep -o -P "Scan.?[0-9]*" | awk -F 'Scan ' '{print($2)}'`
+  echo "scanId=$scanId" >> ${SAST_LOG_FILE}
+  echo "Download FPR at ${FOD_PORTAL_URL}/Releases/$releaseId/Scans" >> ${SAST_LOG_FILE}
+
+.sast-job:
+  stage: static-assessment
+  extends:
+    - .commons
+    - .test-job-tags
+  image: ${SAST_IMAGE_NAME}
+  variables:
+    FOD_AUTHENTICATION_ARGS: -ac ${FOD_API_KEY} ${FOD_API_ACCESS_KEY} -tc ${FOD_TENANT_CODE} -aurl ${FOD_API_URL} -purl ${FOD_PORTAL_URL}
+    # Should be the name of an existing release. Keep empty to create a proper new version
+    COPY_FROM_RELEASE: ""
+    RELEASE_DESCRIPTION: Scan for ${MODULE_NAME} from ${CI_COMMIT_REF_SLUG}
+    RELEASE_NAME: ${MODULE_NAME}-${CI_COMMIT_REF_SLUG}-MR
+    # [1:Production, 2:QA, 3:Development, 4:Retired]
+    SDLC_STATUS: 3
+    SAST_RESULT_FILE: result_summary.json
+    # Polling interval for retrieving results. If 0, the scan will be performed asynchronously. Value in minutes
+    POLLING_INTERVAL: 5
+    ALLOW_POLICY_FAIL: "true"
+    # [0:DoNotStartScan, 1:CancelInProgressScan, 2:Queue]
+    IN_PROGRESS_SCAN_ACTION_TYPE: 2
+    INCLUDE_THIRD_PARTY_LIBS: "false"
+    RUN_SONATYPE_SCAN: "true"
+    # [0:RemediationScanIfAvailable, 1:RemediationScanOnly, 2:NonRemediationScanOnly]
+    REMEDIATION_SCAN_PREFERENCE_TYPE: 2
+    TECHNOLOGY_TYPE: JS/TS/HTML
+  script:
+    - *sast_init_vars
+    - *archive_sast_script
+    - *run_sast_script
+  artifacts:
+    paths:
+      # The result file may be empty regarding to the value passed to POLLING_INTERVAL
+      # whereas the log file will contain the release ID and the scan ID
+      - ${MODULE_PATH:-${MODULE_NAME}}/${SAST_LOG_FILE}
+      - ${MODULE_PATH:-${MODULE_NAME}}/${SAST_RESULT_FILE}

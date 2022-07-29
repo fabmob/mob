@@ -1,0 +1,40 @@
+$laptop-breakpoint: 1024px;
+
+.mcm-mon-profil {
+  h1 {
+    padding-top: var(--spacing-s);
+    margin-bottom: var(--spacing-xl);
+    font-weight: bold;
+  }
+  h2 {
+    margin-top: var(--spacing-s);
+    margin-bottom: var(--spacing-m);
+  }
+}
+.profile-width {
+  width: 80% !important;
+}
+.horizontal {
+  margin-top: 40px;
+  display: flex;
+  h2 {
+    margin-top: 0;
+    min-width: fit-content;
+  }
+}
+.profile-icon {
+  padding-top: 13px;
+  padding-left: 10px;
+  padding-right: 20px;
+  min-width: fit-content;
+  margin-left: var(--spacing-xxs);
+  @media screen and (max-width: $laptop-breakpoint) {
+    padding-top: 10px;
+  }
+}
+
+@media screen and (max-width: 900px) {
+  .profile-width {
+    width: 90% !important;
+  }
+}

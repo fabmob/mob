@@ -1,0 +1,40 @@
+version: '3'
+
+services:
+  idp:
+    build:
+      context: .
+      dockerfile: ./keycloak-dockerfile.yml
+    image: ${KEYCLOAK_IMAGE_NAME}
+    command:
+      [
+        '-b',
+        '0.0.0.0',
+        '-Djboss.modules.system.pkgs=org.jboss.logmanager',
+        '-Dkeycloak.migration.action=import',
+        '-Dkeycloak.migration.provider=singleFile',
+        '-Dkeycloak.migration.file=/tmp/all-realm.json',
+        '-Dkeycloak.migration.strategy=${MIGRATION_STRATEGY_REALM}',
+      ]
+    environment:
+      - WEBSITE_FQDN
+      - API_FQDN
+      - KEYCLOAK_USER=${TESTING_KEYCLOAK_USER} 
+      - KEYCLOAK_PASSWORD=${TESTING_KEYCLOAK_PASSWORD}
+      - DB_ADDR=${TESTING_PGSQL_DB_ADDR}
+      - DB_PORT=${TESTING_PGSQL_DB_PORT}
+      - DB_VENDOR=${TESTING_IDP_DB_VENDOR}
+      - DB_DATABASE=${TESTING_IDP_DB_NAME}
+      - DB_USER=${TESTING_IDP_DB_USER_NAME}
+      - DB_PASSWORD=${TESTING_IDP_DB_USER_PWD}
+      - PROXY_ADDRESS_FORWARDING=true
+      - KEYCLOAK_IMPORT=/tmp/mcm-realm.json
+      - IMAGE_PULL_SECRET_NAME
+      - DB_SCHEMA=${IDP_DB_NAME}
+    ports:
+      - '8080'
+    labels:
+      - 'kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}'
+      - 'kompose.service.type=clusterip'
+    networks:
+      - web-nw

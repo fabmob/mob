@@ -1,0 +1,37 @@
+version: '3'
+
+services:
+  website:
+    image: ${WEBSITE_IMAGE_NAME}
+    build:
+      context: ./webserver-docker-context
+      dockerfile: ../webserver-dockerfile.yml
+      args:
+        WEBSERVER_BASE_IMAGE_NAME: nginx:1.14.2
+        CI_PROJECT_ID: ${CI_PROJECT_ID}
+        MCM_GITLAB_DEPLOY_NPM_TOKEN: ${MCM_GITLAB_DEPLOY_NPM_TOKEN}
+        NEXUS_NPM_PROXY_TOKEN: ${NEXUS_NPM_PROXY_TOKEN}
+        MCM_CMS_ACCESS_ROLE: ${MCM_CMS_ACCESS_ROLE}
+        MATOMO_FQDN: ${MATOMO_FQDN}
+        MATOMO_ID: ${MATOMO_ID}
+        PATH_API: ${PATH_API}
+    environment:
+      - GITLAB_PROJECT_PATH
+      - GITLAB_BRANCH
+      - IDP_FQDN
+      - MCM_IDP_REALM
+      - MCM_IDP_CLIENTID
+      - GK_FQDN
+      - MCM_GK_CLIENTID
+      - MATOMO_FQDN
+      - MATOMO_ID="${MATOMO_ID}"
+    networks:
+      - web-nw
+    ports:
+      - '80'
+    labels:
+      - 'kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}'
+      - 'kompose.service.type=clusterip'
+
+networks:
+  web-nw:

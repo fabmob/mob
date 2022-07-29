@@ -1,0 +1,55 @@
+ARG NODE_IMAGE_NAME
+FROM ${NODE_IMAGE_NAME}
+
+RUN apk add curl
+
+ENV PHANTOMJS_VERSION=2.1.1
+ENV PHANTOMJS_PATH=/usr/local/bin/phantomjs
+RUN apk update && apk add --no-cache fontconfig ghostscript-fonts curl curl-dev && \
+    cd /tmp && curl -Ls https://github.com/dustinblackman/phantomized/releases/download/${PHANTOMJS_VERSION}/dockerized-phantomjs.tar.gz | tar xz && \
+    cp -R lib lib64 / && \
+    cp -R usr/lib/x86_64-linux-gnu /usr/lib && \
+    cp -R usr/share /usr/share && \
+    cp -R etc/fonts /etc && \
+    curl -k -Ls https://bitbucket.org/ariya/phantomjs/downloads/phantomjs-${PHANTOMJS_VERSION}-linux-x86_64.tar.bz2 | tar -jxf - && \
+    cp phantomjs-2.1.1-linux-x86_64/bin/phantomjs /usr/local/bin/phantomjs
+
+# Set to a non-root built-in user `node`
+USER node
+
+# Create app directory (with user `node`)
+RUN mkdir -p /home/node/app
+
+WORKDIR /home/node/app
+
+# Install and build are supposed to be yet done
+ARG CI_PROJECT_ID
+ENV CI_PROJECT_ID=${CI_PROJECT_ID}
+ARG MCM_GITLAB_DEPLOY_NPM_TOKEN
+ENV MCM_GITLAB_DEPLOY_NPM_TOKEN=${MCM_GITLAB_DEPLOY_NPM_TOKEN}
+ARG NEXUS_NPM_PROXY_TOKEN
+ENV NEXUS_NPM_PROXY_TOKEN=${NEXUS_NPM_PROXY_TOKEN}
+
+# Install app dependencies
+# A wildcard is used to ensure both package.json AND package-lock.json are copied
+# where available (npm@5+)
+COPY --chown=node package.json ./
+COPY --chown=node yarn.lock ./
+COPY --chown=node .npmrc ./
+
+RUN yarn install
+#COPY --chown=node node_modules ./node_modules
+
+# Bundle app source code
+#COPY --chown=node src/ src
+#COPY --chown=node tsconfig.json ./
+COPY --chown=node . .
+
+
+RUN yarn run build
+
+# Bind to all network interfaces so that it can be mapped to the host OS
+ENV HOST=0.0.0.0 PORT=3000
+
+EXPOSE ${PORT}
+CMD [ "node", "." ]

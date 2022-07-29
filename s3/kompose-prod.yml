@@ -1,0 +1,41 @@
+version: "3"
+
+services:
+  s3:
+    image: ${MINIO_IMAGE_NAME}
+    volumes:
+      - /dataminio/:/data/
+    environment:
+      MINIO_ROOT_USER: ${PROD_S3_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${PROD_S3_ROOT_PASSWORD}
+    command: server /data --console-address ":9001"
+    ports:
+      - "9001"
+      - "9000"
+    labels:
+      - "kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}"
+      - "kompose.service.type=clusterip"
+
+  s3mc:
+    image: ${MINIO_MC_IMAGE_NAME}
+    depends_on:
+      - s3
+    entrypoint: >
+      /bin/sh -c "
+      chmod +x /usr/bin/mc;
+      bash +o history;
+      until (mc alias set s3alias https://serveur-${S3_FQDN} ${PROD_S3_ROOT_USER} ${PROD_S3_ROOT_PASSWORD} --api S3v4) do echo '...waiting...' && sleep 1; done;
+      mc admin info s3alias;
+      mc admin user add s3alias ${PROD_S3_SUPPORT_USER} ${PROD_S3_SUPPORT_PASSWORD};
+      mc admin policy set s3alias diagnostics user=${PROD_S3_SUPPORT_USER};
+      mc admin user add s3alias ${PROD_S3_SERVICE_USER} ${PROD_S3_SERVICE_PASSWORD};
+      mc admin policy set s3alias readwrite user=${PROD_S3_SERVICE_USER};
+      bash -o history;
+      exit 0;
+      "
+    labels:
+      - "kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}"
+      - "kompose.service.type=clusterip"
+
+volumes:
+  minio-data:

@@ -1,0 +1,75 @@
+.mcm-projet-page {
+  .breadcrumb {
+    // need negative margin to align breadcrumb with right picture.
+    margin-bottom: -13px;
+  }
+  .section-title {
+    @media screen and (max-width: 1023px) {
+      padding-top: 0;
+      margin-top: 38px;
+      .mcm-section-with-image__image {
+        display: none;
+      }
+    }
+    @media screen and (min-width: 1024px) {
+      margin-bottom: 60px;
+
+      &::before {
+        top: -12px;
+      }
+    }
+  }
+  .mob-pattern {
+    margin-top: 0;
+  }
+}
+.mcm-panel {
+  padding-top: 48px;
+  padding-bottom: 24px;
+  @media screen and (min-width: 1024px) {
+    padding-top: 80px;
+  }
+
+  .heading {
+    > img {
+      margin-left: 18px;
+    }
+    > .content {
+      grid-column: 3 / span 9;
+    }
+    @media screen and (min-width: 768px) {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      grid-column-gap: 24px;
+      font-size: 46px;
+      line-height: 46px;
+
+      > img {
+        grid-column: 1 / span 2;
+        justify-self: center;
+        margin: 0;
+      }
+      > .content {
+        grid-column: 3 / span 9;
+      }
+    }
+  }
+  &--resources {
+    .mcm-list {
+      @media screen and (min-width: 768px) {
+        display: grid;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        grid-column-gap: 24px;
+
+        &__item {
+          &:nth-child(2n + 1) {
+            grid-column: 3 / span 5;
+          }
+          &:nth-child(2n + 0) {
+            grid-column: 8 / span 5;
+          }
+        }
+      }
+    }
+  }
+}

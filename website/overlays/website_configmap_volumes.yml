@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: website
+spec:
+  template:
+    spec:
+      containers:
+        - name: website
+          volumeMounts:
+            - name: keycloak-config
+              mountPath: /usr/share/nginx/html/keycloak.json
+              subPath: keycloak.json
+            - name: netlifycms-config
+              mountPath: /usr/share/nginx/html/admin/config.yml
+              subPath: config.yml
+      securityContext:
+        fsGroup: 1000
+      volumes:
+        - name: keycloak-config
+          configMap:
+            name: website-keycloak-config
+        - name: netlifycms-config
+          configMap:
+            name: website-netlifycms-config
+            items:
+              - key: netlifycms-config.yml
+                path: config.yml

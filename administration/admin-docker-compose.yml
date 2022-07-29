@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  admin:
+    image: ${ADMIN_IMAGE_NAME}
+    networks:
+      - dev_web-nw
+    deploy:
+      labels:
+        - 'traefik.http.routers.${STACK_NAME}.entrypoints=http'
+        - 'traefik.http.routers.${STACK_NAME}.service=${STACK_NAME}'
+        - 'traefik.http.routers.${STACK_NAME}.rule=Host(`${ADMIN_FQDN}`)'
+        - 'traefik.http.services.${STACK_NAME}.loadbalancer.server.port=8081'
+        - 'traefik.http.services.${STACK_NAME}.loadbalancer.server.scheme=http'
+        - 'traefik.docker.network=dev_web-nw'
+networks:
+  dev_web-nw:
+    external: true
+    name: dev_web-nw

@@ -1,0 +1,81 @@
+.vault-base:
+    variables:
+        MODULE_NAME: vault
+        MODULE_PATH: ${MODULE_NAME}
+    only:
+        changes:
+            - "*"
+            - 'commons/**/*'
+            - "vault/**/*"
+
+.vault_init_vars: &vault_init_vars |
+    export GITLAB_IMAGE_PULL_SECRET_NAME=${IMAGE_PULL_SECRET_PREFIX}-${MODULE_NAME}
+    export VAULT_IMAGE_NAME=${REGISTRY_BASE_NAME}/vault:1.5.5
+    export VAULT_FQDN=${VAULT_FQDN}
+
+# Build of testing environement image and creation of the cache
+vault_build:
+  extends:
+    - .build-job
+    - .vault-base
+    - .no-needs
+  script:
+    - echo 'build'
+  cache:
+    key: ${MODULE_NAME}-${CI_COMMIT_REF_SLUG}
+    paths:
+      - ${MODULE_PATH}/
+  artifacts:
+    paths:
+      - ${MODULE_PATH}/
+
+vault_image_build:
+  extends:
+    - .image-job
+    - .except-clean
+    - .vault-base
+  script:
+    - *vault_init_vars
+    - image
+  needs: ['vault_build']
+
+vault_preview_deploy:
+  extends:
+      - .preview-deploy-job
+      - .vault-base
+      - .manual
+  script:
+      - *vault_init_vars
+      - deploy
+  environment:
+      on_stop: vault_preview_cleanup
+  needs: ['vault_image_build']
+
+vault_testing_deploy:
+  extends:
+      - .testing-deploy-job
+      - .vault-base
+  script:
+      - *vault_init_vars
+      - deploy
+  environment:
+      on_stop: vault_testing_cleanup
+  needs: ['vault_image_build']
+
+
+# Deploy for DevOps : manifests to ops git repository
+vault_release:
+  extends:
+    - .handover-job
+    - .vault-base
+
+# Cleanup : undeploy of image
+vault_preview_cleanup:
+  extends:
+    - .preview-undeploy-job
+    - .vault-base
+
+vault_testing_cleanup:
+  extends:
+    - .testing-undeploy-job
+    - .vault-base

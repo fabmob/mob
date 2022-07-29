@@ -1,0 +1,11 @@
+version: "3"
+
+services:
+  mailhog:
+    image: ${MAILHOG_IMAGE_NAME}
+    ports:
+      - "1025" # smtp server
+      - "8025" # web ui
+    labels:
+      - "kompose.image-pull-secret=${PROXY_IMAGE_PULL_SECRET_NAME}"
+      - "kompose.service.type=clusterip"

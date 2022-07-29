@@ -1,0 +1,32 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: gk-headers-middleware
+spec:
+  headers:
+    customRequestHeaders:
+      X-Forwarded-Proto: "https"
+      X-Forwarded-Port: "443"
+    accessControlAllowMethods:
+      - "OPTIONS"
+      - "GET"
+      - "PUT"
+      - "POST"
+      - "PATCH"
+      - "DELETE"
+    accessControlAllowOriginList:
+      - "https://${API_FQDN}"
+      - "https://${ADMIN_FQDN}"
+      - "https://${WEBSITE_FQDN}"
+      - "https://${GK_FQDN}"
+      - "https://${SIMULATION_MAAS_FQDN}"
+      - "http://localhost:8000"
+    accessControlAllowHeaders:
+      - "Origin"
+      - "X-Requested-With"
+      - "Content-Type"
+      - "Accept"
+      - "Authorization"
+    accessControlAllowCredentials: true
+    accessControlMaxAge: 100
+    addVaryHeader: true

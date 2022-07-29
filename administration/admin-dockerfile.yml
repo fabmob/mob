@@ -1,0 +1,5 @@
+ARG ADMIN_BASE_IMAGE_NAME
+FROM ${ADMIN_BASE_IMAGE_NAME}
+
+COPY config-nginx/ /etc/nginx/conf.d
+COPY build/ /usr/share/nginx/html/

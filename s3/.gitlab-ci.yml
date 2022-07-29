@@ -1,0 +1,126 @@
+# Initialisation of specifique api variable
+.s3-base:
+  variables:
+    MODULE_NAME: s3
+    MODULE_PATH: ${MODULE_NAME}
+  only:
+    changes:
+      - "*"
+      - "commons/**/*"
+      - "s3/**/*"
+
+# Build of testing environement image and creation of the cache
+.s3_build_script: &s3_build_script |
+  echo "it work's"
+
+s3_build:
+  extends:
+    - .build-job
+    - .s3-base
+    - .no-needs
+  script:
+    - *s3_build_script
+  cache:
+    key: ${MODULE_NAME}-${CI_COMMIT_REF_SLUG}
+    paths:
+      - ${MODULE_PATH}/
+  artifacts:
+    paths:
+      - ${MODULE_PATH}/
+
+# Build of api image and deploy towards differents productions
+.s3_init_vars: &s3_init_vars |
+  export GITLAB_IMAGE_PULL_SECRET_NAME=${IMAGE_PULL_SECRET_PREFIX}-${MODULE_NAME}
+  export S3_FQDN=${S3_FQDN}
+  export MINIO_KES_HOST=${S3_KES_HOST}
+  export GITLAB_IMAGE_PULL_SECRET_NAME=${IMAGE_PULL_SECRET_PREFIX}-${MODULE_NAME}
+  export MINIO_IMAGE_NAME=${REGISTRY_BASE_NAME}/minio/minio:RELEASE.2021-09-24T00-24-24Z
+  export MINIO_MC_IMAGE_NAME=${REGISTRY_BASE_NAME}/minio/mc:RELEASE.2021-09-23T05-44-03Z
+  export MINIO_KES_IMAGE_NAME=${REGISTRY_BASE_NAME}/minio/kes:v0.17.2
+
+s3_image_build:
+  extends:
+    - .image-job
+    - .except-clean
+    - .s3-base
+  script:
+    - *s3_init_vars
+    - |
+      env
+      image
+  needs: ["s3_build"]
+
+.s3_remove_mc_service: &s3_remove_mc_service |
+  kubectl wait --for=condition=ContainersReady pod $(kubectl get pods -A | grep ${BRANCH_NAME} | grep -w s3 | awk '{ print $2 }')
+  while [[ $(kubectl get pods -o wide --all-namespaces | grep ${BRANCH_NAME} | grep s3mc | grep  CrashLoopBackOff  | awk '{ print $1 }') == "" ]]
+  do
+    echo "Wait the end of s3mc script"
+    sleep 5
+  done
+  kubectl delete -n $(kubectl get deployments -A | grep ${BRANCH_NAME} | grep -w s3mc | awk '{ print $1 }') deployment $(kubectl get deployments -A | grep ${BRANCH_NAME} | grep -w s3mc | awk '{ print $2 }')
+
+s3_preview_deploy:
+  extends:
+    - .preview-deploy-job
+    - .s3-base
+    - .only-master
+  script:
+    - *s3_init_vars
+    - |
+      deploy
+      config_volume s3-claim
+  after_script:
+    - *s3_remove_mc_service
+
+  environment:
+    on_stop: s3_preview_cleanup
+
+s3_testing_deploy:
+  extends:
+    - .testing-deploy-job
+    - .s3-base
+  script:
+    - *s3_init_vars
+    - |
+      deploy
+      config_volume s3-claim
+  environment:
+    on_stop: s3_testing_cleanup
+
+s3_preprod_deploy:
+  extends:
+    - .preprod-deploy-job
+    - .s3-base
+  script:
+    - *s3_init_vars
+    - |
+      if [ -z $(pod_namespace s3) ]
+      then
+        echo "### S3 preprod pod is already up and running ! ###"
+      else
+        echo "### Creation of S3 preprod ###"
+        deploy ./kompose-preprod.yml
+        config_volume s3-claim
+      fi
+
+# Deploy for DevOps : manifests to ops git repository
+s3_release:
+  extends:
+    - .handover-job
+    - .s3-base
+
+s3_mc_cleanup:
+  extends:
+    - .preview-undeploy-job
+    - .s3-base
+
+# Cleanup : undeploy of image
+s3_preview_cleanup:
+  extends:
+    - .preview-undeploy-job
+    - .s3-base
+
+s3_testing_cleanup:
+  extends:
+    - .testing-undeploy-job
+    - .s3-base

@@ -1,0 +1,224 @@
+.website-base:
+  variables:
+    MODULE_NAME: website
+    MODULE_PATH: ${MODULE_NAME}
+    GATSBY_BASE_IMAGE_NAME: ${NEXUS_DOCKER_REGISTRY}/node:14.4-stretch
+    GATSBY_IMAGE_NAME: ${CI_REGISTRY_IMAGE}/gatsby:${CI_COMMIT_REF_SLUG}-${CI_PIPELINE_ID}
+    MCM_IDP_REALM: ${MCM_IDP_REALM}
+    MCM_IDP_CLIENTID: ${MCM_IDP_CLIENTID}
+    MCM_GK_CLIENTID: ${MCM_GK_CLIENTID}
+    MATOMO_ID: ${MATOMO_MCM_WEBSITE_ID}
+    PATH_API: '/api'
+    API_KEY: ${API_KEY}
+  only:
+    changes:
+      - '*'
+      - 'commons/**/*'
+      - 'website/**/*'
+
+.website_init_vars: &website_init_vars |
+  export WEBSITE_IMAGE_NAME=${REGISTRY_BASE_NAME}/webserver:${IMAGE_TAG_NAME}
+  export LANDSCAPE=$(if [ "$LANDSCAPE" != "" ]; then echo $LANDSCAPE; else echo "preview";  fi)
+  if [[ $(expr match "$BRANCH_NAME" production) != 0 ]]
+  then
+      export MATOMO_FQDN="analytics-prod.cicd.${BASE_DOMAIN}"
+  else
+      export MATOMO_FQDN="analytics-${CI_COMMIT_REF_SLUG}.${LANDSCAPE}.${BASE_DOMAIN}"
+  fi
+
+.website_gatsby_image_script: &website_gatsby_image_script |
+  cp gatsby-dockerfile.yml.tmpl gatsby-dockerfile.yml
+  sed -i "s/%CI_PROJECT_ID%/${CI_PROJECT_ID}/g" gatsby-dockerfile.yml
+  sed -i "s/%MCM_GITLAB_DEPLOY_NPM_TOKEN%/${MCM_GITLAB_DEPLOY_NPM_TOKEN}/g" gatsby-dockerfile.yml
+  sed -i "s/%NEXUS_NPM_PROXY_TOKEN%/${NEXUS_NPM_PROXY_TOKEN}/g" gatsby-dockerfile.yml
+  sed -i "s/%MCM_CMS_ACCESS_ROLE%/${MCM_CMS_ACCESS_ROLE}/g" gatsby-dockerfile.yml
+  sed -i "s/%MATOMO_FQDN%/${MATOMO_FQDN}/g" gatsby-dockerfile.yml
+  sed -i "s/%MATOMO_ID%/${MATOMO_ID}/g" gatsby-dockerfile.yml
+  sed -i "s/%PATH_API%/${PATH_API//\//\\/}/g" gatsby-dockerfile.yml
+  sed -i "s/%API_KEY%/${API_KEY//\//\\/}/g" gatsby-dockerfile.yml
+  docker login -u ${REGISTRY_USER} -p ${REGISTRY_PASSWORD} ${REGISTRY_URL}
+  echo REGISTRY_URL: ${REGISTRY_URL}
+  docker build -f gatsby-dockerfile.yml --build-arg GATSBY_BASE_IMAGE_NAME=${GATSBY_BASE_IMAGE_NAME} -t ${GATSBY_IMAGE_NAME} .
+  docker push ${GATSBY_IMAGE_NAME}
+
+website_gatsby_image_build:
+  extends:
+    - .pre-image-job
+    - .website-base
+  script:
+    - *website_init_vars
+    - *website_gatsby_image_script
+    - |
+      image
+
+.website_base_image_script: &website_base_image_script |
+  echo REGISTRY_URL: ${REGISTRY_URL}
+  docker login -u ${REGISTRY_USER} -p ${REGISTRY_PASSWORD} ${REGISTRY_URL}
+  docker-compose -f webserver-docker-compose.yml build
+  docker-compose -f webserver-docker-compose.yml push
+
+website_base_image_build:
+  extends:
+    - .image-job
+    - .except-clean
+    - .website-base
+    - .no-needs
+  script:
+    - *website_init_vars
+    - |
+      image
+
+.website_content_compile_script: &website_content_compile_script |
+  yarn install --ignore-engines
+  ls -lah
+  if [ -z ${NETLIFYCMS_APP_ID} ]; then echo "ERROR: NETLIFYCMS_APP_ID variable missing"; exit 1; fi
+  echo "NETLIFYCMS_APP_ID is defined, replacing placeholders"
+  ./scripts/expand-vars.sh ./static/admin/config.yml
+  echo "done replacing placeholders"
+  npx gatsby build --no-uglify
+
+website_content_compile:
+  extends:
+    - .build-job
+    - .build-n-sast-job-tags
+    - .website-base
+  image: ${GATSBY_IMAGE_NAME}
+  variables:
+    GATSBY_DESIGNER_URL: https://${BASE_DOMAIN}
+    GATSBY_CI_PROJECT_URL: ${CI_PROJECT_URL}
+    GATSBY_CI_COMMIT_REF_NAME: ${CI_COMMIT_REF_SLUG}
+    GATSBY_CI_COMMIT_SHORT_SHA: ${CI_COMMIT_SHORT_SHA}
+    GATSBY_CI_COMMIT_SHA: ${CI_COMMIT_SHA}
+    GATSBY_CI_PIPELINE_ID: ${CI_PIPELINE_ID}
+    GATSBY_CI_PIPELINE_URL: ${CI_PIPELINE_URL}
+  script:
+    - *website_init_vars
+    - *website_content_compile_script
+  artifacts:
+    paths:
+      - ${MODULE_PATH}/public
+      - ${MODULE_PATH}/node_modules/
+  needs: ['website_gatsby_image_build']
+
+.website_final_image_script: &website_final_image_script |
+  docker login -u ${REGISTRY_USER} -p ${REGISTRY_PASSWORD} ${REGISTRY_URL}
+  export COMPOSE_PROJECT_NAME=website_se_packaging_${BRANCH_NAME}
+  export CTID=$(docker-compose -f webserver-docker-compose.yml run -d --label traefik.enable=false webserver)
+  docker cp ./public/. $CTID:/usr/share/nginx/html/
+  docker cp ./webserver-docker-context/etc/nginx/conf.d/default.conf $CTID:/etc/nginx/conf.d/default.conf
+  docker commit -c="LABEL traefik.enable=true" $CTID $WEBSITE_IMAGE_NAME
+  docker push $WEBSITE_IMAGE_NAME
+  docker-compose -f webserver-docker-compose.yml down
+
+website_final_image_build:
+  extends:
+    - .image-job
+    - .except-clean
+    - .website-base
+  script:
+    - *website_init_vars
+    - |
+      image
+    - *website_final_image_script
+  needs: ['website_content_compile']
+
+.website_test_script: &website_test_script |
+  yarn install
+  yarn test --coverage --ci --reporters=default --reporters=jest-junit
+
+website_test:
+  image: ${GATSBY_IMAGE_NAME}
+  extends:
+    - .test-job
+    - .website-base
+  script:
+    - *website_test_script
+  artifacts:
+    when: always
+    paths:
+      - ${MODULE_PATH}/coverage/lcov.info
+  needs: ['website_final_image_build']
+
+website_verify:
+  extends:
+    - .verify-job
+    - .website-base
+  variables:
+    SONAR_SOURCES: .
+  needs: ['website_test']
+
+website_sast:
+  extends:
+    - .sast-job
+    - .build-n-sast-job-tags
+    - .website-base
+    - .manual
+    - .only-testing
+  artifacts:
+    paths:
+      - ${MODULE_PATH}/node_modules/
+  needs: ['website_content_compile']
+
+.website_deploy_script: &website_deploy_script |
+  export API_STACK_NAME=api.${KUBERNETES_IDP_DB_NAMESPACE}.svc.cluster.local
+  export KEYCLOAK_JSON_VERSION=${CI_PIPELINE_ID}
+  export NETLIFYCMS_CONFIG_VERSION=${CI_PIPELINE_ID}
+
+website_preview_deploy:
+  extends:
+    - .preview-deploy-job
+    - .website-base
+  script:
+    - *website_init_vars
+    - *website_deploy_script
+    - |
+      wait_pod api
+      echo "Get the namespace of api for connexion"
+      export KUBERNETES_API_NAMESPACE=$(pod_namespace api)
+      deploy
+  environment:
+    on_stop: website_preview_cleanup
+
+website_testing_deploy:
+  extends:
+    - .testing-deploy-job
+    - .website-base
+  script:
+    - *website_init_vars
+    - *website_deploy_script
+    - |
+      wait_pod api
+      echo "Get the namespace of api for connexion"
+      export KUBERNETES_API_NAMESPACE=$(pod_namespace api)
+      deploy
+  environment:
+    on_stop: website_testing_cleanup
+
+website_preprod_deploy:
+  extends:
+    - .preprod-deploy-job
+    - .website-base
+  script:
+    - *website_init_vars
+    - |
+      wait_pod api
+      echo "Get the namespace of api for connexion"
+      export KUBERNETES_API_NAMESPACE=$(pod_namespace api)
+      deploy
+
+# Deploy for DevOps : manifests to ops git repository
+website_release:
+  extends:
+    - .handover-job
+    - .website-base
+
+# Cleanup : undeploy of image
+website_preview_cleanup:
+  extends:
+    - .preview-undeploy-job
+    - .website-base
+
+website_testing_cleanup:
+  extends:
+    - .testing-undeploy-job
+    - .website-base

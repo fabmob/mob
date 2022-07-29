@@ -1,0 +1,12 @@
+{
+  "incentives.error.required": "Attention, ce champ est obligatoire",
+  "incentives.error.title.minLength": "Le nom de l'aide doit faire plus de 3 caractères",
+  "incentives.error.validityDate.format": "La durée de validité doit être au format JJ/MM/AAAA",
+  "incentives.error.validityDate.minDate": "La durée de validité doit être supérieure à la date d'aujourd'hui",
+  "incentives.error.fundername.enterprise.notExist": "L'Entrepise renseignée n'existe pas",
+  "incentives.error.title.alreadyUsedForFunder": "Ce titre d'aide est déjà utilisé pour ce financeur",
+  "aides.edit.success": "L'aide \"{aidTitle}\" a été modifiée avec succès",
+  "aides.edit.title": "Modification d'une aide à la mobilité",
+  "aides.create.success": "L'aide \"{aidTitle}\" a été créée avec succès",
+  "aides.create.title": "Création d'une aide à la mobilité"
+}

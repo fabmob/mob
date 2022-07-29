@@ -1,0 +1,77 @@
+.simulation-maas-base:
+  variables:
+    MODULE_NAME: simulation-maas
+    MODULE_PATH: ${MODULE_NAME}
+    MCM_IDP_REALM: ${MCM_IDP_REALM}
+    MCM_IDP_CLIENTID_MAAS: ${MCM_IDP_CLIENTID_MAAS}
+    COMMON_NAME: common
+    NEXUS_IMAGE_NGINX: ${NEXUS_DOCKER_REGISTRY}/nginx:1.14.2
+  only:
+    changes:
+      - "*"
+      - "commons/**/*"
+      - "simulation-maas/**/*"
+
+.simulation_maas_build_script: &simulation_maas_build_script |
+  sed -i "s/%IDP_FQDN%/${IDP_FQDN}/g" .env.production
+  sed -i "s/%API_FQDN%/${API_FQDN}/g" .env.production
+  npm install
+  npm run build
+
+simulation_maas_build:
+  extends:
+    - .build-job
+    - .simulation-maas-base
+    - .no-needs
+  script:
+    - *simulation_maas_build_script
+  artifacts:
+    paths:
+      - ${MODULE_PATH}/build/
+
+.simulation_maas_init_vars: &simulation_maas_init_vars |
+  export SIMULATION_MAAS_IMAGE_NAME=${REGISTRY_BASE_NAME}/maas:${IMAGE_TAG_NAME}
+
+simulation_maas_image_build:
+  extends:
+    - .image-job
+    - .except-clean
+    - .simulation-maas-base
+  script:
+    - *simulation_maas_init_vars
+    - |
+      image
+  needs: ["simulation_maas_build"]
+
+simulation_maas_preview_deploy:
+  extends:
+    - .preview-deploy-job
+    - .simulation-maas-base
+  script:
+    - *simulation_maas_init_vars
+    - |
+      deploy
+  environment:
+    on_stop: simulation_maas_preview_cleanup
+  needs: ["simulation_maas_image_build"]
+
+simulation_maas_testing_deploy:
+  extends:
+    - .testing-deploy-job
+    - .simulation-maas-base
+  script:
+    - *simulation_maas_init_vars
+    - deploy
+
+simulation_maas_preprod_deploy:
+  extends:
+    - .preprod-deploy-job
+    - .simulation-maas-base
+  script:
+    - *simulation_maas_init_vars
+    - |
+      deploy
+simulation_maas_preview_cleanup:
+  extends:
+    - .preview-undeploy-job
+    - .simulation-maas-base

@@ -1,0 +1,104 @@
+# Initialisation of specifique administration variable
+.admin-base:
+  variables:
+    MODULE_NAME: admin
+    MODULE_PATH: administration
+    MCM_IDP_REALM: ${MCM_IDP_REALM}
+    MCM_IDP_CLIENTID_ADMIN: ${MCM_IDP_CLIENTID_ADMIN}
+    MCM_GK_CLIENTID: ${MCM_GK_CLIENTID}
+    ADMIN_BASE_IMAGE_NAME: ${NEXUS_DOCKER_REGISTRY}/nginx:1.14.2
+  only:
+    changes:
+      - '*'
+      - 'commons/**/*'
+      - 'administration/**/*'
+
+# Build of testing environement image and creation of the cache
+.admin_build_script: &admin_build_script |
+  yarn install
+  export REACT_APP_ADMIN_ACCES_ROLE=${MCM_CMS_ACCESS_ROLE}
+  yarn build
+
+admin_build:
+  extends:
+    - .build-job
+    - .admin-base
+    - .no-needs
+  script:
+    - *admin_build_script
+  cache:
+    key: ${MODULE_PATH}-${CI_COMMIT_REF_SLUG}
+    policy: push
+    paths:
+      - ${MODULE_PATH}/node_modules/
+      - ${MODULE_PATH}/yarn.lock
+  artifacts:
+    paths:
+      - ${MODULE_PATH}/build
+
+# Build of administration image and deploy towards differents productions
+.admin_init_vars: &admin_init_vars |
+  export GITLAB_IMAGE_PULL_SECRET_NAME=${IMAGE_PULL_SECRET_PREFIX}-${MODULE_NAME}
+  export ADMIN_IMAGE_NAME=${REGISTRY_BASE_NAME}/admin:${IMAGE_TAG_NAME}
+  export ADMIN_BASE_IMAGE_NAME=${ADMIN_BASE_IMAGE_NAME}
+
+admin_image_build:
+  extends:
+    - .image-job
+    - .except-clean
+    - .admin-base
+  script:
+    - *admin_init_vars
+    - |
+      image
+  needs: ['admin_build']
+
+admin_preview_deploy:
+  extends:
+    - .preview-deploy-job
+    - .admin-base
+  script:
+    - *admin_init_vars
+    - deploy
+  environment:
+    on_stop: admin_preview_cleanup
+  needs: ['admin_image_build']
+
+admin_testing_deploy:
+  extends:
+    - .testing-deploy-job
+    - .admin-base
+  script:
+    - *admin_init_vars
+    - |
+      deploy
+  environment:
+    on_stop: admin_testing_cleanup
+  needs: ['admin_image_build']
+
+admin_preprod_deploy:
+  extends:
+    - .preprod-deploy-job
+    - .admin-base
+  script:
+    - *admin_init_vars
+    - |
+      deploy
+  needs: ['admin_image_build']
+
+# Deploy for DevOps : manifests to ops git repository
+admin_release:
+  extends:
+    - .handover-job
+    - .admin-base
+
+# Cleanup : undeploy of image
+admin_preview_cleanup:
+  extends:
+    - .preview-undeploy-job
+    - .admin-base
+
+admin_testing_cleanup:
+  extends:
+    - .testing-undeploy-job
+    - .admin-base

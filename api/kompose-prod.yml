@@ -1,0 +1,59 @@
+version: '3'
+
+services:
+  api:
+    image: ${API_IMAGE_NAME}
+    build:
+      context: .
+      dockerfile: ./api-dockerfile.yml
+      args:
+        NODE_IMAGE_NAME: ${BUILD_IMAGE_NAME}
+        CI_PROJECT_ID: ${CI_PROJECT_ID}
+        MCM_GITLAB_DEPLOY_NPM_TOKEN: ${MCM_GITLAB_DEPLOY_NPM_TOKEN}
+        NEXUS_NPM_PROXY_TOKEN: ${NEXUS_NPM_PROXY_TOKEN}
+    environment:
+      - MONGO_AUTH_SOURCE=${MONGO_DB_NAME}
+      - MONGO_HOST=mongo-preprod.${KUBERNETES_MONGO_NAMESPACE}.svc.cluster.local
+      - MONGO_PORT=${PROD_MONGO_SERVICE_PORT}
+      - MONGO_SERVICE_USER=${PROD_MONGO_SERVICE_USER}
+      - MONGO_SERVICE_PASSWORD=${PROD_MONGO_SERVICE_PASSWORD}
+      - MONGO_DATABASE=${MONGO_DB_NAME}
+      - IDP_DB_HOST=${PROD_PGSQL_DB_ADDR}
+      - IDP_DB_PORT=${PROD_PGSQL_DB_PORT}
+      - IDP_DB_AUTH_SOURCE=${IDP_DB_NAME}
+      - IDP_DB_SERVICE_USER=${PROD_API_DB_USER_NAME}
+      - IDP_DB_SERVICE_PASSWORD=${PROD_API_DB_USER_PWD}
+      - IDP_DB_DATABASE=${IDP_DB_NAME}
+      - CLIENT_SECRET_KEY_KEYCLOAK_API
+      - IDP_FQDN
+      - S3_SERVICE_USER=${PROD_S3_SERVICE_USER}
+      - S3_SERVICE_PASSWORD=${PROD_S3_SERVICE_PASSWORD}
+      - AFFILIATION_JWS_KEY
+      - S3_SERVEUR_FQDN
+      - WEBSITE_FQDN
+      - ANTIVIRUS_FQDN
+      - LANDSCAPE
+      - SENDGRID_EMAIL_FROM
+      - SENDGRID_API_KEY
+      - SENDGRID_HOST
+      - SENDGRID_USER
+      - SENDGRID_EMAIL_FROM_KC
+      - SENDGRID_EMAIL_CONTACT
+      - BUS_HOST=bus.${KUBERNETES_BUS_NAMESPACE}.svc.cluster.local
+      - BUS_MCM_USER
+      - BUS_MCM_PWD
+      - BUS_MCM_HEADERS
+      - BUS_MCM_MESSAGE_TYPE
+      - BUS_HRIS_SECRET_KEY
+      - API_KEY
+      - BUS_CONSUMER_QUEUE
+    networks:
+      - web-nw
+    ports:
+      - '3000'
+    labels:
+      - 'kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}'
+      - 'kompose.service.type=clusterip'
+
+networks:
+  web-nw:

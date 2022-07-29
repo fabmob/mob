@@ -1,0 +1,26 @@
+version: "3"
+
+services:
+  analytics:
+    image: ${MATOMO_IMAGE_NAME}
+    environment:
+      - MATOMO_USERNAME=${PROD_MATOMO_SUPER_USER}
+      - MATOMO_PASSWORD=${PROD_MATOMO_SUPER_PASSWORD}
+      - MATOMO_EMAIL=${PROD_MATOMO_SUPER_EMAIL}
+      - MATOMO_DATABASE_PORT_NUMBER=${PROD_PGSQL_DB_PORT}
+      - MATOMO_DATABASE_HOST=${PROD_PGSQL_DB_ADDR}
+      - MATOMO_DATABASE_USER=${PROD_MATOMO_DATABASE_USER_NAME}
+      - MATOMO_DATABASE_PASSWORD=${PROD_MATOMO_DATABASE_USER_PWD}
+      - MATOMO_DATABASE_NAME=${PROD_MATOMO_DATABASE_NAME}
+      - MATOMO_WEBSITE_NAME=${WEBSITE_FQDN}
+      - MATOMO_WEBSITE_HOST=${WEBSITE_FQDN}
+    networks:
+      - web-nw
+    ports:
+      - "8082:8080"
+    labels:
+      - "kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}"
+      - "kompose.service.type=clusterip"
+
+networks:
+  web-nw:

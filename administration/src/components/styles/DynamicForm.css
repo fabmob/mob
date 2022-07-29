@@ -1,0 +1,60 @@
+.css-2b097c-container {
+  z-index: 1000;
+}
+
+.css-1hb7zxy-IndicatorsContainer {
+  display: none !important;
+}
+
+.css-yk16xz-control {
+  background-color: hsl(0deg 0% 96%) !important;
+}
+
+.css-g1d714-ValueContainer {
+  height: 48px !important;
+}
+
+.ra-input-mde {
+  margin: 8px 0px 4px 0px;
+}
+
+.simpleForm1 .MuiTypography-body1 {
+  visibility: hidden;
+}
+
+.simpleForm1 {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+.simpleForm1 > * {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  padding: 1em !important;
+  margin: 5px;
+}
+
+.simpleForm1 > li:last-child {
+  min-width: 700px;
+  border: none;
+}
+
+.simpleForm1 li {
+  flex-direction: column;
+  max-width: 300px;
+  width: 100%;
+  height: fit-content;
+}
+
+.simpleForm2 li {
+  flex-direction: row;
+  justify-content: flex-start;
+}
+
+.simpleForm2 > li:first-child span {
+  width: auto;
+}
+
+.simpleForm1 p {
+  display: none;
+}

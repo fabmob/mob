@@ -1,0 +1,9 @@
+version: "3"
+
+services:
+  verify:
+    image: ${VERIFY_IMAGE_NAME}
+    build:
+      context: .
+      args:
+        BASE_IMAGE_SONAR: ${NEXUS_DOCKER_REGISTRY}/sonarsource/sonar-scanner-cli:4

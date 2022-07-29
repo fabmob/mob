@@ -1,0 +1,4 @@
+ARG BASE_POSTGRES_IMAGE_NAME
+FROM ${BASE_POSTGRES_IMAGE_NAME}
+
+COPY ./databaseConfig/*.sh /docker-entrypoint-initdb.d/

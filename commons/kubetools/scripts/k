@@ -1,0 +1,59 @@
+#!/bin/bash
+
+# Retrieve parameters or default values
+KOMPOSE_FILE=${KOMPOSE_FILE:-./kompose.yml}
+OVERLAYS_PATH=${OVERLAYS_PATH:-./overlays}
+BUILD_PATH=${BUILD_PATH:-$(mktemp -d -t s2kXXXXXXXXXX)}
+ENV_PATH=${ENV_PATH:-${BUILD_PATH}/params.env}
+
+# Create output directory
+mkdir -p $BUILD_PATH/
+if [ -d "$BUILD_PATH/.base" ]; then mv $BUILD_PATH/.base $BUILD_PATH/.base.bak; fi
+mkdir -p $BUILD_PATH/.base/
+
+# Identify environment variables used in compose (kompose) file
+VARS=
+while IFS= read -r -a VAR_NAME; do
+  if [[ ${VARS} != *"${VAR_NAME}"* ]];then
+    VARS="${VARS} $VAR_NAME"
+  fi
+done < <(grep -Eo '\$\{[0-9A-Za-z_-]+}' $KOMPOSE_FILE | grep -Eo '[0-9A-Za-z_-]+' -)
+
+# Initialize environment variables and .env file
+echo >${ENV_PATH}
+for VAR_NAME in $VARS
+do
+  echo "export $VAR_NAME=\${${VAR_NAME}}" >>${ENV_PATH}
+  eval "export $VAR_NAME=\$\{${VAR_NAME}\}"
+done
+# Convert base Docker compose file
+kompose convert --with-kompose-annotation=false --suppress-warnings --file $KOMPOSE_FILE -o $BUILD_PATH/.base/
+
+cat > $BUILD_PATH/.base/kustomization.tmp <(cd $BUILD_PATH/.base/ ; echo "resources:" ; for MANIFEST in $(find . \( -name '*.yml' -o -name '*.yaml' \))
+do
+  echo - \"$MANIFEST\"
+done
+)
+mv $BUILD_PATH/.base/kustomization.tmp $BUILD_PATH/.base/kustomization.yaml
+# Copy overlay files to build location
+cp -R $OVERLAYS_PATH/* $BUILD_PATH/
+# Edit kustomization.yaml to include overlays
+echo -e "bases:\n- .base\n\n$(cat $BUILD_PATH/kustomization.yaml)" > $BUILD_PATH/kustomization.yaml
+# DEBUGGING: dump $BUILD_PATH/kustomization.yaml and $BUILD_PATH/.base/kustomization.yaml
+>&2 echo "**** current path:"
+>&2 pwd
+>&2 echo "**** value of BUILD_PATH:"
+>&2 echo $BUILD_PATH
+>&2 echo "*** files in BUILD_PATH"
+>&2 ls -la ${BUILD_PATH}
+>&2 echo "*** files in BUILD_PATH/.base"
+>&2 ls -la ${BUILD_PATH}/.base
+>&2 echo "******* BUILD_PATH/kustomization.yaml (overlays):"
+>&2 cat ${BUILD_PATH}/kustomization.yaml
+>&2 echo "******* BUILD_PATH/.base/kustomization.yaml (converted base):"
+>&2 cat ${BUILD_PATH}/.base/kustomization.yaml
+
+
+# Apply customizations and print end-result to stdout
+kubectl kustomize $BUILD_PATH/
+

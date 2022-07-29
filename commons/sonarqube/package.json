@@ -1,0 +1,13 @@
+{
+  "name": "mcm-verify",
+  "author": "",
+  "description": "",
+  "version": "1.0.0",
+  "license": "ISC",
+  "scripts": {
+    "verify": "node ./patch-package-json.js ; cd ${PROJECT_PATH} ; sonarqube-verify"
+  },
+  "devDependencies": {
+    "sonarqube-verify": "^1.0.2"
+  }
+}

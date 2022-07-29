@@ -1,0 +1,45 @@
+.mcm-video {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 508px;
+  @media screen and (min-width: 768px) {
+    margin-bottom: 0px;
+    transition-property: margin-bottom;
+    transition-duration: 2s;
+  }
+  @media screen and (min-width: 1024px) {
+    height: 810px;
+  }
+
+  &::after {
+    content: '';
+    top: 0;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    background: linear-gradient(
+      238deg,
+      rgba(0, 0, 0, 0.42) 0%,
+      rgba(0, 0, 0, 0.71) 100%
+    );
+  }
+}
+
+.mcm-video--play {
+  @media screen and (max-width: 600px) {
+    height: 211px;
+  }
+  @media screen and (min-width: 768px) {
+    margin-bottom: 110px;
+    transition-property: margin-bottom;
+    transition-duration: 2s;
+  }
+  &::after {
+    display: none;
+  }
+  .mcm-container__main {
+    display: none;
+  }
+}

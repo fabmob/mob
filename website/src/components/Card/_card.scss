@@ -1,0 +1,107 @@
+.mcm-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  background-color: #ffffff;
+  padding: 30px;
+  min-height: 365px;
+
+  &__header {
+    display: flex;
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--color-grey-light);
+
+    .card-header-img {
+      margin-right: 32px;
+      width: 50px;
+    }
+
+    h3 {
+      flex: 1;
+    }
+    .mcm-card__title {
+      width: fit-content;
+
+      .funder_name:first-letter {
+        text-transform: uppercase;
+      }
+    }
+  }
+
+  &__body {
+    padding-top: 20px;
+
+    .body-title {
+      display: inline-block;
+      font-size: 20px;
+      line-height: 28px;
+      font-weight: 600;
+      margin-bottom: 30px;
+    }
+
+    .no-body-title {
+      display: inline-block;
+      font-size: 14px;
+      line-height: 18px;
+      margin-bottom: 24px;
+    }
+
+    .card-body-tags {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      margin-bottom: 24px;
+
+      &__tag {
+        border-radius: 12px;
+        background-color: var(--color-grey-ultralight);
+        font-size: 14px;
+        padding: 4px 12px;
+
+        &:not(:last-child) {
+          margin-bottom: 12px;
+        }
+      }
+    }
+  }
+
+  &__footer {
+    margin-top: auto;
+
+    span {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--color-green-leaf);
+    }
+  }
+
+  &--green {
+    background-color: var(--color-green-leaf);
+    color: white;
+    @media screen and (max-width: 661px) {
+      min-height: 225px;
+    }
+
+    .mcm-card__header {
+      border-bottom: none;
+
+      h3 {
+        font-weight: 400;
+      }
+    }
+
+    .mcm-card__body {
+      display: none;
+    }
+
+    .mcm-card__footer {
+      span {
+        color: white;
+      }
+    }
+  }
+
+  &--pointer {
+    cursor: pointer;
+  }
+}

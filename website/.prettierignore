@@ -1,0 +1,7 @@
+.cache
+.gitlab-ci.yml
+coverage
+.scannerwork
+public/
+gatsby-config.js
+.eslintrc.js

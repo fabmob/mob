@@ -1,0 +1,96 @@
+.antivirus-base:
+  variables:
+    MODULE_NAME: antivirus
+    MODULE_PATH: ${MODULE_NAME}
+    CLAMAV_SERVICE_NAME: clamav
+  only:
+    changes:
+      - "*"
+      - "commons/**/*"
+      - "antivirus/**/*"
+
+.antivirus_init_vars: &antivirus_init_vars |
+  export GITLAB_IMAGE_PULL_SECRET_NAME=${IMAGE_PULL_SECRET_PREFIX}-${MODULE_NAME}
+  export ANTIVIRUS_IMAGE_NAME=${NEXUS_DOCKER_REGISTRY_URL}/clamav/clamav:stable
+  export ANTIVIRUS_REST_IMAGE_NAME=${NEXUS_DOCKER_REGISTRY_URL}/benzino77/clamav-rest-api:1.0.8
+
+antivirus_build:
+  extends:
+    - .build-job
+    - .antivirus-base
+    - .no-needs
+    - .only-master
+  script:
+    - echo 'build'
+  cache:
+    key: ${MODULE_NAME}-${CI_COMMIT_REF_SLUG}
+    paths:
+      - ${MODULE_PATH}/
+  artifacts:
+    paths:
+      - ${MODULE_PATH}/
+
+antivirus_image_build:
+  extends:
+    - .image-job
+    - .except-clean
+    - .antivirus-base
+    - .only-master
+  script:
+    - *antivirus_init_vars
+    - |
+      image
+  needs: ["antivirus_build"]
+
+antivirus_preview_deploy:
+  extends:
+    - .preview-deploy-job
+    - .antivirus-base
+    - .only-master
+  script:
+    - *antivirus_init_vars
+    - |
+      deploy
+  environment:
+    on_stop: antivirus_preview_cleanup
+  needs: ["antivirus_image_build"]
+
+antivirus_testing_deploy:
+  extends:
+    - .testing-deploy-job
+    - .antivirus-base
+    - .only-master
+  script:
+    - *antivirus_init_vars
+    - deploy
+  environment:
+    on_stop: antivirus_testing_cleanup
+  needs: ["antivirus_image_build"]
+
+antivirus_preprod_deploy:
+  extends:
+    - .preprod-deploy-job
+    - .antivirus-base
+    - .only-master
+  script:
+    - *antivirus_init_vars
+    - |
+      deploy
+  needs: ["antivirus_image_build"]
+
+# Deploy for DevOps : manifests to ops git repository
+antivirus_release:
+  extends:
+    - .handover-job
+    - .antivirus-base
+
+# Cleanup : undeploy of image
+antivirus_preview_cleanup:
+  extends:
+    - .preview-undeploy-job
+    - .antivirus-base
+
+antivirus_testing_cleanup:
+  extends:
+    - .testing-undeploy-job
+    - .antivirus-base

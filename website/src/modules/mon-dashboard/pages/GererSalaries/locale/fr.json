@@ -1,0 +1,20 @@
+{
+  "dashboard.management.employees.title": "Salariés",
+  "dashboard.management.employees.all.title": "Tous les salariés",
+  "dashboard.management.employees.search.label": "Filtrer les demandes par nom de famille",
+  "dashboard.management.employees.search.placeholder": "Rechercher par nom de famille",
+  "dashboard.management.employees.button.deletion.supervisor": "Supprimer l'affilation",
+  "dashboard.management.employees.button.load.more": "Afficher plus de salariés",
+  "dashboard.management.employees.button.load.less": "Afficher moins de salariés",
+  "dashboard.management.employees.button.check.subscriptions": "Consulter les demandes",
+  "dashboard.management.employees.no.employee": "Pour le moment vous n'avez aucun salarié affilié!",
+  "dashboard.management.employees.delete.modal.title": "Suppression de l'affiliation du salarié",
+  "dashboard.management.employees.delete.modal.button.submit": "Valider",
+  "dashboard.management.employees.delete.modal.button.cancel": "Annuler",
+  "dashboard.management.employees.delete.modal.body": "Cette action est irreversible. Etês-vous sûr de vouloir supprimer l'affiliation du salarié {0} ?",
+  "dashboard.management.employees.delete.modal.success.message": "L'affiliation du salarié a été mise à jour avec succès",
+  "dashboard.management.employees.tabs.affiliated": "Salariés affiliés",
+  "dashboard.management.employees.tabs.disaffiliated": "Salariés désaffiliés",
+  "dashboard.management.employees.tabs.to.affiliate": "Salariés en cours d'affiliation",
+  "dashboard.management.employees.no.result" : "Aucun résultat trouvé"
+}

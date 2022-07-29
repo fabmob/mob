@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: ${MONGO_IMAGE_NAME}
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGO_INITDB_DATABASE=${MONGO_DB_NAME}
+      - MONGO_INITDB_NON_ROOT_USERNAME=${MONGO_SERVICE_USER}
+      - MONGO_INITDB_NON_ROOT_PASSWORD=${MONGO_SERVICE_PASSWORD}
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - dev_storage-nw
+    deploy:
+      labels:
+        - 'traefik.enable=false'
+
+  api:
+    depends_on:
+      - mongo
+    image: ${API_IMAGE_NAME}
+    environment:
+      - MONGO_AUTH_SOURCE=${MONGO_DB_NAME}
+      - MONGO_HOST=${STACK_NAME}_mongo
+      - MONGO_PORT=27017
+      - MONGO_SERVICE_USER
+      - MONGO_SERVICE_PASSWORD
+      - MONGO_DATABASE=${MONGO_DB_NAME}
+      - MARIADB_AUTH_SOURCE=${MARIADB_DATABASE_NAME}
+      - MARIADB_HOST=${IDP_STACK_NAME}_mariadb
+      - MARIADB_PORT=3306
+      - MARIADB_SERVICE_USER=${MARIADB_USER}
+      - MARIADB_SERVICE_PASSWORD=${MARIADB_PWD}
+      - MARIADB_DATABASE=${MARIADB_DATABASE_NAME}
+      - CLIENT_SECRET_KEY_KEYCLOAK_API
+      - IDP_FQDN
+      - SENDGRID_EMAIL_TO
+      - SENDGRID_EMAIL_FROM
+      - SENDGRID_API_KEY
+      - S3_SERVICE_USER
+      - S3_SERVICE_PASSWORD
+      - S3_SERVEUR_FQDN
+      - AFFILIATION_JWS_KEY
+      - WEBSITE_FQDN
+      - CLAMAV_FQDN
+    networks:
+      - dev_web-nw
+      - dev_storage-nw
+      - stack_web-nw
+      #- dev_storage_idp-nw
+    deploy:
+      labels:
+        - 'traefik.http.routers.${STACK_NAME}.entrypoints=http'
+        - 'traefik.http.routers.${STACK_NAME}.service=${STACK_NAME}'
+        - 'traefik.http.routers.${STACK_NAME}.rule=Host(`${API_FQDN}`)'
+        - 'traefik.http.routers.${STACK_NAME}.middlewares=${STACK_NAME}'
+        - 'traefik.http.middlewares.${STACK_NAME}.headers.customrequestheaders.X-Forwarded-Proto=https'
+        - 'traefik.http.middlewares.${STACK_NAME}.headers.customrequestheaders.X-Forwarded-Port=443'
+        # - 'traefik.http.middlewares.${STACK_NAME}.headers.accesscontrolalloworiginlist=${WEBSITE_FQDN}'
+        - 'traefik.http.services.${STACK_NAME}.loadbalancer.server.port=3000'
+        - 'traefik.http.services.${STACK_NAME}.loadbalancer.server.scheme=http'
+        - 'traefik.docker.network=dev_web-nw'
+
+volumes:
+  mongo-data:
+
+networks:
+  dev_web-nw:
+    external: true
+    name: dev_web-nw
+  stack_web-nw:
+    external: true
+    name: ${BRANCH_NAME}_web-nw
+  dev_storage-nw:
+    internal: true
+  # dev_storage_idp-nw:
+  #   external: true
+  #   name: dev_storage_idp-nw
+  #   internal: true
+  #   attachable: true

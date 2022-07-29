@@ -1,0 +1,177 @@
+backend:
+  name: gitlab
+  repo: '{{ env `GITLAB_PROJECT_PATH` }}' # Path to your GitLab repository
+  auth_type: implicit # Required for implicit grant
+  app_id: '{{ env `MCM_GK_CLIENTID` }}' # Client ID from your Keycloak settings
+  api_root: https://{{ env `GK_FQDN` }}/api/v4
+  base_url: https://{{ env `IDP_FQDN` }}/auth/realms/{{ env `MCM_IDP_REALM` }}/protocol/openid-connect
+  auth_endpoint: auth
+  branch: '{{ env `GITLAB_BRANCH` }}'
+
+media_folder: website/static/uploads
+public_folder: /uploads
+
+logo_url: /uploads/netlify_cms.logo.png
+locale: fr
+
+collections:
+  - name: 'blog'
+    label: 'Blog'
+    folder: 'website/src/content/blog'
+    create: true
+    slug: '{{ `{{year}}-{{month}}-{{day}}-{{slug}}` }}'
+    fields:
+      - {
+          label: 'ID du modèle',
+          name: 'templateKey',
+          widget: 'hidden',
+          default: 'blog-post',
+        }
+      - { label: 'Titre', name: 'title', widget: 'string' }
+      - { label: 'Date de publication', name: 'date', widget: 'datetime' }
+      - { label: 'Description', name: 'description', widget: 'text' }
+      - { label: 'Corps', name: 'body', widget: 'markdown' }
+      - { label: 'Tags', name: 'tags', widget: 'list' }
+  - name: 'settings'
+    label: 'Configurations'
+    delete: false
+    files:
+      - name: 'signup'
+        file: 'website/src/settings/signup.md'
+        label: "Configuration des pages d'inscription"
+        fields:
+          - {
+              label: 'Template Key',
+              name: 'templateKey',
+              widget: 'hidden',
+              default: 'signup-settings',
+            }
+          - { label: 'Titre de la page', name: 'title', widget: 'string' }
+          - {
+              label: 'Question de déplacement',
+              name: 'question',
+              widget: 'string',
+            }
+          - {
+              label: "Nom de l'agglomération",
+              name: 'agglomeration',
+              widget: 'string',
+            }
+          - label: Page d'authentification
+            summary: Texte affiché sur la page de connexion au dessus du bouton "Créer mon compte".
+            name: singin
+            widget: object
+            collapsed: true
+            fields:
+              - {
+                  label: 'Titre création compte',
+                  name: 'title',
+                  widget: 'string',
+                }
+              - {
+                  label: 'Text création compte',
+                  name: 'text',
+                  widget: 'string',
+                }
+          - label: Page d'inscription
+            summary: Texte affiché sur la page de création de compte à côté du formulaire.
+            name: singup
+            widget: object
+            collapsed: true
+            fields:
+              - { label: 'Texte', name: 'text', widget: 'string' }
+              - { label: 'Sous texte', name: 'sub_text', widget: 'string' }
+          - label: Page de confirmation
+            summary: Texte affiché sur la page de confirmation.
+            name: confirm
+            widget: object
+            collapsed: true
+            fields:
+              - { label: 'Titre', name: 'title', widget: 'string' }
+              - { label: 'Texte', name: 'text', widget: 'string' }
+              - {
+                  label: 'Title première étape',
+                  name: 'stepOneTitle',
+                  widget: 'string',
+                }
+              - {
+                  label: 'Texte première étape',
+                  name: 'stepOneText',
+                  widget: 'string',
+                }
+              - {
+                  label: 'Title deuxième étape',
+                  name: 'stepTwoTitle',
+                  widget: 'string',
+                }
+              - {
+                  label: 'Texte deuxième étape',
+                  name: 'stepTwoText',
+                  widget: 'string',
+                }
+  - name: 'projet'
+    label: 'Projet'
+    files:
+      - name: 'projet'
+        label: 'Page projet'
+        file: 'website/src/pages/decouvrir-le-projet.md'
+        fields:
+          - { label: 'Titre de la page', name: 'title', widget: 'text' }
+          - { label: 'Description', name: 'description', widget: 'text' }
+          - { label: 'Sous-titre', name: 'subtitle', widget: 'text' }
+          - { label: 'Sous-texte', name: 'subText', widget: 'text' }
+          - label: Cards Section
+            name: cardSection
+            widget: object
+            fields:
+              - {
+                  label: 'Titre de la section',
+                  name: 'title',
+                  widget: 'text',
+                }
+              - label: Cards
+                name: cards
+                widget: list
+                collapsed: true
+                min: 3
+                max: 3
+                fields:
+                  - {
+                      label: 'Titre de la card',
+                      name: 'title',
+                      widget: 'text',
+                    }
+                  - { label: 'Sous-titre', name: 'subtitle', widget: 'text' }
+                  - { label: 'Liste', name: 'list', widget: 'list' }
+                  - label: Bouton
+                    name: button
+                    widget: object
+                    collapsed: true
+                    fields:
+                      - {
+                          label: 'Texte du bouton',
+                          name: 'label',
+                          widget: 'string',
+                        }
+                      - { label: 'URL', name: 'href', widget: 'string' }
+          - label: Links Section
+            name: linkSection
+            widget: object
+            fields:
+              - {
+                  label: 'Titre de la section',
+                  name: 'title',
+                  widget: 'string',
+                }
+              - label: Liens
+                name: links
+                widget: list
+                collapsed: true
+                fields:
+                  - {
+                      label: 'Description du fichier / lien',
+                      name: 'label',
+                      widget: 'string',
+                    }
+                  - { label: 'Fichier', name: 'file', widget: 'file', default: "/uploads/new-pdf", required: false }
+                  - { label: 'Lien', name: 'url', widget: 'string', required: false }

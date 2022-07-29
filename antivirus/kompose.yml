@@ -1,0 +1,38 @@
+version: "3"
+
+services:
+  clamav:
+    image: ${ANTIVIRUS_IMAGE_NAME}
+    networks:
+      - clamav-nw
+    ports:
+      - "3310"
+    labels:
+      - "kompose.image-pull-secret=${PROXY_IMAGE_PULL_SECRET_NAME}"
+      - "kompose.service.type=clusterip"
+      - "kompose.volume.size=200Mi"
+      - "traefik.enable=false"
+
+  antivirus:
+    image: ${ANTIVIRUS_REST_IMAGE_NAME}
+    depends_on:
+      - clamav
+    networks:
+      - web-nw
+      - clamav-nw
+    environment:
+      - NODE_ENV=development
+      - CLAMD_IP=${CLAMAV_SERVICE_NAME}
+      - CLAMD_PORT=3310
+      - APP_FORM_KEY=FILES
+      - APP_PORT=8100
+      - APP_MAX_FILES_NUMBER=25
+    ports:
+      - "8100"
+    labels:
+      - "kompose.image-pull-secret=${PROXY_IMAGE_PULL_SECRET_NAME}"
+      - "kompose.service.type=clusterip"
+
+networks:
+  web-nw:
+  clamav-nw:

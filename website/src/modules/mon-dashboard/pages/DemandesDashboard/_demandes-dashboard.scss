@@ -1,0 +1,102 @@
+.mcm-demandes-container {
+  display: flex;
+  flex-direction: row;
+
+  .mcm-demandes-pending {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-evenly;
+    background-color: var(--color-green-leaf);
+    color: var(--color-white);
+    width: 30%;
+    border-radius: 8px;
+    margin-right: 2%;
+    padding: 1%;
+    .mcm-demandes-info h1 {
+      text-align: center;
+      padding: var(--spacing-xxs);
+    }
+    .mcm-demandes-info p {
+      text-align: center;
+    }
+    button {
+      border-color: var(--color-white);
+    }
+  }
+
+  .mcm-demandes-recap-container {
+    background-color: var(--color-grey-ultralight);
+    width: 70%;
+    border-radius: 8px;
+
+    .mcm-demandes-filters {
+      display: flex;
+      flex-direction: row;
+      justify-content: flex-end;
+
+      .checkbox-radio {
+        margin-top: 0;
+      }
+
+      .field {
+        margin: var(--spacing-xxs);
+        width: 30%;
+      }
+    }
+
+    .mcm-demandes-recap {
+      display: flex;
+      justify-content: space-around;
+      margin-top: var(--spacing-s);
+      margin-bottom: var(--spacing-s);
+    }
+  }
+}
+
+@media screen and (max-width: 1023px) {
+  .mcm-demandes-container {
+    display: flex;
+    flex-direction: column;
+    .mcm-demandes-pending {
+      margin-bottom: var(--spacing-s);
+      padding: 40px;
+      width: 100%;
+      .mcm-demandes-info {
+        align-items: center;
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 24px;
+      }
+      a {
+        margin-top: var(--spacing-xxs);
+        margin-bottom: var(--spacing-s);
+      }
+      button {
+        width: 100%;
+      }
+    }
+    .mcm-demandes-recap-container {
+      width: 100%;
+      .mcm-demandes-filters {
+        display: flex;
+        flex-direction: column;
+        padding: var(--spacing-s);
+        .field {
+          margin: 0;
+          width: 100%;
+        }
+      }
+      .mcm-demandes-recap {
+        white-space: nowrap;
+        overflow-x: scroll;
+        display: block;
+        margin: var(--spacing-xs);
+        svg {
+          display: inline-block;
+          margin: var(--spacing-xxs);
+        }
+      }
+    }
+  }
+}

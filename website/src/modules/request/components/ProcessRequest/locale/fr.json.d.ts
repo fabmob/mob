@@ -1,0 +1,32 @@
+interface Fr {
+  'subscription.processRequest.crumb.label.new.request': string;
+  'subscription.processRequest.visualize': string;
+  'subscription.processRequest.validate': string;
+  'subscription.processRequest.reject': string;
+  'subscription.processRequest.confirmValidate': string;
+  'subscription.processRequest.confirmReject': string;
+  'subscription.processRequest.confirmValidate.modal.title': string;
+  'subscription.processRequest.confirmValidate.modal.button.submit': string;
+  'subscription.processRequest.confirmValidate.modal.button.cancel': string;
+  'subscription.processRequest.confirmReject.modal.title': string;
+  'subscription.processRequest.confirmReject.modal.button.submit': string;
+  'subscription.processRequest.confirmReject.modal.button.cancel': string;
+  'subscription.processRequest.confirmReject.modal.body': string;
+  'subscription.processRequest.confirmValidate.modal.children.mode': string;
+  'subscription.processRequest.confirmValidate.modal.mode.none': string;
+  'subscription.processRequest.confirmValidate.modal.mode.single': string;
+  'subscription.processRequest.confirmValidate.modal.mode.multiple': string;
+  'subscription.processRequest.return.button': string;
+  'request.validate.heading.title': string;
+  'subscription.processRequest.refuse.button': string;
+  'subscription.processRequest.validate.button': string;
+  'request.confirm.button.admin.another.helps': string;
+  'request.information.to.verify': string;
+  'request.information.no.informations.to.verify': string;
+  'request.information.obligatory.proof': string;
+  'request.information.no.file.to.download': string;
+  'request.information.reject.request': string;
+  'request.information.validate.informations.conforrmity': string;
+}
+declare const value: Fr;
+export = value;

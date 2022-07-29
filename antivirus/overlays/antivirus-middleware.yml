@@ -1,0 +1,21 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: antivirus-middleware
+spec:
+  headers:
+    customRequestHeaders:
+      X-Forwarded-Proto: "https"
+      X-Forwarded-Port: "443"
+    accessControlAllowMethods:
+      - "OPTIONS"
+      - "GET"
+      - "POST"
+    accessControlAllowOriginList:
+      - "https://${API_FQDN}"
+    accessControlAllowHeaders:
+      - "Authorization"
+      - "X-Requested-With"
+    accessControlAllowCredentials: true
+    accessControlMaxAge: 100
+    addVaryHeader: true

@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  simulation-maas:
+    image: ${SIMULATION_MAAS_IMAGE_NAME}
+    networks:
+      - dev_web-nw
+    environment:
+      - IDP_FQDN
+    deploy:
+      labels:
+        - "traefik.http.routers.${STACK_NAME}.entrypoints=http"
+        - "traefik.http.routers.${STACK_NAME}.service=${STACK_NAME}"
+        - "traefik.http.routers.${STACK_NAME}.rule=Host(`${SIMULATION_MAAS_FQDN}`)"
+        - "traefik.http.services.${STACK_NAME}.loadbalancer.server.port=80"
+        - "traefik.http.services.${STACK_NAME}.loadbalancer.server.scheme=http"
+        - "traefik.docker.network=dev_web-nw"
+
+networks:
+  dev_web-nw:
+    external: true
+    name: dev_web-nw

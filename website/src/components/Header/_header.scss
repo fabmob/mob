@@ -1,0 +1,156 @@
+$tablet-breakpoint: 810px;
+$laptop-breakpoint: 1024px;
+
+.mcm-header {
+  padding: 28px var(--spacing-s);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  &__left {
+    @media screen and (min-width: $laptop-breakpoint) {
+      margin-right: var(--spacing-m);
+    }
+  }
+
+  .mcm-logo {
+    fill: var(--color-green-leaf);
+    width: 76px;
+    height: 27px;
+    transition: all 200ms ease;
+
+    @media screen and (min-width: $laptop-breakpoint) {
+      width: 115px;
+      height: 44px;
+    }
+  }
+  .mcm-logo-baseline {
+    fill: var(--color-green-leaf);
+    width: 115px;
+    height: 15px;
+    display: none;
+    transition: all 1s ease;
+
+    @media screen and (min-width: $laptop-breakpoint) {
+      display: block;
+    }
+  }
+  .mcm-logo--mobile {
+    fill: var(--color-green-leaf);
+    display: block;
+    @media screen and (min-width: $laptop-breakpoint) {
+      display: none;
+    }
+  }
+}
+
+.mcm-burger__checkbox {
+  opacity: 0;
+  position: absolute;
+  top: -1000px;
+
+  @media screen and (max-width: $laptop-breakpoint - 1) {
+    &:checked ~ .mcm-nav .mcm-mobile-nav {
+      display: block;
+    }
+  }
+  &:checked + .mcm-burger {
+    position: fixed;
+    top: 28px;
+    right: 28px;
+  }
+
+  &:checked + .mcm-burger__button {
+    margin-left: auto;
+  }
+
+  &:checked ~ .mcm-burger .mcm-burger__button {
+    > i {
+      background-image: none;
+      justify-content: center;
+      background-position-x: center;
+
+      &::before {
+        transform: translateY(50%) translateX(12%) rotate3d(0, 0, 1, 45deg);
+        width: 24px;
+      }
+      &::after {
+        transform: translateY(-50%) translateX(12%) rotate3d(0, 0, 1, -45deg);
+        width: 24px;
+      }
+    }
+  }
+
+  &:checked ~ .mcm-nav .mcm-nav__mobile {
+    display: flex;
+    @media screen and (max-width: $laptop-breakpoint - 1) {
+      flex-direction: column;
+    }
+  }
+  &:checked ~ .mcm-nav {
+    @media screen and (max-width: $laptop-breakpoint - 1) {
+      position: fixed;
+      padding: 100px 80px;
+    }
+    @media screen and (max-width: $tablet-breakpoint - 1) {
+      padding: 28px var(--spacing-s);
+    }
+  }
+}
+
+.mcm-burger {
+  margin-left: auto;
+  display: block;
+  width: 40px;
+  position: relative;
+  cursor: pointer;
+  z-index: 100;
+
+  .mcm-burger__button {
+    fill: var(--color-green-leaf);
+    width: 40px;
+    height: 40px;
+    display: block;
+    pointer-events: none;
+
+    > i {
+      display: inline-flex;
+      vertical-align: top;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: stretch;
+      height: 100%;
+      width: 100%;
+      padding: 9px 5px;
+      background-color: transparent;
+      background-image: linear-gradient(
+        var(--color-green-leaf),
+        var(--color-green-leaf)
+      );
+      background-position: left center;
+      background-repeat: no-repeat;
+      background-origin: content-box;
+      background-size: 24px 2px;
+      transition: 0.25s;
+      transition-property: transform;
+      will-change: transform;
+
+      &::before,
+      &::after {
+        content: '';
+        height: 2px;
+        background: var(--color-green-leaf);
+        transition: 0.25s;
+        transition-property: transform, top;
+        will-change: transform, top;
+      }
+      &::after {
+        width: 16px;
+      }
+    }
+
+    @media screen and (min-width: $laptop-breakpoint) {
+      display: none;
+    }
+  }
+}

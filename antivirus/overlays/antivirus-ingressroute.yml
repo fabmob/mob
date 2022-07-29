@@ -1,0 +1,24 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: antivirus
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  entryPoints:
+    - web
+    # - websecure
+  routes:
+    - match: Host(`${ANTIVIRUS_FQDN}`)
+      kind: Rule
+      services:
+        - kind: Service
+          name: antivirus
+          port: 8100
+  # tls:
+  #   secretName: ${SECRET_NAME} # antivirus-tls # cert-dev
+  #   domains:
+  #     - main: ${BASE_DOMAIN}
+  #       sans:
+  #         - "*.preview.${BASE_DOMAIN}"
+  #         - "*.testing.${BASE_DOMAIN}"

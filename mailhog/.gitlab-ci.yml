@@ -1,0 +1,37 @@
+.mailhog-base:
+  variables:
+    MODULE_NAME: mailhog
+    MODULE_PATH: ${MODULE_NAME}
+    MAILHOG_SERVICE_NAME: mailhog
+  only:
+    changes:
+      - "*"
+      - "commons/**/*"
+      - "mailhog/**/*"
+
+.mailhog_init_vars: &mailhog_init_vars |
+  export GITLAB_IMAGE_PULL_SECRET_NAME=${IMAGE_PULL_SECRET_PREFIX}-${MODULE_NAME}
+  export MAILHOG_IMAGE_NAME=${NEXUS_DOCKER_REGISTRY_URL}/mailhog/mailhog:v1.0.1
+
+mailhog_preview_deploy:
+  extends:
+    - .preview-deploy-job
+    - .mailhog-base
+  script:
+    - *mailhog_init_vars
+    - |
+      deploy
+  environment:
+    on_stop: mailhog_preview_cleanup
+  needs: ["commons-kubetools-image"]
+
+# Cleanup : undeploy of image
+mailhog_preview_cleanup:
+  extends:
+    - .preview-undeploy-job
+    - .mailhog-base
+
+mailhog_testing_cleanup:
+  extends:
+    - .testing-undeploy-job
+    - .mailhog-base

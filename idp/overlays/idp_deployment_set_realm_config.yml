@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: idp
+spec:
+  template:
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+      - name: idp
+        volumeMounts:
+        - name: realm-config
+          mountPath: /tmp
+      volumes:
+        - name: realm-config
+          configMap:
+            name: mcm-realm-config

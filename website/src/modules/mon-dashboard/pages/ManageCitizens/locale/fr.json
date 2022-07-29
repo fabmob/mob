@@ -1,0 +1,9 @@
+{
+  "dashboard.manage.citizens.title": "Citoyens",
+  "dashboard.manage.citizens.search.placeholder": "Rechercher par nom de famille",
+  "dashboard.manage.citizens.total.count": "Citoyens",
+  "dashboard.manage.citizens.button.view.requests": "Consulter les demandes",
+  "dashboard.manage.citizens.no.search.result": "Aucun résultat trouvé",
+  "dashboard.manage.citizens.get.more.citizens": "Afficher plus de citoyens",
+  "dashboard.manage.citizen.deleted.account": "le citoyen est supprimé"
+}

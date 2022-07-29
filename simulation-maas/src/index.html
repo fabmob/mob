@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+
+    <title>Simulateur MAAS</title>
+  </head>
+  <body>
+    <h1>Vous êtes chez le MAAS : simulation-maas</h1>
+    <nav>
+      <a href="/">Liaison de compte</a>
+      <a href="#redirection-demandes">Demandes souscription</a>
+    </nav>
+    <div>
+      <h2>Liaison de compte</h2>
+      <p id="messageName" style="font-size: larger"></p>
+      <p>Le Token d'accès est :</p>
+      <p
+        id="accessToken"
+        style="
+          font-size: smaller;
+          height: 150px;
+          max-width: 200ch;
+          word-wrap: break-word;
+        "
+      ></p>
+      <p id="errors"></p>
+      <input id="linkMyAccount" type="button" value="Lier mon compte" />
+      <input
+        id="askForNewToken"
+        type="button"
+        value="demander un nouveau token d'accès"
+      />
+      <input id="disconnect" type="button" value="se déconnecter" />
+      <input id="copyToken" type="button" value="copier le Token" />
+    </div>
+    <div id="redirection-demandes">
+      <h2>Demandes souscription</h2>
+      <div>
+        <p>incentiveId</p>
+        <input id="incentiveId" name="incentiveId" type="text" />
+      </div>
+      <div>
+        <p>Token</p>
+        <textarea id="token" name="token" rows="5" cols="100"></textarea>
+      </div>
+      <div>
+        <p>Métadonnées</p>
+        <textarea id="metadata" name="metadata" rows="10" cols="100">
+          {"example": "value"}
+        </textarea>
+      </div>
+      <input id="getMeta" type="button" value="example métadonnées" />
+      <input id="subscription" type="button" value="envoyer ma demande" />
+    </div>
+  </body>
+</html>
