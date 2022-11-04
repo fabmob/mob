@@ -1,29 +1,33 @@
-## Module analytics
+# Description
 
-Il s'agit des assets pour mesurer l'audience de la plateforme MCM à destination des administrateurs fonctionnels.
+Le service analytics se base sur la brique logicielle **[Matomo](https://matomo.org/matomo-analytics-the-google-analytics-alternative-that-protects-your-data-variation/)**
 
-### Choix d'architecture détaillée
-La brique Redis n'a pas été mise en place car la fréquentation prévue du site ne le nécessite pas.
-Une alternative médiane pourrait être d'utiliser Azure Database for MariaDB.
+Elle nous permet de collecter les données utilisateurs sur certaines pages tout en étant compliant RGPD et ainsi de remonter des métriques d'audiences à des administrateurs fonctionnels.
 
-### Vue simplifiée
+# Installation en local
 
-```plantuml
-scale 1.2
-actor admin_fonctionnel
-actor visitor
-rectangle Azure {
-    database MariaDB
-    rectangle Matomo {
-        agent apache
-        agent php
-        agent mysql_client
-    }
-}
-rectangle WebUI
-visitor -> WebUI
-admin_fonctionnel -r-> Matomo
-WebUI -> Matomo
-Matomo -> MariaDB
-```
+Pas d'installation en local pour ce service
 
+## URL / Port
+
+Pas d'installation en local pour ce service
+
+# Précisions pipelines
+
+## Preview
+
+Pas de précisions nécéssaires pour ce service
+
+## Testing
+
+Pas de précisions nécéssaires pour ce service
+
+# Relation avec les autres services
+
+Comme présenté dans le schéma global de l'architecture ci-dessus (# TODO)
+
+Les informations désignées pour le tracking sont envoyées à analytics en continu.
+
+# Tests Unitaires
+
+Pas de tests unitaires nécéssaires pour ce service
