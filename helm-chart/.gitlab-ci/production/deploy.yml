@@ -1,0 +1,71 @@
+
+# --- Deploy each modules ---
+
+# Admin module to deploy React Admin
+# Interactions with modules: api, idp
+admin_helm_deploy_production:
+  extends:
+    - .helm-deploy-production-job
+  variables:
+    MODULE_NAME: administration
+
+# Analytics module to deploy Matomo - in charge of tracking website, api & idp data
+# Interactions with modules: website (for now)
+analytics_helm_deploy_production:
+  extends:
+    - .helm-deploy-production-job
+  variables:
+    MODULE_NAME: analytics
+
+# Antivirus module to deploy Clamav - in charge of analysing files when a user is subscribing to an incentive
+# Interactions with modules: api
+antivirus_helm_deploy_production:
+  extends:
+    - .helm-deploy-production-job
+  variables:
+    MODULE_NAME: antivirus
+
+# Bus module to deploy RabbitMQ - in charge of handling amqp message interactions between SIRH and MCM
+# Interactions with modules: api
+bus_helm_deploy_production:
+  extends:
+    - .helm-deploy-production-job
+  variables:
+    MODULE_NAME: bus
+
+# IDP module to deploy Keycloak - in charge of handling user session, token and access of the entire app
+# Interactions with modules: website, administration, api
+idp_helm_deploy_production:
+  extends:
+    - .helm-deploy-production-job
+  variables:
+    MODULE_NAME: idp
+
+# S3 module to deploy Minio - in charge of storing all users documents for subscription 
+# Interactions with modules: api
+s3_helm_deploy_production:
+  extends:
+    - .helm-deploy-production-job
+  variables:
+    MODULE_NAME: s3
+
+# Api module to deploy Loopback 4 - in charge of business backend logic
+# Interactions with : bus, idp, s3, administration, website, antivirus
+api_helm_deploy_production:
+  extends:
+    - .helm-deploy-production-job
+  variables:
+    MODULE_NAME: api
+  script:
+    - |
+      echo "Wait for idp for offline token verification"
+      wait_pod idp
+      helm_deploy
+
+# Website module to deploy Gatsby 4 - in charge of business frontend logic
+# Interactions with : idp, api
+website_helm_deploy_production:
+  extends:
+    - .helm-deploy-production-job
+  variables:
+    MODULE_NAME: website

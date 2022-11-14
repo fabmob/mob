@@ -1,0 +1,80 @@
+.publication-base:
+  variables:
+    MODULE_NAME: publication
+    MODULE_PATH: ${MODULE_NAME}
+    GITHUB_REPO: ${PUBLICATION_GITHUB_REPO}
+    GITHUB_TOKEN: ${PUBLICATION_GITHUB_TOKEN}
+    GITHUB_USER_EMAIL: ${PUBLICATION_GITHUB_USER_EMAIL}
+    GITHUB_USER_NAME: ${PUBLICATION_GITHUB_USER_NAME}
+    PACKAGE_VERSION: ${PACKAGE_VERSION}
+
+.prepare_to_publish: &prepare_to_publish |
+  echo -e '>>> STEP 1 : Prepare to publish'
+  ./clean_project_to_commit.sh
+
+.publish_code: &publish_code |
+  echo -e '>>> STEP 2 : Publish Code'
+  cd /builds/mcm
+  # Install github-cli
+  apk add github-cli
+
+  # Clone a repository into distant-repo
+  git clone https://${GITHUB_TOKEN}@github.com/${GITHUB_REPO} distant-repo;
+
+  echo -e "Create a new branch ${PACKAGE_VERSION}"
+  cd distant-repo
+  git checkout -b ${PACKAGE_VERSION}
+
+  SHOULD_CREATE_PR=1
+  git config --global user.email ${GITHUB_USER_EMAIL}
+  git config --global user.name ${GITHUB_USER_NAME}
+
+  #push the upstram branch if branch does not exist already in remote repo
+  if [ `git branch -r | egrep "${PACKAGE_VERSION}"` ]
+  then
+      echo "branch exist already"
+      git branch --set-upstream-to=origin/${PACKAGE_VERSION} ${PACKAGE_VERSION}
+      git pull --rebase
+      SHOULD_CREATE_PR=0
+  else
+      echo "new branch"
+      git push --set-upstream origin ${PACKAGE_VERSION}
+      git branch --set-upstream-to=origin/${PACKAGE_VERSION} ${PACKAGE_VERSION}
+  fi
+
+  echo -e "Stage changes"
+  cp -r ../platform/. .
+  git add .
+
+  # Commit and push if there are changes
+  echo "Commiting branch to github..."
+  git commit -m "MCM v${PACKAGE_VERSION} ${PUBLICATION_COMMIT_MESSAGE}" || true
+
+  echo "Push branch to github..."
+  git push origin ${PACKAGE_VERSION}
+
+  echo "Pull request Creation..."
+
+  # create a pr if it not exist already in remote repo
+  if [ $SHOULD_CREATE_PR -eq 1 ]
+  then
+      echo "Creating PR"
+      gh pr create --title "Programme Mon Compte Mobilité - Version ${PACKAGE_VERSION}" --body "" -H ${PACKAGE_VERSION}
+      echo "PR Created"
+  else
+      echo "No PR created as branch already existed."
+  fi
+
+publish:
+  extends:
+    - .commons
+    - .publication-base
+    - .manual
+    - .no-needs
+  stage: publication
+  image:
+    name: ${NEXUS_DOCKER_REGISTRY_URL}/alpine/git:v2.32.0
+    entrypoint: [""]
+  script:
+    - *prepare_to_publish
+    - *publish_code

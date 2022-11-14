@@ -1,0 +1,12 @@
+.mcm-personal-data {
+  ul {
+    font-size: 18px;
+    margin-bottom: var(--spacing-xxs);
+    margin-left: var(--spacing-m);
+    width: 95%;
+    li {
+      list-style: outside;
+      padding: var(--spacing-xxs);
+    }
+  }
+}

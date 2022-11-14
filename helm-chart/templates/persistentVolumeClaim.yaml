@@ -1,0 +1,23 @@
+{{- range .Values.persistentVolumeClaim }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .metadata.name }}
+  annotations:
+   {{- with .metadata.annotations }}
+   {{- toYaml . | nindent 4 }}
+   {{- end }}
+  labels:
+   {{- with .metadata.labels }}
+   {{- toYaml . | nindent 4 }}
+   {{- end }}
+spec:
+   {{- with .spec }}
+   {{- toYaml . | nindent 4 }}
+   {{- end }}
+status:
+   {{- with .status }}
+   {{- toYaml . | nindent 4 }}
+   {{- end }}
+{{- end }}

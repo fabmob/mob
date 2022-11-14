@@ -1,0 +1,92 @@
+{{- range .Values.deployments }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+  {{- with .metadata.annotations }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+  {{- with .metadata.labels }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+  name: {{ .metadata.name }}
+spec:
+  replicas: {{ .spec.replicas }}
+  selector:
+    matchLabels:
+      {{- with .spec.selector.matchLabels }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+  strategy:
+    {{- with .spec.strategy }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  template:
+    metadata:
+      annotations:
+      {{- with .spec.template.metadata.annotations }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+      {{- with .spec.template.metadata.labels }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      containers:
+      - args:
+        {{ if (.spec.template.spec.containers.args) }}
+        {{- range $k, $v := .spec.template.spec.containers.args }}
+        - {{ $v | quote -}}
+        {{ end }}
+        {{- end}}
+        env:
+        {{- range $k, $v := .spec.template.spec.containers.env }}
+        - name: {{ $k }}
+          value: {{ $v | quote -}}
+        {{ end }}
+        image: {{ .spec.template.spec.containers.image }}
+        {{ if (.spec.template.spec.containers.command) }}
+        command:
+        {{- range $k, $v := .spec.template.spec.containers.command }}
+        - {{ $v | quote -}}
+        {{ end }}
+        {{- end }}
+        name: {{ .spec.template.spec.containers.name }}
+        ports:
+        {{- with .spec.template.spec.containers.ports }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        resources:
+        {{- with .spec.template.spec.containers.resources }}
+        {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{ if (.spec.template.spec.containers.volumeMounts) }}
+        volumeMounts:
+        {{- with .spec.template.spec.containers.volumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{ end }}
+        {{- end }}
+      imagePullSecrets:
+        {{- with .spec.template.spec.imagePullSecrets }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      restartPolicy: {{ .spec.template.spec.restartPolicy }}
+      {{ if (.spec.template.spec.securityContext) }}
+      securityContext:
+      {{- with .spec.template.spec.securityContext }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- end }}
+      {{ if (.spec.template.spec.volumes) }}
+      volumes:
+      {{- with .spec.template.spec.volumes }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- end }}
+status:
+{{- with .status }}
+{{- toYaml . | nindent 2 }}
+{{- end }}
+{{- end }}

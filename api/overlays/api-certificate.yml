@@ -1,0 +1,12 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: api-cert
+spec:
+  dnsNames:
+    - '*.${landscape_subdomain}'
+  issuerRef:
+    group: cert-manager.io
+    kind: ClusterIssuer
+    name: ${CLUSTER_ISSUER}
+  secretName: ${SECRET_NAME}

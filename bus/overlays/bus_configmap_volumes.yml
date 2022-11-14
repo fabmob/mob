@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bus
+spec:
+  template:
+    spec:
+      containers:
+        - name: bus
+          volumeMounts:
+            - name: bus-custom-conf
+              mountPath: /bitnami/rabbitmq/conf/custom.conf
+              subPath: custom-dev.conf
+            - name: bus-custom-definition
+              mountPath: /tmp/definition.json
+              subPath: definition.json
+      securityContext:
+        fsGroup: 1000
+      volumes:
+        - name: bus-custom-conf
+          configMap:
+            name: bus-custom-conf
+        - name: bus-custom-definition
+          configMap:
+            name: bus-custom-definition

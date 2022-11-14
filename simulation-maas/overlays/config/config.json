@@ -1,0 +1,17 @@
+{
+  "idp": {
+    "url": "https://${IDP_FQDN}/auth",
+    "realm": "${IDP_MCM_REALM}",
+    "clientId": "${IDP_MCM_SIMULATION_MAAS_CLIENT_ID}",
+    "enable-cors": true
+  },
+  "idpCme": {
+    "url": "https://${IDP_FQDN}/auth",
+    "realm": "${MCM_IDP_REALM}",
+    "clientId": "${MCM_IDP_CLIENTID_MAAS_CME}",
+    "enable-cors": true
+  },
+  "api": {
+    "url": "https://${API_FQDN}"
+  }
+}

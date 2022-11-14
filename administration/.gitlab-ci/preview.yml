@@ -1,0 +1,18 @@
+admin_image_build:
+  extends:
+    - .preview-image-job
+    - .admin-base
+  needs: ['admin_build']
+
+admin_preview_deploy:
+  extends:
+    - .preview-deploy-job
+    - .admin-base
+  needs: ['admin_image_build']
+  environment:
+    on_stop: admin_preview_cleanup
+
+admin_preview_cleanup:
+  extends:
+    - .commons_preview_cleanup
+    - .admin-base

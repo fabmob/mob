@@ -1,0 +1,31 @@
+version: '3.4'
+
+services:
+  api:
+    build:
+      context: .
+      network: host
+    container_name: api
+    environment:
+      IDP_URL: ${IDP_URL}
+      S3_URL: ${S3_URL}
+      IDP_DB_HOST: ${IDP_DB_HOST}
+      MONGO_HOST: ${MONGO_HOST}
+      BUS_HOST: ${BUS_HOST}
+      CLIENT_SECRET_KEY_KEYCLOAK_API: ${CLIENT_SECRET_KEY_KEYCLOAK_API}
+      ANTIVIRUS: ${ANTIVIRUS}
+      API_KEY: ${API_KEY}
+      PORT: ${PORT}
+    network_mode: host
+    volumes:
+      - ./src:/home/node/app/src
+      - node_modules:/home/node/app/node_modules
+    ports:
+      - 3000:3000
+
+volumes:
+  node_modules:
+
+networks:
+  dev_web-nw:
+    external: true

@@ -1,0 +1,46 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+declare API_STAGED_FILES=$(git diff --name-only --cached | grep 'api/')
+declare WEBSITE_STAGED_FILES=$(git diff --name-only --cached | grep 'website/')
+declare ADMINISTRATION_STAGED_FILES=$(git diff --name-only --cached | grep 'administration/')
+cd api && export $(grep -v '^#' .secrets | xargs) && export $(grep '^export CI_PROJECT_ID' .env.mcm | xargs) && cd ..;
+
+if [[ $API_STAGED_FILES ]]; 
+then
+    echo "API_STAGED_FILES :"
+    echo "$API_STAGED_FILES"
+    echo "Pre commit api"
+    cd api && yarn lint:fix && cd ..;
+    if [ $? -ne 0 ]
+    then
+        echo "API pre-commit hook failed"
+        exit 1
+    fi
+fi
+
+if [[ $WEBSITE_STAGED_FILES ]];
+then
+    echo "WEBSITE_STAGED_FILES :"
+    echo "$WEBSITE_STAGED_FILES"
+    echo "Pre commit website"
+    cd website && yarn lint:fix && cd ..;
+    if [ $? -ne 0 ]
+    then
+        echo "Website pre-commit hook failed"
+        exit 1
+    fi
+fi
+
+if [[ $ADMINISTRATION_STAGED_FILES ]];
+then
+    echo "ADMINISTRATION_STAGED_FILES :"
+    echo "$ADMINISTRATION_STAGED_FILES"
+    echo "Pre commit administration"
+    cd administration && yarn lint:fix && cd ..;
+    if [ $? -ne 0 ]
+    then
+        echo "Administration pre-commit hook failed"
+        exit 1
+    fi
+fi

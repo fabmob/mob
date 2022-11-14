@@ -1,0 +1,27 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: idp
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  entryPoints:
+    - web
+    # - websecure
+  routes:
+    - match: Host(`${IDP_FQDN}`)
+      middlewares:
+        - name: idp-headers-middleware
+        # - name: idp-ratelimit-middleware
+        - name: idp-inflightreq-middleware
+      kind: Rule
+      services:
+        - name: idp
+          port: 8080
+  # tls:
+  #   secretName:  ${SECRET_NAME} # idp-tls
+  #   domains:
+  #     - main: ${BASE_DOMAIN}
+  #       sans:
+  #         - "*.preview.${BASE_DOMAIN}"
+  #         - "*.testing.${BASE_DOMAIN}"

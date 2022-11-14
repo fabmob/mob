@@ -1,0 +1,27 @@
+.mcm-cookies-infos {
+  h1 {
+    margin-bottom: var(--spacing-m);
+  }
+  .sub-title {
+    margin-top: var(--spacing-s);
+    font-weight: bold;
+  }
+  .cookies-table {
+    margin: var(--spacing-xs) auto;
+    thead {
+      tr {
+        vertical-align: top;
+        background-color: var(--color-grey-ultralight);
+        font-weight: 900;
+      }
+    }
+    td {
+      min-width: 180px;
+      padding: var(--spacing-xs);
+      vertical-align: top;
+    }
+    tr {
+      border-bottom: 1.5px solid var(--color-grey-ultralight);
+    }
+  }                     
+}

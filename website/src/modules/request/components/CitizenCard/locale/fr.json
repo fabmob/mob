@@ -1,0 +1,11 @@
+{
+  "citizen.card.informations.button": "Récapitulatif des demandes",
+  "heading.identity": "Identité",
+  "section.item.birthday": "Date de naissance",
+  "section.item.label.ville": "Ville",
+  "section.item.label.postal.code": "Code postal",
+  "section.item.label.email.pro": "Adresse email professionnelle",
+  "section.item.label.email.perso": "Adresse email personnelle",
+  "citizen.card.flag.delete": "Compte supprimé",
+  "section.item.label.account.status": "Compte MOB"
+}

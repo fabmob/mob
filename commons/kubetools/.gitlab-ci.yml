@@ -1,0 +1,8 @@
+commons-kubetools-image:
+  extends:
+    - .default-image-job
+    - .except-release
+  stage: prepare
+  variables:
+    MODULE_NAME: kubetools
+    MODULE_PATH: commons/kubetools

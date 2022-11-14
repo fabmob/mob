@@ -1,0 +1,1 @@
+0 3 * * 6 /usr/local/bin/renew-key.sh

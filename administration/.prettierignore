@@ -1,0 +1,12 @@
+node_modules
+
+# Ignore artifacts:
+build
+coverage
+
+.cache
+.gitlab-ci.yml
+.scannerwork
+public/
+gatsby-config.js
+.eslintrc.js

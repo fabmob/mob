@@ -1,0 +1,35 @@
+<%- include('css/style'); %> <%- include('commons/header'); %>
+
+<table style="margin-bottom: 40px;max-width: 640px;width: 640px;">
+  <tr>
+    <td>
+    <div>
+      <div>
+        <p>Bonjour <%= username %>,</p>
+      </div>
+      <div>
+        <p>
+          Nous vous confirmons la suppression de votre compte mobilité le <%=
+          deletionDate%>. Vous n’avez plus accès à votre compte moB ni à vos demandes
+          d’aides.
+        </p>
+      </div>
+      <div>
+        <p>
+          A noter, vous pouvez toujours accéder au moteur de recherche d’aides moB
+          librement accessible sur notre site!
+        </p>
+      </div>
+      <div class="btn">
+        <%- include('commons/button', {link: `${incentiveLink}`, text: 'Trouver une aide'}) %>
+      </div>
+      <div>
+        <p>Merci pour votre confiance,</p>
+        <p>L’équipe Mon Compte Mobilité</p>
+      </div>
+    </div>
+  </td>
+</tr>
+</table>
+
+<%- include('commons/footer'); %>

@@ -1,33 +1,32 @@
 # Description
 
-Ce dossier contient les test API et d'intégration que nous pouvons réaliser sur nos pipelines.
+Ce dossier contient les tests API et d'intégration que nous pouvons réaliser sur nos pipelines.
+Il est destiné également aux tests fonctionnels UI qui sont à construire à l'aide du framework [Cypress.io](https://www.cypress.io/)
+Les navigateurs basés sur les moteurs Chrome et Firefox sont ceux ciblés pour ces tests.
 
 # Installation en local
 
 Pas d'installation en local
 
-
 ## URL / Port
 
 Pas d'installation en local
-
 
 # Précisions pipelines
 
 ## Preview
 
-Les tests API servent aussi de JDD aux environnements afin d'avoir des data minimales.
+Les tests API servent aussi de jeu de données (JDD) aux environnements afin d'avoir des données suffisantes pour initier une environnement fonctionnel.
 
 ## Testing
 
-Pas de précisions nécéssaires pour ce service
-
+Pas de précisions nécessaires pour ce service
 
 # Relation avec les autres services
 
-Nécéssité d'avoir l'ensemble des services déployés pour pouvoir être exécutés.
+Nécessité d'avoir l'ensemble des services déployés pour pouvoir être exécutés.
 
 # Tests Unitaires
 
-Pas de tests unitaires nécéssaires pour ce service
+N/A
 

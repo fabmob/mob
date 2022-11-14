@@ -1,0 +1,23 @@
+<%- include('css/style'); %> <%- include('commons/header'); %>
+
+<table style="margin-bottom: 40px;max-width: 640px;width: 640px;">
+  <tr>
+    <td>
+  <p>Bonjour <%= username %>,</p>
+  <p>Bienvenue dans votre communauté moB de <%= funderName %> !</p>
+  <p>
+    Cliquez sur le bouton ci-dessous pour confirmer votre employeur et bénéficier des
+    aides à la mobilité mises à votre disposition.
+  </p>
+  <div class="btn">
+    <%- include('commons/button', {link: `${affiliationLink}`, text: 'Confirmer mon employeur'}) %>
+  </div>
+  <div>
+    <p>Merci pour votre confiance,</p>
+    <p>L’équipe Mon Compte Mobilité</p>
+  </div>
+</td>
+</tr>
+</table>
+
+<%- include('commons/footer'); %>

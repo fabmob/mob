@@ -1,0 +1,5 @@
+{
+  "collectivities.error.required": "Attention, ce champ est obligatoire",
+  "collectivities.error.name.required": "Merci de renseigner le nom de la collectivité",
+  "collectivités.error.name.unique": "Attention, ce nom de collectivité est déjà utilisé"
+}

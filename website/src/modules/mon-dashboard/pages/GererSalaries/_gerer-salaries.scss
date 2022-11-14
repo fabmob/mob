@@ -1,0 +1,167 @@
+$breakpoint-fluid: 1024px;
+.mcm-search-form {
+
+  > .search-field {
+    padding-top: 13px;
+    padding-bottom: 17px;
+  }
+
+  @media screen and (min-width: 768px) {
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: center;
+
+    > .button {
+      display: inline-block;
+      flex-shrink: 0;
+    }
+  }
+}
+.salaries-card {
+  display: flex;
+  &__name {
+    flex: 1 0 13%;
+    width: 100%;
+    justify-content: space-between;
+    font-size: 20px;
+    line-height: 28px;
+    margin-bottom: var(--spacing-xxs);
+  }
+
+  &__first-btn {
+    display: inline-block;
+    margin-right: 5px;
+  }
+
+  &__no-result {
+    font-size: 20px;
+    text-align: center;
+  }
+
+  &__gestionnaire-btn {
+    display: flex;
+    margin-left: auto;
+    margin-right: 5px;
+
+    @media screen and (max-width: 768px) {
+      margin: 0px auto;
+      display: flex;
+      flex-direction: column;
+      padding-top: 10px;
+      .gestion-btn {
+        margin-bottom: 10px;
+        button {
+          width: 100%;
+        }
+      }
+      .supression-btn {
+        button {
+          width: 100%;
+        }
+      }
+    }
+  }
+}
+
+.supression-superviseur {
+  button:first-child:hover {
+    border-color: var(--color-red-error);
+  }
+}
+
+.gestion-btn {
+  button:first-child {
+    margin-right: 10px;
+  }
+}
+
+.supression-btn {
+  button:first-child:hover {
+    border-color: var(--color-red-error);
+  }
+}
+
+.profile-icon {
+  padding-top: 13px;
+  padding-left: 10px;
+  padding-right: 20px;
+  min-width: fit-content;
+  margin-left: var(--spacing-xxs);
+  @media screen and (max-width: breakpoint-fluid) {
+    padding-top: 10px;
+  }
+
+  svg {
+    display: inline-block;
+    margin-left: 10px;
+    margin-right: 10px;
+  }
+}
+
+.salaries-list {
+  > .salaries-card {
+    position: relative;
+  }
+
+  &__affiliation-btn {
+    display: flex;
+    flex-direction: row;
+    margin-right: auto;
+  }
+
+  .button button--secondary {
+    width: 20px;
+  }
+}
+
+.mcm-gerer-salaries {
+  .mcm-search-form {
+    > .search-field {
+      padding-top: 13px;
+      padding-bottom: 17px;
+    }
+  }
+}
+
+.mcm-salaries-section {
+  background: var(--color-grey-ultralight);
+  border: 1px solid var(--color-grey-light);
+  border-radius: 8px;
+  padding: var(--spacing-s);
+  margin-bottom: var(--spacing-xs);
+
+  .mcm-section-header {
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .gerer-salarie__first-group {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: baseline;
+  }
+
+  .load-more-btn {
+    display: flex;
+    justify-content: center;
+  }
+
+  .load-less {
+    display: flex;
+    justify-content: center;
+  }
+}
+
+.total-employees {
+  margin-bottom: var(--spacing-m);
+  margin-top: var(--spacing-xs);
+  font-size: 24px;
+}
+
+@media screen and (max-width: 1032px) {
+  .gerer-salarie__first-group {
+    display: flex;
+    flex-direction: column;
+  }
+}

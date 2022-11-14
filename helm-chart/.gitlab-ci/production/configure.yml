@@ -1,0 +1,4 @@
+# --- Configure conf files ---
+configure_files_production:
+  extends:
+    - .helm-configure-production-job

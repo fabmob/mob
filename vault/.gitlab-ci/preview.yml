@@ -1,0 +1,53 @@
+
+# Build of testing environement image and creation of the cache
+vault_build:
+  extends:
+    - .build-job
+    - .vault-base
+    - .only-master
+    - .no-needs
+  script:
+    - echo 'build'
+  cache:
+    key: ${MODULE_NAME}-${CI_COMMIT_REF_SLUG}
+    paths:
+      - ${MODULE_PATH}/
+  artifacts:
+    paths:
+      - ${MODULE_PATH}/
+    expire_in: 5 days
+
+vault_image_build:
+  extends:
+    - .preview-image-job
+    - .only-master
+    - .vault-base
+  needs: ['vault_build']
+
+vault_preview_deploy:
+  extends:
+    - .preview-deploy-job
+    - .vault-base
+    - .only-master
+    - .manual
+  script:
+    - |
+      if [ -n "$(pod_namespace vault-init)" ]
+      then
+        echo "### Vault-init pod is already up so we delete it before recreating it ! ###"
+        KUBE_NAMESPACE_VAULT_INIT=$(pod_namespace vault-init)
+        kubectl delete pod vault-init -n $KUBE_NAMESPACE_VAULT_INIT
+      fi
+      deploy
+      config_volume vault-data
+      config_volume vault-init-data
+      config_volume vault-cron-data
+  needs: ['vault_image_build']
+  environment:
+      on_stop: vault_preview_cleanup
+
+vault_preview_cleanup:
+  extends:
+    - .commons_preview_cleanup
+    - .vault-base
+    - .only-master

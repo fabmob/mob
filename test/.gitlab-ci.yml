@@ -1,0 +1,54 @@
+include:
+  - local: "test/.gitlab-ci/preview.yml"
+    rules:
+      - if: $CI_COMMIT_BRANCH !~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger" && $CI_PIPELINE_SOURCE != "schedule"
+  - local: "test/.gitlab-ci/testing.yml"
+    rules:
+      - if: $CI_COMMIT_BRANCH =~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger"
+      
+.test-base:
+  variables:
+    MODULE_NAME: test
+    MODULE_PATH: ${MODULE_NAME}
+    POSTMAN_IMAGE_NAME: ${NEXUS_DOCKER_REGISTRY_URL}/postman/newman:5.3
+    CYPRESS_IMAGE_NAME: ${NEXUS_DOCKER_REPOSITORY_URL}/cypress/browsers:node16.14.0-chrome99-ff97
+  only:
+    changes:
+      - "*"
+      - "commons/**/*"
+      - "test/**/*"
+
+.replace_variables: 
+  script: 
+    - |
+      apk add gettext
+      ENV_FILE_PATH=api-tests/mcm-${LANDSCAPE}.postman_environment.json
+      envsubst "$(env | cut -d= -f1 | sed -e 's/^/$/')" < ${ENV_FILE_PATH} > ${ENV_FILE_PATH}.tmp && mv ${ENV_FILE_PATH}.tmp ${ENV_FILE_PATH}
+      cat ${ENV_FILE_PATH}
+
+.integration_tests_script:
+  script:
+    - |
+      npm install -g newman-reporter-htmlextra
+      newman run api-tests/MCM-${LANDSCAPE}.postman_collection.json -e api-tests/mcm-${LANDSCAPE}.postman_environment.json -r cli,htmlextra --reporter-htmlextra-export api-tests/integration-tests-report.html;
+
+.cypress_env_setup:
+  script: 
+    - |
+      export CYPRESS_API_FQDN=${API_FQDN}
+      export CYPRESS_IDP_FQDN=${IDP_FQDN}
+      export CYPRESS_WEBSITE_FQDN=${WEBSITE_FQDN}
+      export CYPRESS_ADMIN_FQDN=${ADMIN_FQDN}
+      export CYPRESS_STUDENT_PASSWORD=${CITOYEN_PASSWORD}
+      export CYPRESS_API_KEY=${API_KEY}
+
+.smoke_tests_script: 
+  script: 
+    - |
+      cd ${MODULE_PATH}
+      npm i
+      npx cypress run \
+      --spec "cypress/integration/smoke-tests/test-mcm/smoke_test.spec.js" \
+      --config-file cypress-smoke.json \
+      --browser chrome | tee cypress-smoke-tests.log
+      cat cypress-smoke-tests.log

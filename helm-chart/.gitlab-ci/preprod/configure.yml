@@ -1,0 +1,4 @@
+# --- Configure conf files ---
+configure_files_preprod:
+  extends:
+    - .helm-configure-preprod-job

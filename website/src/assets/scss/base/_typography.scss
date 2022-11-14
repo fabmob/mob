@@ -1,0 +1,32 @@
+p,
+.p-like {
+  font-weight: 400;
+  font-size: 18px;
+  line-height: 26px;
+}
+@mixin p-like {
+  @extend .p-like;
+}
+
+.w600 {
+  font-weight: 600;
+}
+
+p.headline {
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 32px;
+
+  span.special {
+    color: var(--color-blue-petrol);
+  }
+
+  @media screen and (min-width: 1024px) {
+    font-size: 28px;
+    line-height: 40px;
+  }
+}
+
+span.special {
+  color: var(--color-blue-petrol);
+}

@@ -1,0 +1,17 @@
+api_testing_image_build:
+  extends:
+    - .testing-image-job
+    - .api-base
+  needs: ['api_build']
+
+api_testing_deploy:
+  extends:
+    - .testing-deploy-job
+    - .api-base
+  needs: ['api_testing_image_build']
+
+#UTILS
+api_testing_documentation:
+  extends:
+    - .testing-env-vars
+    - .api-documentation-job

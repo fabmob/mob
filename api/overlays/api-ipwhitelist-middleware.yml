@@ -1,0 +1,10 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: test-ipwhitelist
+spec:
+  ipWhiteList:
+    sourceRange:
+      - 127.0.0.1/32
+      # TO DO limite accès to FRONT ip
+      # and limite accès to

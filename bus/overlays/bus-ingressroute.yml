@@ -1,0 +1,15 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: bus
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`${ADMIN_BUS_FQDN}`)
+      kind: Rule
+      services:
+        - kind: Service
+          name: bus
+          port: 15672
+

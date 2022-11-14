@@ -1,0 +1,10 @@
+version: "3"
+
+services:
+  clamav:
+    image: ${ANTIVIRUS_IMAGE_NAME}
+    ports:
+      - "3310"
+    labels:
+      - "kompose.image-pull-secret=${PROXY_IMAGE_PULL_SECRET_NAME}"
+      - "kompose.service.type=clusterip"

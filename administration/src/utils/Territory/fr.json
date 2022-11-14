@@ -1,0 +1,4 @@
+{
+  "territory.name.error.unique": "Attention, ce nom de territoire est déjà utilisé. Veuillez le vérifier sur votre liste.",
+  "territory.error": "Problème durant la récupération des territoires"
+}

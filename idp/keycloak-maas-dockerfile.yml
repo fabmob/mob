@@ -1,0 +1,6 @@
+ARG BASE_IMAGE_KEYCLOAK
+FROM ${BASE_IMAGE_KEYCLOAK}
+
+COPY db-export.sh /
+COPY standalone.xml /opt/jboss/keycloak/standalone/configuration/
+VOLUME ["/opt/jboss/keycloak/standalone/data"]

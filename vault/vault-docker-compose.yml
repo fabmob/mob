@@ -1,0 +1,105 @@
+version: '3.4'
+
+services:
+  vault:
+    build:
+      context: .
+      network: host
+      args:
+        BASE_IMAGE_VAULT: vault:1.11.3
+        VAULT_CERT: ${VAULT_CERT}
+        VAULT_KEY: ${VAULT_KEY}
+        VAULT_ROOT_CA: ${VAULT_ROOT_CA}
+        CLIENT_CA: ${CLIENT_CA}
+        ADMIN_CERT: ${ADMIN_CERT}
+        ADMIN_CERT_KEY: ${ADMIN_CERT_KEY}
+    container_name: vault
+    networks:
+      - dev_web-nw
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - vault-data:/vault/file/
+    environment:
+      VAULT_ADDR: ${VAULT_ADDR}
+      VAULT_API_ADDR: ${VAULT_API_ADDR}
+      CLIENT_ID: ${CLIENT_ID}
+      CLIENT_SECRET: ${CLIENT_SECRET}
+      FUNDER_TOKEN: ${FUNDER_TOKEN}
+      API_URL: ${API_URL}
+      IDP_URL: ${IDP_URL}
+      FUNDER_IDS: ${FUNDER_IDS}
+    ports: 
+      - '8200:8200'
+    restart: always
+    command: server
+  vault-init:
+    build:
+      context: .
+      network: host
+      args:
+        BASE_IMAGE_VAULT: vault:1.11.3
+        VAULT_CERT: ${VAULT_CERT}
+        VAULT_KEY: ${VAULT_KEY}
+        VAULT_ROOT_CA: ${VAULT_ROOT_CA}
+        CLIENT_CA: ${CLIENT_CA}
+        ADMIN_CERT: ${ADMIN_CERT}
+        ADMIN_CERT_KEY: ${ADMIN_CERT_KEY}
+    container_name: vault-init
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_ADDR: ${VAULT_ADDR}
+      CLIENT_ID: ${CLIENT_ID}
+      CLIENT_SECRET: ${CLIENT_SECRET}
+      FUNDER_TOKEN: ${FUNDER_TOKEN}
+      API_URL: ${API_URL}
+      IDP_URL: ${IDP_URL}
+      FUNDER_IDS: ${FUNDER_IDS}
+    volumes:
+      - vault-data:/vault/file/
+    networks:
+      - dev_web-nw
+    command: /bin/sh -c ". /usr/local/bin/init-vault.sh"
+    restart: on-failure
+    depends_on:
+      - vault
+  vault-cron:
+    build:
+      context: .
+      network: host
+      args:
+        BASE_IMAGE_VAULT: vault:1.11.3
+        VAULT_CERT: ${VAULT_CERT}
+        VAULT_KEY: ${VAULT_KEY}
+        VAULT_ROOT_CA: ${VAULT_ROOT_CA}
+        CLIENT_CA: ${CLIENT_CA}
+        ADMIN_CERT: ${ADMIN_CERT}
+        ADMIN_CERT_KEY: ${ADMIN_CERT_KEY}
+    container_name: vault-cron
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_ADDR: ${VAULT_ADDR}
+      CLIENT_ID: ${CLIENT_ID}
+      CLIENT_SECRET: ${CLIENT_SECRET}
+      FUNDER_TOKEN: ${FUNDER_TOKEN}
+      API_URL: ${API_URL}
+      IDP_URL: ${IDP_URL}
+      FUNDER_IDS: ${FUNDER_IDS}
+      AVAILABLE_KEYS: ${AVAILABLE_KEYS}
+    volumes:
+      - vault-data:/vault/file/
+    networks:
+      - dev_web-nw
+    command: crond -f
+    restart: on-failure
+    depends_on:
+      - vault
+
+volumes:
+  vault-data:
+
+networks:
+  dev_web-nw:
+    external: true

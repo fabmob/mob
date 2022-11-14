@@ -1,0 +1,79 @@
+include:
+  - local: 'api/.gitlab-ci/preview.yml'
+    rules:
+      - if: $CI_COMMIT_BRANCH !~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger" && $CI_PIPELINE_SOURCE != "schedule"
+  - local: 'api/.gitlab-ci/testing.yml'
+    rules:
+      - if: $CI_COMMIT_BRANCH =~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger"
+  - local: 'api/.gitlab-ci/helm.yml'
+    rules:
+      - if: $CI_PIPELINE_SOURCE == "trigger"
+
+# Initialisation of specifique api variable
+.api-base:
+  variables:
+    MODULE_NAME: api
+    MODULE_PATH: ${MODULE_NAME}
+    MONGO_SERVICE_NAME: mongo
+    NEXUS_IMAGE_MONGO: ${NEXUS_DOCKER_REPOSITORY_URL}/mongo:5.0.7
+    API_IMAGE_NAME: ${REGISTRY_BASE_NAME}/${MODULE_NAME}:${IMAGE_TAG_NAME}
+    MONGO_IMAGE_NAME: ${REGISTRY_BASE_NAME}/mongo:${IMAGE_TAG_NAME}
+  only:
+    changes:
+      - '*'
+      - 'commons/**/*'
+      - 'api/**/*'
+
+api_build:
+  extends:
+    - .build-job
+    - .api-base
+  script:
+    - |
+      yarn install
+  cache:
+    key: ${MODULE_NAME}-${CI_COMMIT_REF_SLUG}
+    paths:
+      - ${MODULE_PATH}/node_modules/
+      - ${MODULE_PATH}/yarn.lock
+  artifacts:
+    paths:
+      - ${MODULE_PATH}/node_modules/
+      - ${MODULE_PATH}/yarn.lock
+    expire_in: 5 days
+
+.api_documentation_script:
+  script:
+    - |
+      yarn add curl
+      echo "this is api fqdn = https://${API_FQDN}"
+      export OPENAPI_MAAS=https://${API_FQDN}/openapi.json
+      echo "$(curl --insecure $OPENAPI_MAAS)" > openapi.json
+      chmod u+x api/openapi-maas.js
+      node ./api/openapi-maas.js
+
+.api-documentation-job:
+  extends:
+    - .api-base
+    - .except-all
+    - .manual
+    - .only-branches
+    - .no-dependencies
+  stage: utils
+  image: ${NEXUS_DOCKER_REPOSITORY_URL}/node:16.14.2-stretch
+  script:
+    - !reference [.api_documentation_script, script]
+  artifacts:
+    when: always
+    paths:
+      - openapi-maas.json
+    expire_in: 5 days
+
+
+# Static Application Security Testing for known vulnerabilities
+api_sast:
+  extends:
+    - .sast-job
+    - .build-n-sast-job-tags
+    - .api-base
+  needs: ['api_build']

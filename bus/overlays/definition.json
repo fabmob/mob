@@ -1,0 +1,136 @@
+{
+  "users": [
+    {
+      "name": "${BUS_ADMIN_USER}",
+      "password": "${BUS_ADMIN_PASSWORD}",
+      "tags": ["administrator"],
+      "limits": {}
+    },
+    {
+      "name": "${BUS_MCM_CONSUME_USER}",
+      "password": "${BUS_MCM_CONSUME_PASSWORD}",
+      "tags": ["management"],
+      "limits": {}
+    }
+  ],
+  "vhosts": [
+    {
+      "name": "/"
+    }
+  ],
+  "permissions": [
+    {
+      "user": "${BUS_ADMIN_USER}",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    },
+    {
+      "user": "${BUS_MCM_CONSUME_USER}",
+      "vhost": "/",
+      "configure": "",
+      "write": "",
+      "read": "^mob\\.subscriptions\\.status\\.*"
+    }
+  ],
+  "queues": [
+    {
+      "name": "mob.subscriptions.put.simulation-sirh",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-single-active-consumer": false
+      }
+    },
+    {
+      "name": "mob.subscriptions.status.simulation-sirh",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-single-active-consumer": true
+      }
+    },
+    {
+      "name": "mob.subscriptions.put.capgemini",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-single-active-consumer": false
+      }
+    },
+    {
+      "name": "mob.subscriptions.status.capgemini",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-single-active-consumer": true
+      }
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "mob.headers",
+      "vhost": "/",
+      "type": "headers",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "bindings": [
+    {
+      "source": "mob.headers",
+      "vhost": "/",
+      "destination": "mob.subscriptions.put.simulation-sirh",
+      "destination_type": "queue",
+      "routing_key": "",
+      "arguments": {
+        "message_type": "subscriptions.put.simulation-sirh",
+        "secret_key": "${IDP_API_CLIENT_SECRET}"
+      }
+    },
+    {
+      "source": "mob.headers",
+      "vhost": "/",
+      "destination": "mob.subscriptions.status.simulation-sirh",
+      "destination_type": "queue",
+      "routing_key": "",
+      "arguments": {
+        "message_type": "subscriptions.status.simulation-sirh",
+        "secret_key": "${IDP_API_CLIENT_SECRET}"
+      }
+    },
+    {
+      "source": "mob.headers",
+      "vhost": "/",
+      "destination": "mob.subscriptions.put.capgemini",
+      "destination_type": "queue",
+      "routing_key": "",
+      "arguments": {
+        "message_type": "subscriptions.put.capgemini",
+        "secret_key": "${IDP_API_CLIENT_SECRET}"
+      }
+    },
+    {
+      "source": "mob.headers",
+      "vhost": "/",
+      "destination": "mob.subscriptions.status.capgemini",
+      "destination_type": "queue",
+      "routing_key": "",
+      "arguments": {
+        "message_type": "subscriptions.status.capgemini",
+        "secret_key": "${CAPGEMINI_SECRET_KEY}"
+      }
+    }
+  ]
+}

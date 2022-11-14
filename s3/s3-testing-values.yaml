@@ -1,0 +1,117 @@
+services:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kompose.image-pull-secret: ${PROXY_IMAGE_PULL_SECRET_NAME}
+        kompose.service.type: clusterip
+      creationTimestamp: null
+      labels:
+        io.kompose.service: s3
+      name: s3
+    spec:
+      ports:
+        - name: "9001"
+          port: 9001
+          targetPort: 9001
+        - name: "9000"
+          port: 9000
+          targetPort: 9000
+      selector:
+        io.kompose.service: s3
+      type: ClusterIP
+    status:
+      loadBalancer: {}
+
+headlessService:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kompose.image-pull-secret: ${PROXY_IMAGE_PULL_SECRET_NAME}
+        kompose.service.type: clusterip
+      creationTimestamp: null
+      labels:
+        io.kompose.service: s3
+      name: s3-headless
+    spec:
+      clusterIP: None
+      ports:
+        - name: "9001"
+          protocol: TCP
+          port: 9001
+          targetPort: 9001
+        - name: "9000"
+          protocol: TCP
+          port: 9000
+          targetPort: 9000
+      publishNotReadyAddresses: true
+      selector:
+        io.kompose.service: s3
+      sessionAffinity: None
+      type: ClusterIP
+
+statefulSet:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kompose.image-pull-secret: ${PROXY_IMAGE_PULL_SECRET_NAME}
+        kompose.service.type: clusterip
+      labels:
+        io.kompose.service: s3
+      name: s3
+    spec:
+      podManagementPolicy: OrderedReady
+      selector:
+        matchLabels:
+          io.kompose.service: s3
+      updateStrategy:
+        type: RollingUpdate
+      replicas: 4
+      serviceName: s3
+      template:
+        metadata:
+          annotations:
+            app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+            app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+            kompose.image-pull-secret: ${PROXY_IMAGE_PULL_SECRET_NAME}
+            kompose.service.type: clusterip
+          labels:
+            io.kompose.service: s3
+        spec:
+          containers:
+            name: s3
+            env:
+              MINIO_ROOT_PASSWORD: ${TESTING_S3_ROOT_PASSWORD}
+              MINIO_ROOT_USER: ${TESTING_S3_ROOT_USER}
+              MINIO_DISTRIBUTED_MODE_ENABLED: "yes"
+              MINIO_DISTRIBUTED_NODES: s3-{0...3}
+            image: ${MINIO_IMAGE_NAME}
+            args:
+              - server
+              - http://s3-{0...3}.s3.$(MY_POD_NAMESPACE).svc.cluster.local/data1
+              - --console-address
+              - :9001
+            ports:
+              - containerPort: 9001
+              - containerPort: 9000
+            # These volume mounts are persistent. Each pod in the StatefulSet
+            # gets a volume mounted based on this field.
+            volumeMounts:
+              - name: data1
+                mountPath: /data1
+          imagePullSecrets:
+            - name: ${PROXY_IMAGE_PULL_SECRET_NAME}
+      # These are converted to volume claims by the controller
+      # and mounted at the paths mentioned above.
+      volumeClaimTemplates:
+        - metadata:
+            name: data1
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            storageClassName: "azurefile-${LANDSCAPE}-s3"
+            resources:
+              requests:
+                storage: 1Gi

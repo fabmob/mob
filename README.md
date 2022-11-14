@@ -1,14 +1,14 @@
 > **Note** : La publication du code sera échelonnée en plusieurs parties et accompagné de documents permettant à l’usager d’appréhender facilement les éléments partagés. Basé un mode de fonctionnement agile, les éléments constitutifs du projet sont susceptibles d’évoluer au fil de l’eau, en amont de tout déploiement éventuel, du fait : des retours des tests, de la prise en compte de l'ensemble des exigences en matière d'accessibilité, de la précision des éléments légaux, de tout autre élément susceptible de conduire à des modifications.
 
 # Rappel du contexte
-Le programme Mon Compte Mobilité, porté par Capgemini Invent et la Fabrique des Mobilité, est une plateforme de services neutre qui facilite les relations entre citoyens, employeurs, collectivités et opérateurs de mobilité autour d’un compte personnel de mobilité et d'une passerelle (i.e. Gateway) d'échanges de services standardisés à destination des MaaS. Son ambition est d’accélérer les mutations des mobilités pour réduire massivement l’autosolisme et encourager l’utilisation des mobilités douces. 
+Le programme Mon Compte Mobilité, porté par Capgemini Invent et la Fabrique des Mobilité, est une plateforme de services neutre qui facilite les relations entre citoyens, employeurs, collectivités et opérateurs de mobilité autour d’un compte personnel de mobilité et d'une passerelle (i.e. Gateway) d'échanges de services standardisés à destination des MaaS. Son ambition est d’accélérer les mutations des mobilités pour réduire massivement l’autosolisme et encourager l’utilisation des mobilités douces.
 Ce programme répond parfaitement à une des propositions de la convention citoyenne : mettre en place un portail unique permettant de savoir à tout moment, rapidement et simplement, quels sont les moyens et dispositifs existants sur un territoire pour se déplacer.
 
 Le projet Mon Compte Mobilité est lauréat de l’appel à projet pour des programmes de Certificats d’économie d’énergie par l’arrêté du 27 février 2020, et publié au journal officiel le 8 mars 2020.
 
 Mon Compte Mobilité (ou **moB**) est un compte unique pour chaque utilisateur qui permet :
--	A chaque citoyen de visualiser les dispositifs d’incitation nationaux, de sa collectivité ou son employeur pour en bénéficier comme il le souhaite auprès des différentes offres de mobilité et de gérer son consentement à la portabilité de ses données personnelles 
--	A chaque entreprise de paramétrer et mettre en œuvre la politique de mobilité qu’elle souhaite pour ses collaborateurs 
+-	A chaque citoyen de visualiser les dispositifs d’incitation nationaux, de sa collectivité ou son employeur pour en bénéficier comme il le souhaite auprès des différentes offres de mobilité et de gérer son consentement à la portabilité de ses données personnelles
+-	A chaque entreprise de paramétrer et mettre en œuvre la politique de mobilité qu’elle souhaite pour ses collaborateurs
 -	A chaque AOM (Autorité Organisatrice de la Mobilité) de créer et piloter ses politiques d’incitation pour encourager l’utilisation de modes de mobilité plus durables sur son territoire
 -	A chaque opérateur de mobilité (MSP, Mobility Service Provider) de mettre en visibilité ses offres et de faciliter l’utilisation des incitatifs sur celles-ci, et de contribuer à la politique incitative de mobilité durable des territoires
 
@@ -49,7 +49,7 @@ Merci de vous référer au fichier dédié : [LICENSE.txt](https://github.com/fa
 
 
 # Périmètre de la publication
-La présente publication sera complétée le 18 novembre 2022. Seront alors publiées les fonctionnalités de Mon Compte Mobilité ayant pour vocation de 
+La présente publication sera complétée le 18 novembre 2022. Seront alors publiées les fonctionnalités de Mon Compte Mobilité ayant pour vocation de
 
 Permettre à l’Utilisateur non-authentifié :
 -	D’accéder au catalogue d’aides publiques proposées par les Territoires partenaires

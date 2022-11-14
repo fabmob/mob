@@ -1,0 +1,20 @@
+include:
+  - local: "s3/.gitlab-ci/preview.yml"
+    rules:
+      - if: $CI_COMMIT_BRANCH !~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger" && $CI_PIPELINE_SOURCE != "schedule"
+  - local: "s3/.gitlab-ci/testing.yml"
+    rules:
+      - if: $CI_COMMIT_BRANCH =~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger"
+
+# Base s3 variables
+.s3-base:
+  variables:
+    MODULE_NAME: s3
+    MODULE_PATH: ${MODULE_NAME}
+    MINIO_IMAGE_NAME: ${NEXUS_DOCKER_REPOSITORY_URL}/minio/minio:RELEASE.2022-04-30T22-23-53Z
+    MINIO_MC_IMAGE_NAME: ${NEXUS_DOCKER_REPOSITORY_URL}/minio/mc:RELEASE.2022-04-16T21-11-21Z
+  only:
+    changes:
+      - "*"
+      - "commons/**/*"
+      - "s3/**/*"

@@ -1,0 +1,30 @@
+.mcm-container {
+  overflow: hidden;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  &__main {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+    &--fw {
+      max-width: none;
+      padding: 0;
+    }
+  }
+}
+
+.page-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  @media screen and (min-width: 1248px) {
+    padding: 0;
+  }
+}
+
+.empty-list {
+  margin: 16px 0;
+}

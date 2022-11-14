@@ -1,0 +1,5 @@
+mailhog_testing_deploy:
+  extends:
+    - .testing-deploy-job
+    - .mailhog-base
+  needs: ["commons-kubetools-image"]

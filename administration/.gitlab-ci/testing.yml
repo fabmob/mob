@@ -1,0 +1,11 @@
+admin_testing_image_build:
+  extends:
+    - .testing-image-job
+    - .admin-base
+  needs: ['admin_build']
+
+admin_testing_deploy:
+  extends:
+    - .testing-deploy-job
+    - .admin-base
+  needs: ['admin_testing_image_build']

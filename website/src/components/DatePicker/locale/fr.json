@@ -1,0 +1,6 @@
+{
+  "citizens.error.date.required": "Attention, ce champ est obligatoire",
+  "citizens.error.birthdate.required": "Merci de renseigner votre date de naissance",
+  "citizens.error.birthdate.age": "Il est encore un peu trop tôt ! Mon Compte Mobilité est accessible à partir de 16 ans",
+  "citizens.error.date.format": "La date renseignée est incorrecte"
+}

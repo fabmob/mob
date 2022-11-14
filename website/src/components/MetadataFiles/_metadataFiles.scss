@@ -1,0 +1,30 @@
+.app_justif_bloc {
+  margin-bottom: var(--spacing-xs);
+  border-bottom: 1px solid var(--color-grey-light);
+
+  &:last-child {
+    border-bottom: unset;
+  }
+
+  .app_justif {
+    display: flex;
+    align-items: center;
+
+    p {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .icon {
+    width: 25px;
+    height: 30px;
+    margin-right: 30px;
+
+    svg {
+      width: auto;
+      height: 100%;
+    }
+  }
+}

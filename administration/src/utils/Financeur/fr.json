@@ -1,0 +1,4 @@
+{
+  "funders.error": "Problème durant la récupération des financeurs",
+  "funders.error.clients.list": "Problème durant la récupération des clients"
+}

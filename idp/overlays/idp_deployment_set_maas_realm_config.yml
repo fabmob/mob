@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: idp-maas
+spec:
+  template:
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: idp-maas
+          volumeMounts:
+            - name: maas-realm-config
+              mountPath: /tmp
+      volumes:
+        - name: maas-realm-config
+          configMap:
+            name: maas-realm-config

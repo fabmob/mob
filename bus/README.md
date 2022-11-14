@@ -2,21 +2,30 @@
 
 Le service bus se base sur la brique logicielle **[RabbitMQ](https://www.rabbitmq.com/)**
 
-Cette brique de message broker nous permet de communiquer avec les SIRH sur le sujet des demandes d'aides effectuées par un citoyen.
+Cette brique de message broker permet au produit de s'interface avec les SIRH existants back-office des financeurs qu'ils utilisent déjà pour traiter les demandes d'aides à la mobilité. Ainsi, le financeur s'appuiera sur son SI existant pour les gérer et n'utilisera pas le back-office proposé par le produit.
 
-Nous utilisons le protocol amqp pour échanger des messages.
+Ci-dessous une vue globale du processus métier :
 
-L'authentification via oAuth2 a été activée pour les environnements distants permettant ainsi d'utiliser un jeton d'authentification émis par notre IDP pour pouvoir publier ou consommer des messages.
+![busHRISprocess](bus/docs/assets/busHRISprocess.png)
 
-L'utilisation du fichier 'definition.json' présent dans le dossier overlays permet de définir les configurations nécessaires au bon fonctionnement de l'échange des messages. 
+Concernant les échanges entre moB et le bus, le protocol amqp pour échanger des messages via la librairie [amqplib](https://www.npmjs.com/package/amqplib). [Lien](https://amqp-node.github.io/amqplib/) vers la documentation complète.
 
-(Voir relation avec les autres services)
+L'authentification via OAuth2 a été configuré pour les environnements distants permettant ainsi d'utiliser un jeton d'authentification émis par _idp_ pour pouvoir publier ou consommer des messages. Le plugin [rabbitmq_auth_backend_oauth2](https://github.com/rabbitmq/rabbitmq-server/tree/main/deps/rabbitmq_auth_backend_oauth2) a été utilisé pour cela, sa configuration est visible dans _bus/overlays/config/custom.conf_.
+
+![busHRISauthentication](bus/docs/assets/busHRISauthentication.png)
+
+L'utilisation du fichier _definition.json_ présent dans le dossier _overlays_ permet de définir les configurations nécessaires au bon fonctionnement de l'échange des messages.
+Elles correspondent à la solution d'architecture technique détaillée du bus ci-dessous mise en place :
+
+![busSolutionArchitecture](bus/docs/assets/busSolutionArchitecture.png)
+
+![busQueueingArchitectureAndExchangeType](bus/docs/assets/busQueueingArchitectureAndExchangeType.png)
 
 # Installation en local
-
-`docker run -d --name rabbitmq -p 15672:15672 -p 5672:5672 -e RABBITMQ_USERNAME=${BUS_ADMIN_USER} -e RABBITMQ_PASSWORD=${BUS_ADMIN_PASSWORD} bitnami/rabbitmq:latest`
-
-Récupérer le fichier overlays/definition.json
+```sh
+docker run -d --name rabbitmq -p 15672:15672 -p 5672:5672 -e RABBITMQ_USERNAME=${BUS_ADMIN_USER} -e RABBITMQ_PASSWORD=${BUS_ADMIN_PASSWORD} bitnami/rabbitmq:latest
+```
+Récupérer le fichier _overlays/definition.json_
 
 ## Variables
 
@@ -29,7 +38,7 @@ Récupérer le fichier overlays/definition.json
 | IDP_API_CLIENT_SECRET   | Client secret du client confidentiel IDP pour l'API | Oui |
 | CAPGEMINI_SECRET_KEY   | Client secret du client confidentiel CAPGEMINI pour l'API        | Non |
 
-Importer, via l'interface RabbitMQ, le fichier definition.json  modifié avec les valeurs de variables mentionnées ci-dessus.
+Importer, via l'interface RabbitMQ, le fichier _definition.json_ modifié avec les valeurs de variables mentionnées ci-dessus.
 
 ![interfaceAdmin](docs/assets/interfaceRabbitMQ.png)
 
@@ -58,16 +67,15 @@ Le deploiement du bus est de type statefulSet.
 
 # Relation avec les autres services
 
-Comme présenté dans le schéma global de l'architecture ci-dessus (# TODO)
+Comme présenté dans le [schéma d'architecture détaillée](docs/assets/MOB-CME_Archi_technique_detaillee.png), _api_ possède un [child process](https://nodejs.org/api/child_process.html) qui au démarrage de l'application permet d'écouter les messages disponibles sur les queues de consommation.
 
-L'api possède un child process qui au démarrage de l'application permet d'écouter les messages provenant de rabbitmq sur la queue de consommation.
-
-L'api effectue une requête amqp pour envoyer les données de souscriptions sur la queue de publication.
+- _api_ effectue une requête amqp vers _bus_ pour envoyer les données de souscriptions, messages à destination des HRIS
+- _api_ effectue des requêtes périodiquement vers _bus_ pour récupérer les données de statut des souscriptions, messages publiés par les HRIS
 
 **Bilan des relations:**
 
-- Consommation des messages
-- Publication de messages
+- Publication de messages sur les queues _mob.subscriptions.put.*_
+- Consommation des messages sur les queues _mob.subscriptions.status.*_
 
 
 # Tests Unitaires

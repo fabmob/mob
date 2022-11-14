@@ -1,0 +1,146 @@
+backend:
+  name: gitlab
+  repo: ${CI_PROJECT_PATH} # Path to your GitLab repository
+  auth_type: pkce
+  app_id: ${NETLIFYCMS_APP_ID}
+  api_root: ${CI_API_V4_URL}
+  base_url: ${CI_SERVER_URL}
+  auth_endpoint: oauth/authorize
+  squash_merges: true
+  branch: ${CI_COMMIT_REF_SLUG} # Used for making changes on current branch
+
+  ## CHANGE COMMIT MESSAGES // MERGE REQUEST NAME
+  commit_messages:
+    create: NETLIFY-CMS {{author-login}} request to Create {{collection}} “{{slug}}”
+    update: NETLIFY-CMS {{author-login}} request to Update {{collection}} “{{slug}}”
+    delete: NETLIFY-CMS {{author-login}} request to Delete {{collection}} “{{slug}}”
+    uploadMedia: "[skip ci] NETLIFY-CMS {{author-login}} request to Upload “{{path}}”"
+    deleteMedia: "[skip ci] NETLIFY-CMS {{author-login}} request to Delete “{{path}}”"
+
+## FOR ENABLING MERGE REQUEST PROCESS
+publish_mode: editorial_workflow
+
+locale: fr
+
+## FOR DISABLING MEDIA LIBRARY
+media_library:
+  name: disabled
+
+## FOR ENABLING USE OF PROJECT MEDIA FOLDER INSTEAD OF MEDIA LIBRARY
+# media_folder: 'website/static/uploads'
+# public_folder: /uploads
+
+logo_url: "/uploads/netlify_cms.logo.png"
+
+collections:
+  - name: "projet"
+    label: "Projet"
+    media_folder: ""
+    public_folder: ""
+    files:
+      - name: "projet"
+        label: "Page projet"
+        file: "website/src/pages/decouvrir-le-projet.md"
+        fields:
+          - { label: "Titre de la page", name: "title", widget: "text" }
+          - { label: "Description", name: "description", widget: "text" }
+          - { label: "Sous-titre", name: "subtitle", widget: "text" }
+          - { label: "Sous-texte", name: "subText", widget: "text" }
+          - label: Cards Section
+            name: cardSection
+            widget: object
+            fields:
+              - { label: "Titre de la section", name: "title", widget: "text" }
+              - label: Cards
+                name: cards
+                widget: list
+                collapsed: true
+                min: 2
+                max: 3
+                fields:
+                  - { label: "Titre de la card", name: "title", widget: "text" }
+                  - { label: "Sous-titre", name: "subtitle", widget: "text" }
+                  - { label: "Liste", name: "list", widget: "list" }
+                  - label: Bouton
+                    name: button
+                    widget: object
+                    collapsed: true
+                    fields:
+                      - {
+                          label: "Texte du bouton",
+                          name: "label",
+                          widget: "string",
+                        }
+                      - { label: "URL", name: "href", widget: "string" }
+          - label: Links Section
+            name: linkSection
+            widget: object
+            fields:
+              - {
+                  label: "Titre de la section",
+                  name: "title",
+                  widget: "string",
+                }
+              - label: Liens
+                name: links
+                widget: list
+                collapsed: true
+                fields:
+                  - {
+                      label: "Description du fichier / lien",
+                      name: "label",
+                      widget: "string",
+                    }
+                  - {
+                      label: "Fichier",
+                      name: "file",
+                      widget: "file",
+                      default: "/uploads/new-pdf",
+                      required: false,
+                    }
+                  - {
+                      label: "Lien",
+                      name: "url",
+                      widget: "string",
+                      required: false,
+                    }
+  - name: "faq"
+    label: "Faq"
+    media_folder: ""
+    public_folder: ""
+    files:
+      - name: "faq"
+        label: "Page faq"
+        file: "website/src/pages/faq.md"
+        fields:
+          - label: catégories
+            label_singular: "catégorie"
+            name: faqItems
+            widget: list
+            fields:
+              - {
+                  label: "Titre de la catégorie",
+                  name: "categoryTitle",
+                  widget: "string",
+                }
+              - label: blocs
+                label_singular: "bloc"
+                name: bloc
+                widget: list
+                fields:
+                  - {
+                      label: "Titre de bloc",
+                      name: "blocTitle",
+                      widget: "string",
+                    }
+                  - label: "Questions"
+                    label_singular: "Question"
+                    name: "questions"
+                    widget: list
+                    fields:
+                      - { label: "Question", name: "title", widget: "string" }
+                      - {
+                          label: "Réponse",
+                          name: "answer",
+                          widget: "markdown",
+                        }

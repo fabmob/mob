@@ -1,0 +1,12 @@
+analytics_preview_deploy:
+  extends:
+    - .preview-deploy-job
+    - .analytics-base
+    - .manual
+  environment:
+    on_stop: analytics_preview_cleanup
+
+analytics_preview_cleanup:
+  extends:
+    - .commons_preview_cleanup
+    - .analytics-base

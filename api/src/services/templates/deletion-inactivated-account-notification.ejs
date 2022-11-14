@@ -1,0 +1,41 @@
+<%- include('css/style'); %> <%- include('commons/header'); %>
+
+<table style="margin-bottom: 40px;max-width: 640px;width: 640px;">
+  <tr>
+    <td>
+    <div>
+      <div>
+        <p>Bonjour <%= username %>,</p>
+      </div>
+      <div>
+        <p>
+          Vous nous manquez ! Votre compte est inactif depuis le <%= inactifDate %>, date
+          de votre dernière connexion
+        </p>
+      </div>
+      <div>
+        <p>
+          Sans connexion de votre part d'ici le <%= delaiDate %> votre compte Mobilité
+          sera désactivé et définitivement supprimé.
+        </p>
+      </div>
+      <div>
+        <p>
+          Pour éviter cela, connectez-vous dès à présent à votre Compte Mobilité pour
+          accéder aux différents dispositifs d'aides à la mobilité disponibles proche de
+          chez vous.
+        </p>
+      </div>
+      <div class="btn">
+        <%- include('commons/button', {link: `${connectionLink}`, text: 'Je me connecte'}) %>
+      </div>
+      <div>
+        <p>Merci pour votre confiance,</p>
+        <p>L’équipe Mon Compte Mobilité</p>
+      </div>
+    </div>
+  </td>
+</tr>
+</table>
+
+<%- include('commons/footer'); %>

@@ -1,0 +1,21 @@
+// -----------------------------------------------------------------------------
+// This file contains all styles related to heading component.
+// -----------------------------------------------------------------------------
+.heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  transition: font-size 200ms;
+  > img {
+    display: inline-block;
+    margin-right: 34px;
+
+    @media screen and (max-width: 767px) {
+      width: 78px;
+    }
+
+    @media screen and (min-width: 768px) {
+      margin-right: 43px;
+    }
+  }
+}

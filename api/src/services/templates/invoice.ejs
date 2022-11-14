@@ -1,0 +1,182 @@
+<%- include('commons/utils'); %> <% const headerLink=getLink("logo-with-baseline.svg") %>
+<% const footerLink=getLink("mob-footer.png") %>
+
+<style>
+  html {
+    zoom: 0.55;
+  }
+
+  body {
+    margin: 0%;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  p {
+    margin: 0;
+    padding: 0;
+  }
+
+  .subtitle {
+    font-weight: bold;
+  }
+</style>
+<div style="margin: 10%">
+  <header style="display: inline-block; width: 100%">
+    <h1 id="facture" style="float: left; width: 50%">Justificatif d'achat</h1>
+    <img style="float: right; width: 20%" src="<%=headerLink %>" alt="mob-logo" />
+  </header>
+  <section id="enterprise" style="display: block; padding-bottom: 40px">
+    <p>
+      <strong> <%= invoice.enterprise.enterpriseName %> </strong>
+    </p>
+    <% if (invoice.enterprise.sirenNumber) { %>
+    <p>N° SIREN : <%= invoice.enterprise.sirenNumber %></p>
+    <% } %>
+    <p>N° SIRET : <%= invoice.enterprise.siretNumber %></p>
+    <% if (invoice.enterprise.apeCode) { %>
+    <p>CODE APE : <%= invoice.enterprise.apeCode %></p>
+    <% } %> <% if (invoice.enterprise.enterpriseAddress) { %> <% if
+    (invoice.enterprise.enterpriseAddress.street) { %>
+    <p><%= invoice.enterprise.enterpriseAddress.street %></p>
+    <% } %> <% if (invoice.enterprise.enterpriseAddress.zipCode ||
+    invoice.enterprise.enterpriseAddress.city) { %>
+    <p>
+      <% if (invoice.enterprise.enterpriseAddress.zipCode) { %> <%=
+      invoice.enterprise.enterpriseAddress.zipCode %> <% } %> <% if
+      (invoice.enterprise.enterpriseAddress.city) { %> <%=
+      invoice.enterprise.enterpriseAddress.city %> <% } %>
+    </p>
+    <% } %> <% } %>
+  </section>
+  <div style="padding-bottom: 40px; display: inline-block; width: 100%">
+    <h2 class="subtitle">
+      FACTURÉ A <%= (invoice.customer.customerSurname).charAt(0).toUpperCase() +
+      (invoice.customer.customerSurname.slice(1)).toLowerCase() %> <%=
+      (invoice.customer.customerName).toUpperCase() %>
+    </h2>
+    <section id="customer" style="float: left; width: 50%">
+      <p>N° de client : <%= invoice.customer.customerId %></p>
+      <% if (invoice.customer.customerAddress) { %> <% if
+      (invoice.customer.customerAddress.street) { %>
+      <p><%= invoice.customer.customerAddress.street %></p>
+      <% } %> <% if (invoice.customer.customerAddress.zipCode ||
+      invoice.customer.customerAddress.city) { %>
+      <p>
+        <% if (invoice.customer.customerAddress.zipCode) { %> <%=
+        invoice.customer.customerAddress.zipCode %> <% } %> <% if
+        (invoice.customer.customerAddress.city) { %> <%=
+        invoice.customer.customerAddress.city %> <% } %>
+      </p>
+      <% } %> <% } %>
+    </section>
+    <section id="transaction" style="float: right; vertical-align: top; width: 50%">
+      <div>
+        <span class="subtitle">DATE</span>
+        <span style="float: right">
+          <%= formatDate(invoice.transaction.purchaseDate, 'dd/MM/yyyy' ) %>
+        </span>
+      </div>
+      <div>
+        <span class="subtitle">COMMANDE N°</span>
+        <span style="float: right"> <%= invoice.transaction.orderId %> </span>
+      </div>
+    </section>
+  </div>
+  <section id="products" style="padding-bottom: 40px">
+    <table style="width: 100%; text-align: left">
+      <thead>
+        <tr>
+          <th>QTE</th>
+          <th>DESIGNATION</th>
+          <th>PRIX UNIT. (TTC)</th>
+          <th>MONTANT</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% invoice.products.forEach(function(product) { %>
+        <tr>
+          <td><%= product.quantity %></td>
+          <td><%= product.productName %></td>
+          <td><%= ((product.amountInclTaxes)/100).toFixed(2) %></td>
+          <td><%= ((product.quantity)*(product.amountInclTaxes)/100).toFixed(2) %></td>
+        </tr>
+        <% if (product.productDetails) { %> <% if (product.productDetails.periodicity) {
+        %>
+        <tr>
+          <td></td>
+          <td><%= product.productDetails.periodicity %></td>
+        </tr>
+        <% } %> <% if (product.productDetails.zoneMin && product.productDetails.zoneMax) {
+        %>
+        <tr>
+          <td></td>
+          <td>
+            Zone <%= product.productDetails.zoneMin %> - <%=
+            product.productDetails.zoneMax %>
+          </td>
+        </tr>
+        <%} else if (product.productDetails.zoneMin || product.productDetails.zoneMax) {
+        %> <% if (product.productDetails.zoneMin) { %>
+        <tr>
+          <td></td>
+          <td>Zone <%= product.productDetails.zoneMin %></td>
+        </tr>
+        <% } %> <% if (product.productDetails.zoneMax) { %>
+        <tr>
+          <td></td>
+          <td>Zone <%= product.productDetails.zoneMax %></td>
+        </tr>
+        <% } %> <% } %> <% if (product.productDetails.validityStart) { %>
+        <tr>
+          <td></td>
+          <td>
+            Date de début <%= formatDate(product.productDetails.validityStart,
+            'dd/MM/yyyy' ) %>
+          </td>
+        </tr>
+        <% } %> <% if (product.productDetails.validityEnd) { %>
+        <tr>
+          <td></td>
+          <td>
+            Date de fin <%= formatDate(product.productDetails.validityEnd, 'dd/MM/yyyy' )
+            %>
+          </td>
+        </tr>
+        <% } %> <% } %> <% }) %>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td></td>
+          <td></td>
+          <th scope="row">TOTAL (TTC)</th>
+          <td>
+            <strong>
+              <%= ((invoice.transaction.amountInclTaxes)/100).toFixed(2) %> €
+            </strong>
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  </section>
+  <section style="text-align: right">
+    <p>Le taux de TVA est de 10% depuis le 01/01/2014</p>
+  </section>
+</div>
+<footer style="margin: 0%; position: fixed; width: 100%; bottom: 0">
+  <p
+    style="font-style: italic; height: fit-content; padding: 20px 40px; word-spacing: 5px"
+  >
+    Document édité par Mon Compte Mobilité à partir des éléments automatiquement transmis
+    depuis le compte <%= invoice.enterprise.enterpriseName %> de l'utilisateur
+  </p>
+  <div style="background-color: #464cd0; padding: 30px 30px">
+    <img
+      style="margin-left: 20px; width: 130px"
+      src="<%=footerLink %>"
+      alt="mob-logo-footer"
+    />
+  </div>
+</footer>

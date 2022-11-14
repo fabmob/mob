@@ -1,0 +1,17 @@
+.check-tos {
+    display: flex;
+    .checkbox-radio {
+        margin-top: 2px;
+    }
+    p {
+        font-size: 14px;
+        line-height: 18px;
+        font-weight: 400;
+        a {
+            color: var(--color-blue-petrol);
+            &:hover {
+                text-decoration: underline;
+            }
+        }
+    }
+}

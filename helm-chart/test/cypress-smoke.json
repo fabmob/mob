@@ -1,0 +1,16 @@
+{
+  "integrationFolder": "./cypress/integration/smoke-tests/test-mcm/",
+  "screenshotsFolder": "./cypress/integration/smoke-tests/screenshots/",
+  "screenshotOnRunFailure": true,
+  "videosFolder": "./cypress/integration/smoke-tests/videos",
+  "supportFile": "./cypress/support/index.js",
+  "pluginsFile": "./cypress/plugins/index.js",
+  "failOnStatusCode": false,
+  "chromeWebSecurity": false,
+  "redirectionLimit": 20,
+  "retries": {
+    "runMode": 5,
+    "openMode": 2
+  },
+  "reporter": "mochawesome"
+}

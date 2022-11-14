@@ -1,0 +1,98 @@
+.declare-functional-tests-functions: &declare-functional-tests-functions |
+  function launch_functional_test_job {
+    cd ${MODULE_PATH}
+    npm i
+    npx cypress run \
+    --spec "cypress/integration/functional-tests/test-mcm/$1" \
+    --config-file $2.json \
+    --browser $3 | tee cypress-functional-tests.log
+    cat cypress-functional-tests.log
+  }
+
+.cypress_env_setup: &cypress_env_setup |
+  export CYPRESS_API_FQDN=${API_FQDN}
+  export CYPRESS_IDP_FQDN=${IDP_FQDN}
+  export CYPRESS_WEBSITE_FQDN=${WEBSITE_FQDN}
+  export CYPRESS_ADMIN_FQDN=${ADMIN_FQDN}
+  export CYPRESS_MAILHOG_FQDN=${MAILHOG_FQDN}
+  export CYPRESS_STUDENT_PASSWORD=${CITOYEN_PASSWORD}
+
+chrome_homepage_tests:
+  image: ${CYPRESS_IMAGE_NAME}
+  before_script:
+    - *declare-functional-tests-functions
+  script:
+    - *cypress_env_setup
+    - |
+      launch_functional_test_job homepage-tests/* cypress-functional chrome
+  artifacts:
+    expire_in: 5 days
+    when: always
+    paths:
+      - ${MODULE_PATH}/cypress-functional-tests.log
+      - ${MODULE_PATH}/cypress/integration/functional-tests/screenshots/**/*.png
+      - ${MODULE_PATH}/mochawesome-report
+
+chrome_incentive_tests:
+  image: ${CYPRESS_IMAGE_NAME}
+  before_script:
+    - *declare-functional-tests-functions
+  script:
+    - *cypress_env_setup
+    - |
+      launch_functional_test_job incentive-tests/* cypress-functional chrome
+  artifacts:
+    expire_in: 5 days
+    when: always
+    paths:
+      - ${MODULE_PATH}/cypress-functional-tests.log
+      - ${MODULE_PATH}/cypress/integration/functional-tests/screenshots/**/*.png
+      - ${MODULE_PATH}/mochawesome-report
+
+email_reception_tests:
+  image: ${CYPRESS_IMAGE_NAME}
+  before_script:
+    - *declare-functional-tests-functions
+  script:
+    - *cypress_env_setup
+    - |
+      launch_functional_test_job email-reception-tests/* cypress-functional chrome
+  artifacts:
+    expire_in: 5 days
+    when: always
+    paths:
+      - ${MODULE_PATH}/cypress-functional-tests.log
+      - ${MODULE_PATH}/cypress/integration/functional-tests/screenshots/**/*.png
+      - ${MODULE_PATH}/mochawesome-report
+
+firefox_homepage_tests:
+  image: ${CYPRESS_IMAGE_NAME}
+  before_script:
+    - *declare-functional-tests-functions
+  script:
+    - *cypress_env_setup
+    - |
+      launch_functional_test_job homepage-tests/* cypress-firefox firefox
+  artifacts:
+    expire_in: 5 days
+    when: always
+    paths:
+      - ${MODULE_PATH}/cypress-functional-tests.log
+      - ${MODULE_PATH}/cypress/integration/functional-tests/screenshots/**/*.png
+      - ${MODULE_PATH}/mochawesome-report
+
+firefox_incentive_tests:
+  image: ${CYPRESS_IMAGE_NAME}
+  before_script:
+    - *declare-functional-tests-functions
+  script:
+    - *cypress_env_setup
+    - |
+      launch_functional_test_job incentive-tests/* cypress-firefox firefox
+  artifacts:
+    expire_in: 5 days
+    when: always
+    paths:
+      - ${MODULE_PATH}/cypress-functional-tests.log
+      - ${MODULE_PATH}/cypress/integration/functional-tests/screenshots/**/*.png
+      - ${MODULE_PATH}/mochawesome-report

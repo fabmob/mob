@@ -1,0 +1,90 @@
+version: '3'
+
+services:
+  mongo:
+    image: ${MONGO_IMAGE_NAME}
+    build:
+      context: .
+      dockerfile: ./mongo-dockerfile.yml
+      args:
+        BASE_IMAGE_MONGO: ${NEXUS_IMAGE_MONGO}
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGO_INITDB_DATABASE=${MONGO_DB_NAME}
+      - MONGO_INITDB_NON_ROOT_USERNAME=${MONGO_SERVICE_USER}
+      - MONGO_INITDB_NON_ROOT_PASSWORD=${MONGO_SERVICE_PASSWORD}
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - storage-nw
+    ports:
+      - '27017'
+    labels:
+      - 'kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}'
+      - 'kompose.service.type=clusterip'
+      - 'traefik.enable=false'
+
+  api:
+    depends_on:
+      - mongo
+    image: ${API_IMAGE_NAME}
+    build:
+      context: .
+      dockerfile: ./api-dockerfile.yml
+      args:
+        NODE_IMAGE_NAME: ${BUILD_IMAGE_NAME}
+        CI_PROJECT_ID: ${CI_PROJECT_ID}
+        MCM_GITLAB_DEPLOY_NPM_TOKEN: ${GITLAB_REGISTRY_NPM_TOKEN}
+        NEXUS_NPM_PROXY_TOKEN: ${NEXUS_NPM_PROXY_TOKEN}
+        PACKAGE_VERSION: ${PACKAGE_VERSION}
+    environment:
+      - MONGO_AUTH_SOURCE=${MONGO_DB_NAME}
+      - MONGO_HOST=mongo
+      - MONGO_PORT=27017
+      - MONGO_SERVICE_USER
+      - MONGO_SERVICE_PASSWORD
+      - MONGO_DATABASE=${MONGO_DB_NAME}
+      - IDP_DB_HOST=postgres-keycloak.idp-${CI_COMMIT_REF_SLUG}-${LANDSCAPE}.svc.cluster.local
+      - IDP_DB_PORT=5432
+      - IDP_DB_AUTH_SOURCE=idp_db
+      - IDP_DB_SERVICE_USER=${PGSQL_SERVICE_USER}
+      - IDP_DB_SERVICE_PASSWORD=${PGSQL_SERVICE_PASSWORD}
+      - IDP_DB_DATABASE=idp_db
+      - CLIENT_SECRET_KEY_KEYCLOAK_API=${IDP_API_CLIENT_SECRET}
+      - IDP_FQDN
+      - API_FQDN
+      - S3_SERVICE_USER
+      - S3_SERVICE_PASSWORD
+      - S3_HOST=s3.s3-master-preview.svc.cluster.local
+      - S3_PORT=9000
+      - AFFILIATION_JWS_KEY
+      - WEBSITE_FQDN
+      - CLAMAV_HOST=clamav.antivirus-master-preview.svc.cluster.local
+      - CLAMAV_PORT=3310
+      - LANDSCAPE
+      - BASE_DOMAIN
+      - MAILHOG_EMAIL_FROM
+      - MAILHOG_HOST=mailhog.mailhog-${CI_COMMIT_REF_SLUG}-${LANDSCAPE}.svc.cluster.local
+      - BUS_HOST=bus.bus-${CI_COMMIT_REF_SLUG}-${LANDSCAPE}.svc.cluster.local
+      - BUS_CONSUMER_QUEUE
+      - BUS_MCM_CONSUME_USER
+      - BUS_MCM_CONSUME_PASSWORD
+      - BUS_MCM_HEADERS
+      - BUS_MCM_MESSAGE_TYPE
+      - API_KEY
+    networks:
+      - web-nw
+      - storage-nw
+    ports:
+      - '3000'
+    labels:
+      - 'kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}'
+      - 'kompose.service.type=clusterip'
+
+volumes:
+  mongo-data:
+
+networks:
+  web-nw:
+  storage-nw:

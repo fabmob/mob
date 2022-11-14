@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "moduleResolution": "node",
+    "module": "commonjs",
+    "target": "esnext",
+    "baseUrl": ".",
+    "paths": {
+      "@components": ["src/components"],
+      "@customHooks": ["src/customHooks"],
+      "@helpers": ["src/helpers"],
+      "@pages": ["src/pages"],
+      "@templates": ["src/templates"],
+      "@utils": ["src/utils"],
+      "@api": ["src/apiMob"],
+      "@fixtures": ["src/fixtures"],
+      "@cms": ["src/cms"],
+      "@modules": ["src/modules"],
+      "@assets": ["src/assets"],
+      "@constants": ["src/constants"],
+      "@environment": ["src/environment"]
+    },
+    "jsx": "preserve",
+    "lib": ["es5", "es6", "dom", "esnext", "dom.iterable"],
+    "strict": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "typeRoots": ["./src/@types", "./node_modules/@types"],
+    "noUnusedLocals": false,
+    "allowJs": true,
+    "types": ["@types/jest", "node", "@testing-library/jest-dom"],
+  },
+  "exclude": ["node_modules", "public", ".cache"],
+  "include": ["./src/**/*"]
+}

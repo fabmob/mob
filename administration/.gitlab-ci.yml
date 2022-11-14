@@ -1,0 +1,58 @@
+include:
+  - local: 'administration/.gitlab-ci/preview.yml'
+    rules:
+      - if: $CI_COMMIT_BRANCH !~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger" && $CI_PIPELINE_SOURCE != "schedule"
+  - local: 'administration/.gitlab-ci/testing.yml'
+    rules:
+      - if: $CI_COMMIT_BRANCH =~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger"
+  - local: 'administration/.gitlab-ci/helm.yml'
+    rules:
+      - if: $CI_PIPELINE_SOURCE == "trigger"
+
+# Initialisation of specifique administration variable
+.admin-base:
+  variables:
+    MODULE_NAME: admin
+    MODULE_PATH: administration
+    ADMIN_BASE_IMAGE_NAME: ${NEXUS_DOCKER_REPOSITORY_URL}/nginx:1.21
+    ADMIN_IMAGE_NAME: ${REGISTRY_BASE_NAME}/${MODULE_NAME}:${IMAGE_TAG_NAME}
+  only:
+    changes:
+      - '*'
+      - 'commons/**/*'
+      - 'administration/**/*'
+
+# Build of testing environement image and creation of the cache
+.admin_build_script: &admin_build_script |
+  yarn install
+  export REACT_APP_ADMIN_ACCES_ROLE=${MCM_CMS_ACCESS_ROLE}
+  export REACT_APP_PACKAGE_VERSION=${PACKAGE_VERSION}
+  npm version ${PACKAGE_VERSION}
+  yarn build --production=true
+
+admin_build:
+  extends:
+    - .build-job
+    - .admin-base
+  script:
+    - *admin_build_script
+  cache:
+    key: ${MODULE_PATH}-${CI_COMMIT_REF_SLUG}
+    policy: push
+    paths:
+      - ${MODULE_PATH}/node_modules/
+      - ${MODULE_PATH}/yarn.lock
+  artifacts:
+    paths:
+      - ${MODULE_PATH}/build
+      - ${MODULE_PATH}/node_modules/
+      - ${MODULE_PATH}/yarn.lock
+    expire_in: 5 days
+
+# Static Application Security Testing for known vulnerabilities
+admin_sast:
+  extends:
+    - .sast-job
+    - .build-n-sast-job-tags
+    - .admin-base
+  needs: ['admin_build']

@@ -1,0 +1,26 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: analytics
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  entryPoints:
+    - web
+    # - websecure
+  routes:
+    - match: Host(`${MATOMO_FQDN}`)
+      kind: Rule
+      middlewares:
+        - name: analytics-headers
+      services:
+        - kind: Service
+          name: analytics
+          port: 8082
+  # tls:
+  #   secretName: ${SECRET_NAME} # analytics-tls # cert-dev
+  #   domains:
+  #     - main: ${BASE_DOMAIN}
+  #       sans:
+  #         - "*.preview.${BASE_DOMAIN}"
+  #         - "*.testing.${BASE_DOMAIN}"

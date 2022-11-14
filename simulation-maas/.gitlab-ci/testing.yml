@@ -1,0 +1,12 @@
+
+simulation_maas_testing_image_build:
+  extends:
+    - .testing-image-job
+    - .simulation-maas-base
+  needs: ["simulation_maas_build"]
+
+simulation_maas_testing_deploy:
+  extends:
+    - .testing-deploy-job
+    - .simulation-maas-base
+  needs: ["simulation_maas_testing_image_build"]

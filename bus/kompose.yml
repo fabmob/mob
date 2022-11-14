@@ -1,0 +1,16 @@
+version: "3"
+
+services:
+  bus:
+    image: ${BUS_IMAGE_NAME}
+    environment:
+      - RABBITMQ_ERL_COOKIE=KxAzS-=mFrXvRU9m
+      - RABBITMQ_PLUGINS=rabbitmq_management,rabbitmq_auth_backend_oauth2,rabbitmq_prometheus
+      - RABBITMQ_LOAD_DEFINITIONS=yes
+      - RABBITMQ_DEFINITIONS_FILE=/tmp/definition.json
+    ports:
+      - "5672"
+      - "15672"
+    labels:
+      - "kompose.image-pull-secret=${PROXY_IMAGE_PULL_SECRET_NAME}"
+      - "kompose.service.type=clusterip"

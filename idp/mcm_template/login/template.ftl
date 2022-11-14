@@ -1,0 +1,201 @@
+<#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false displayWide=false showAnotherWayIfPresent=true>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" class="${properties.kcHtmlClass!}">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="robots" content="noindex, nofollow">
+    <link href="https://use.typekit.net/lpm1lxz.css" rel="stylesheet">
+
+    <#if properties.meta?has_content>
+        <#list properties.meta?split(' ') as meta>
+            <meta name="${meta?split('==')[0]}" content="${meta?split('==')[1]}"/>
+        </#list>
+    </#if>
+    <title>${msg("loginTitle",(realm.displayName!''))}</title>
+    <link rel="icon" href="${url.resourcesPath}/img/mob-favicon.svg" type="image/svg+xml"/>
+    <#if properties.stylesCommon?has_content>
+        <#list properties.stylesCommon?split(' ') as style>
+            <link href="${url.resourcesCommonPath}/${style}" rel="stylesheet" />
+        </#list>
+    </#if>
+    <#if properties.styles?has_content>
+        <#list properties.styles?split(' ') as style>
+            <link href="${url.resourcesPath}/${style}" rel="stylesheet" />
+        </#list>
+    </#if>
+    <#if properties.scripts?has_content>
+        <#list properties.scripts?split(' ') as script>
+            <script src="${url.resourcesPath}/${script}" type="text/javascript"></script>
+        </#list>
+    </#if>
+    <#if scripts??>
+        <#list scripts as script>
+            <script src="${script}" type="text/javascript"></script>
+        </#list>
+    </#if>
+</head>
+
+<body class="${properties.kcBodyClass!}">
+    <div id="mcm-img">
+        <div id="mcm-img-cover-right"></div>
+        <div id="mcm-img-M-right"></div>
+    </div>
+
+  <div class="${properties.kcLoginClass!}">
+    <#-- App-initiated actions should not see warning messages about the need to complete the action -->
+    <#-- during login.                                                                               -->
+    <#if displayMessage && message?has_content && (message.type != 'warning' || !isAppInitiatedAction??)>
+        <div class="alert alert-${message.type}">
+            <#if message.type = 'success'><span class="${properties.kcFeedbackSuccessIcon!}"></span></#if>
+            <#if message.type = 'warning'><span class="${properties.kcFeedbackWarningIcon!}"></span></#if>
+            <#if message.type = 'error'><span class="${properties.kcFeedbackErrorIcon!}"></span></#if>
+            <#if message.type = 'info'><span class="${properties.kcFeedbackInfoIcon!}"></span></#if>
+            <span class="kc-feedback-text">${kcSanitize(message.summary)?no_esc}<div id="close-error" onclick="closePopin(`alert-${message.type}`)">x</div></span>
+        </div>
+    </#if>
+    <div id="kc-header" class="${properties.kcHeaderClass!}">
+        <a href="https://${properties.websiteFQDN!}" alt="Retour à la page d'acceuil">
+            <div id="kc-header-wrapper" class="${properties.kcHeaderWrapperClass!}"></div>
+        </a>
+        <nav role="navigation" aria-label="Menu principal">
+            <input type="checkbox" id="burgerCheckbox" class="mcm-burger-checkbox">
+            <label for="burger-checkbox" class="mcm-burger" onclick="toggleBurgerMenu()">
+                <button id="burger" class="mcm-burger-button noprint" type="button" aria-label="Afficher ou masquer la navigation" aria-controls="menu" aria-haspopup="true" aria-expanded="false" tabindex="0">
+                    <i></i>
+                </button>
+            </label>
+            <div class="mcm-nav">
+                <ul class="mcm-nav-list">
+                    <li class="nav-item">
+                        <a href="https://${properties.websiteFQDN!}/comment-ca-marche/">
+                            Comment ça marche ?
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="https://${properties.websiteFQDN!}/recherche/" alt="Trouver une aide">
+                            Trouver une aide
+                        </a>
+                    </li>
+                    <li class="nav-item nav-login">
+                        <a href="${properties.redirectToLoginPage}" alt="Me connecter">
+                            Me connecter
+                        </a>
+                    </li>
+                </ul>
+                <ul class="mcm-mobile-nav">
+                    <li class="nav-item">
+                        <a href="https://${properties.websiteFQDN!}/contact" alt="Contacter mon compte mobilité">
+                            Nous contacter
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="https://${properties.websiteFQDN!}/faq" alt="La foire aux questions">
+                            Foire aux questions
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="https://www.linkedin.com/showcase/mon-compte-mobilit%C3%A9/" alt="Linkedin">
+                            Linkedin
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+    </div>
+    <div class="${properties.kcFormCardClass!} <#if displayWide>${properties.kcFormCardAccountClass!}</#if>">
+      <header class="${properties.kcFormHeaderClass!}">
+        <#if !(auth?has_content && auth.showUsername() && !auth.showResetCredentials())>
+            <#if displayRequiredFields>
+                <div class="${properties.kcContentWrapperClass!}">
+                    <div class="${properties.kcLabelWrapperClass!} subtitle">
+                        <span class="subtitle"><span class="required">*</span> ${msg("requiredFields")}</span>
+                    </div>
+                    <div class="col-md-10">
+                        <h1 id="kc-page-title"><#nested "header"></h1>
+                    </div>
+                </div>
+            <#else>
+                <#if skipLink??>
+                    <h1 id="kc-page-title">Merci !</h1>
+                <#else>
+                    <h1 id="kc-page-title"><#nested "header"></h1>
+                </#if>
+            </#if>
+        <#else>
+            <#if displayRequiredFields>
+                <div class="${properties.kcContentWrapperClass!}">
+                    <div class="${properties.kcLabelWrapperClass!} subtitle">
+                        <span class="subtitle"><span class="required">*</span> ${msg("requiredFields")}</span>
+                    </div>
+                    <div class="col-md-10">
+                        <#nested "show-username">
+                        <div class="${properties.kcFormGroupClass!}">
+                            <div id="kc-username">
+                                <label id="kc-attempted-username">${auth.attemptedUsername}</label>
+                                <a id="reset-login" href="${url.loginRestartFlowUrl}">
+                                    <div class="kc-login-tooltip">
+                                        <i class="${properties.kcResetFlowIcon!}"></i>
+                                        <span class="kc-tooltip-text">${msg("restartLoginTooltip")}</span>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <#else>
+                <#nested "show-username">
+                <div class="${properties.kcFormGroupClass!}">
+                    <div id="kc-username">
+                        <label id="kc-attempted-username">${auth.attemptedUsername}</label>
+                        <a id="reset-login" href="${url.loginRestartFlowUrl}">
+                            <div class="kc-login-tooltip">
+                                <i class="${properties.kcResetFlowIcon!}"></i>
+                                <span class="kc-tooltip-text">${msg("restartLoginTooltip")}</span>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </#if>
+        </#if>
+      </header>
+      <div id="kc-content">
+        <div id="kc-content-wrapper">
+
+          <#nested "form">
+
+          <#if auth?has_content && auth.showTryAnotherWayLink() && showAnotherWayIfPresent>
+          <form id="kc-select-try-another-way-form" action="${url.loginAction}" method="post" <#if displayWide>class="${properties.kcContentWrapperClass!}"</#if>>
+              <div <#if displayWide>class="${properties.kcFormSocialAccountContentClass!} ${properties.kcFormSocialAccountClass!}"</#if>>
+                  <div class="${properties.kcFormGroupClass!}">
+                    <input type="hidden" name="tryAnotherWay" value="on" />
+                    <a href="#" id="try-another-way" onclick="document.forms['kc-select-try-another-way-form'].submit();return false;">${msg("doTryAnotherWay")}</a>
+                  </div>
+              </div>
+          </form>
+          </#if>
+
+          <#if displayInfo>
+              <div id="kc-info" class="${properties.kcSignUpClass!}">
+                  <div id="kc-info-wrapper" class="${properties.kcInfoAreaWrapperClass!}">
+                      <#nested "info">
+                  </div>
+              </div>
+          </#if>
+        </div>
+      </div>
+
+    </div>
+  </div>
+    <script type="text/javascript">
+        function closePopin(messageType) {
+            document.getElementsByClassName(messageType)[0].classList.add("display-none");
+        }
+        function toggleBurgerMenu() {
+            let checkbox = document.getElementById('burgerCheckbox');
+            checkbox.checked = !checkbox.checked;
+        }
+    </script>
+</body>
+</html>
+</#macro>

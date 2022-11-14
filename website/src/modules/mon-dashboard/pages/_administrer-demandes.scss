@@ -1,0 +1,103 @@
+$laptop-breakpoint: 1024px;
+
+.mcm-administrer-demandes {
+  .mcm-search-form {
+    /**
+    * Changement des paddings pour avoir une hauteur égale au bouton.
+    * TODO: Il faudrait modifier tous les champs pour qu'ils aient la même hauteur (cf. maquette)
+    */
+    > .search-field {
+      padding-top: 13px;
+      padding-bottom: 17px;
+    }
+    @media screen and (min-width: 768px) {
+      display: flex;
+      flex-direction: row;
+      align-items: baseline;
+      justify-content: center;
+
+      > .button {
+        display: inline-block;
+        flex-shrink: 0;
+      }
+    }
+  }
+}
+
+.page-container__list-section {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0px auto;
+  padding: 0px 24px;
+}
+.mcm-search-form {
+  width: 100%;
+  text-align: center;
+  @media screen and (max-width: $laptop-breakpoint - 1) {
+    width: 100%;
+  }
+}
+.mcm-info-length {
+  color: gray;
+  font-size: 12px;
+}
+.mcm-download-validee {
+  display: flex;
+  justify-content: end;
+  width: 100%;
+  color: var(--color-green-leaf);
+  & > a {
+    display: flex;
+    justify-content: end;
+    width: 350px;
+  }
+}
+
+.bloc-sections {
+  justify-content: flex-end;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding-top: 40px;
+
+  .mcm-filters__dropdown {
+    width: 250px;
+    max-width: 250px;
+    margin-top: var(--spacing-s);
+  }
+
+  .mcm-filters__dropdown:not(:last-child) {
+    margin-right: 20px;
+  }
+}
+
+.svg-download {
+  margin-right: 9px;
+}
+
+@media screen and (max-width: 768px) {
+  .bloc-sections {
+    justify-content: space-between;
+    flex-direction: column;
+    align-items: flex-start;
+
+    .mcm-filters__dropdown {
+      margin-bottom: var(--spacing-xxs);
+      margin-top: 0px;
+      width: 100%;
+      max-width: none;
+    }
+  }
+}
+
+@media screen and (max-width: 1024px) {
+  .dashboard-group-first {
+    display: flex;
+    flex-direction: column-reverse;
+  }
+
+  .mcm-download-validee {
+    justify-content: start;
+    margin-top: 15px;
+  }
+}

@@ -1,0 +1,127 @@
+#THIS FILE IS DEDICATED FOR DEVELOPERS TO TEST COLLECTIONS LOCALLY
+#TRANSFORM NAME OF THIS FILE FROM "config.yml.with-variables" TO "config.yml"
+#TO RUN NETLIFY LOCALLY :
+# 1- RUN "npx netlify-cms-proxy-server"
+# 2- THEN VISIT "http://localhost:8000/admin/"
+backend:
+  name: test-repo
+local_backend: true
+locale: fr
+## FOR DISABLING MEDIA LIBRARY
+media_library:
+  name: disabled
+## FOR ENABLING USE OF PROJECT MEDIA FOLDER INSTEAD OF MEDIA LIBRARY
+# media_folder: 'static/uploads'
+# public_folder: '/uploads'
+collections:
+  - name: "projet"
+    label: "Projet"
+    media_folder: ""
+    public_folder: ""
+    files:
+      - name: "projet"
+        label: "Page projet"
+        file: "src/pages/decouvrir-le-projet.md"
+        fields:
+          - { label: "Titre de la page", name: "title", widget: "text" }
+          - { label: "Description", name: "description", widget: "text" }
+          - { label: "Sous-titre", name: "subtitle", widget: "text" }
+          - { label: "Sous-texte", name: "subText", widget: "text" }
+          - label: Cards Section
+            name: cardSection
+            widget: object
+            fields:
+              - { label: "Titre de la section", name: "title", widget: "text" }
+              - label: Cards
+                name: cards
+                widget: list
+                collapsed: true
+                min: 2
+                max: 3
+                fields:
+                  - { label: "Titre de la card", name: "title", widget: "text" }
+                  - { label: "Sous-titre", name: "subtitle", widget: "text" }
+                  - { label: "Liste", name: "list", widget: "list" }
+                  - label: Bouton
+                    name: button
+                    widget: object
+                    collapsed: true
+                    fields:
+                      - {
+                          label: "Texte du bouton",
+                          name: "label",
+                          widget: "string",
+                        }
+                      - { label: "URL", name: "href", widget: "string" }
+          - label: Links Section
+            name: linkSection
+            widget: object
+            fields:
+              - {
+                  label: "Titre de la section",
+                  name: "title",
+                  widget: "string",
+                }
+              - label: Liens
+                name: links
+                widget: list
+                collapsed: true
+                fields:
+                  - {
+                      label: "Description du fichier / lien",
+                      name: "label",
+                      widget: "string",
+                    }
+                  - {
+                      label: "Fichier",
+                      name: "file",
+                      widget: "file",
+                      default: "/uploads/new-pdf",
+                      required: false,
+                    }
+                  - {
+                      label: "Lien",
+                      name: "url",
+                      widget: "string",
+                      required: false,
+                    }
+  - name: "faq"
+    label: "Faq"
+    media_folder: ""
+    public_folder: ""
+    files:
+      - name: "faq"
+        label: "Page faq"
+        file: "src/pages/faq.md"
+        fields:
+          - label: catégories
+            label_singular: "catégorie"
+            name: faqItems
+            widget: list
+            fields:
+              - {
+                  label: "Titre de la catégorie",
+                  name: "categoryTitle",
+                  widget: "string",
+                }
+              - label: blocs
+                label_singular: "bloc"
+                name: bloc
+                widget: list
+                fields:
+                  - {
+                      label: "Titre de bloc",
+                      name: "blocTitle",
+                      widget: "string",
+                    }
+                  - label: "Questions"
+                    label_singular: "Question"
+                    name: "questions"
+                    widget: list
+                    fields:
+                      - { label: "Question", name: "title", widget: "string" }
+                      - {
+                          label: "Réponse",
+                          name: "answer",
+                          widget: "markdown",
+                        }

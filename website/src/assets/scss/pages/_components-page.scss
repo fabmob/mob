@@ -1,0 +1,82 @@
+.components-page {
+  section.component {
+    &:not(:last-child) {
+      margin-bottom: var(--spacing-xs);
+      padding-bottom: var(--spacing-s);
+      border-bottom: 1px solid var(--color-grey-light);
+    }
+    h2.title {
+      margin-bottom: var(--spacing-xs);
+      color: var(--color-blue-petrol-dark);
+    }
+    button + button {
+      margin-left: var(--spacing-xs);
+    }
+    &.icons {
+      svg {
+        max-width: 50px;
+        max-height: 30px;
+      }
+    }
+    &.colors {
+      .color {
+        width: 100px;
+        height: 100px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        span {
+          text-align: center;
+          position: absolute;
+          top: 105px;
+        }
+
+        &:not(:last-child) {
+          margin-right: 10px;
+          margin-bottom: 50px;
+        }
+      }
+      .color-green-leaf {
+        background-color: var(--color-green-leaf);
+      }
+      .color-green-leaf-dark {
+        background-color: var(--color-green-leaf-dark);
+      }
+      .color-blue-petrol {
+        background-color: var(--color-blue-petrol);
+      }
+      .color-blue-petrol-dark {
+        background-color: var(--color-blue-petrol-dark);
+      }
+      .color-yellow-sun {
+        background-color: var(--color-yellow-sun);
+      }
+      .color-yellow-sun-dark {
+        background-color: var(--color-yellow-sun-dark);
+      }
+      .color-red-error {
+        background-color: var(--color-red-error);
+      }
+      .color-dark {
+        background-color: var(--color-dark);
+      }
+      .color-grey-dark {
+        background-color: var(--color-grey-dark);
+      }
+      .color-grey-mid {
+        background-color: var(--color-grey-mid);
+      }
+      .color-grey-light {
+        background-color: var(--color-grey-light);
+      }
+      .color-grey-ultralight {
+        background-color: var(--color-grey-ultralight);
+      }
+      .color-white {
+        background-color: var(--color-white);
+      }
+    }
+  }
+}

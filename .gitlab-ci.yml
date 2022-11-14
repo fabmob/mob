@@ -1,0 +1,63 @@
+#### WORKFLOW ####
+workflow:
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: never
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event' && '$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH'
+      when: never
+    - when: always
+
+#### STAGES ####
+stages:
+  # Prepare context for build stages: fetch thirdparty source code, compile build tools, etc.
+  - prepare
+  # Compile, generally turn source code into derived objects
+  - pre-image
+  # Build source code
+  - build
+  # Build, tag and push container images
+  - image
+  # # First level of testing e.g. unit tests
+  - test
+  # Prepare additional deployment descriptors e.g. K8s manifests, Helm charts, etc.
+  #- bundle
+  - verify
+  - verify-all
+  # Deploy to development environment, from feature branch, time-limited (24 hrs)
+  - deploy-preview
+  # Deploy to testing environment, from feature branch, time-limited (24 hrs)
+  - deploy-testing
+  - smoke-test
+  - integration-test
+  - functional-test
+  # Stage to clean data, sast, rollback version or play api documentation
+  - utils
+  # Remove not wanted files or directory for publication
+  - publication
+  # Push build images from RC
+  - helm-push-image
+  # Push gitlab source to cloud
+  - helm-gitlab
+  # Package the helm
+  - helm-package
+  # Publish to public repo
+  - cleanup
+
+#### INCLUDES ####
+include:
+  - local: "commons/.gitlab-ci.yml"
+  - local: "api/.gitlab-ci.yml"
+  - local: "idp/.gitlab-ci.yml"
+  - local: "administration/.gitlab-ci.yml"
+  - local: "s3/.gitlab-ci.yml"
+  - local: "vault/.gitlab-ci.yml"
+  - local: "analytics/.gitlab-ci.yml"
+  - local: "test/.gitlab-ci.yml"
+  - local: "website/.gitlab-ci.yml"
+  - local: "simulation-maas/.gitlab-ci.yml"
+  - local: "antivirus/.gitlab-ci.yml"
+  - local: "mailhog/.gitlab-ci.yml"
+  - local: "bus/.gitlab-ci.yml"
+  - local: "publication/.gitlab-ci.yml"
+    # rules:
+    #   - if: $CI_COMMIT_BRANCH =~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger" && $CI_PIPELINE_SOURCE != "schedule"

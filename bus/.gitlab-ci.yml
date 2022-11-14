@@ -1,0 +1,18 @@
+include:
+  - local: "bus/.gitlab-ci/preview.yml"
+    rules:
+      - if: $CI_COMMIT_BRANCH !~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger" && $CI_PIPELINE_SOURCE != "schedule"
+  - local: "bus/.gitlab-ci/testing.yml"
+    rules:
+      - if: $CI_COMMIT_BRANCH =~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger"
+
+.bus-base:
+  variables:
+    MODULE_NAME: bus
+    MODULE_PATH: ${MODULE_NAME}
+    BUS_IMAGE_NAME: ${NEXUS_DOCKER_REPOSITORY_URL}/bitnami/rabbitmq:3.9.15
+  only:
+    changes:
+      - "*"
+      - "commons/**/*"
+      - "bus/**/*"

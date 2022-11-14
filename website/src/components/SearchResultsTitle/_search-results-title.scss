@@ -1,0 +1,16 @@
+.mcm-search-results-title {
+  flex-grow: 1;
+  padding-top: var(--spacing-s);
+
+  @media screen and (max-width: 768px) {
+    padding-bottom: var(--spacing-s);
+  }
+
+  span.info {
+    font-size: 18px;
+  }
+
+  span.semi-bold {
+    font-weight: 600;
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "incentives.error.required": "Attention, ce champ est obligatoire",
+  "incentives.error.title.minLength": "Le nom de l'aide doit faire plus de 3 caractères",
+  "incentives.error.validityDate.format": "La durée de validaté doit être au format JJ/MM/AAAA",
+  "incentives.error.validityDate.minDate": "La durée de validaté doit être supérieur à la date d'aujourd'hui"
+}

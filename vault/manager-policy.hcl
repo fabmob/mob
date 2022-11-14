@@ -1,0 +1,3 @@
+path "transit/*" {
+    capabilities = ["read"]
+}

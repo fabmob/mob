@@ -1,0 +1,15 @@
+{{- range .Values.networkPolicies }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .metadata.name }}
+  annotations:
+   {{- with .metadata.annotations }}
+   {{- toYaml . | nindent 4 }}
+   {{- end }}
+spec:
+   {{- with .spec }}
+   {{- toYaml . | nindent 4 }}
+   {{- end }}
+{{- end }}

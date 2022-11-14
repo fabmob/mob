@@ -1,0 +1,340 @@
+.connexion-inscription {
+  margin-top: var(--spacing-xs);
+  margin-bottom: var(--spacing-s);
+
+  @media screen and (min-width: 1024px) {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-gap: 0 24px;
+  }
+
+  &__title {
+    margin-top: var(--spacing-s);
+  }
+
+  &__first {
+    @media screen and (min-width: 1024px) {
+      // block starts at column 2 / must be 4 columns wide
+      grid-column: 2 / span 4;
+    }
+  }
+
+  &__second {
+    @media screen and (min-width: 1024px) {
+      // block starts at column 8 / must be 3 columns wide
+      grid-column: 8 / span 4;
+    }
+    @media screen and (min-width: 1366px) {
+      grid-column: 8 / span 3;
+    }
+    @media screen and (min-width: 1700px) {
+      grid-column: 8 / span 4;
+    }
+  }
+
+  &__image {
+    position: absolute;
+    right: calc(34% - 50vw);
+
+    .img-rounded-left {
+      overflow: hidden;
+      border-top-left-radius: var(--radius-circle);
+      border-bottom-left-radius: var(--radius-circle);
+    }
+  }
+
+  // Separator between left / right sections
+  &::after {
+    content: '';
+    grid-row: 1;
+    grid-column: 6;
+    border-right: 1px solid var(--color-grey-light);
+    height: 100%;
+  }
+
+  &--login {
+    @media screen and (min-width: 1024px) {
+      display: grid;
+    }
+    display: flex;
+    flex-direction: column-reverse;
+    position: relative;
+
+    .connexion-inscription__second {
+      @media screen and (max-width: 1023px) {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: var(--spacing-l);
+      }
+      @media screen and (max-width: 520px) {
+        h2,
+        p {
+          width: 73%;
+        }
+        p {
+          min-height: 116px;
+        }
+      }
+    }
+
+    .connexion-inscription__first {
+      button {
+        @media screen and (max-width: 1023px) {
+          width: 100%;
+        }
+      }
+    }
+
+    .connexion-inscription__image {
+      height: 200px;
+      width: 200px;
+      @media screen and (max-width: 520px) {
+        display: block;
+        top: 0;
+        right: -124px;
+      }
+
+      @media screen and (min-width: 521px) {
+        display: none;
+      }
+
+      @media screen and (min-width: 1440px) {
+        display: block;
+        height: 450px;
+        width: 450px;
+      }
+
+      .img-rounded-left {
+        width: 100%;
+        height: 100%;
+        max-width: 450px;
+        max-height: 450px;
+      }
+    }
+  }
+
+  &--question,
+  &--confirmation {
+    position: relative;
+
+    .connexion-inscription__first {
+      @media screen and (max-width: 520px) {
+        h1,
+        .headline {
+          width: 75%;
+        }
+      }
+    }
+
+    .connexion-inscription__second {
+      @media screen and (min-width: 1024px) {
+        min-height: 500px;
+      }
+    }
+
+    .connexion-inscription__image {
+      right: calc(50% - 50vw);
+      height: 34vw;
+      width: 34vw;
+      max-height: 450px;
+      max-width: 450px;
+      @media screen and (max-width: 1024px) {
+        display: none;
+      }
+
+      .img-rounded-left {
+        height: 100%;
+        width: 100%;
+      }
+
+      .svg-letter-m {
+        position: absolute;
+        left: -5.21vw;
+        bottom: -2.08vw;
+        width: 17.91vw;
+        max-width: 344px;
+        @media screen and (max-width: 520px) {
+          display: none;
+        }
+      }
+
+      @media screen and (min-width: 1024px) {
+        display: block;
+      }
+    }
+  }
+
+  &--question {
+    .connexion-inscription__first {
+      display: flex;
+      flex-direction: column;
+
+      @media screen and (min-width: 1024px) {
+        grid-column: 1 / span 6;
+        display: block;
+      }
+
+      button.button--secondary {
+        margin-top: var(--spacing-s);
+        order: 4;
+        @media screen and (min-width: 1024px) {
+          margin-bottom: 0;
+          margin-right: var(--spacing-xs);
+        }
+      }
+    }
+
+    &::after {
+      content: none;
+    }
+  }
+
+  &--form {
+    &::after {
+      content: none;
+    }
+
+    .connexion-inscription__first {
+      grid-column: 1 / span 5;
+    }
+
+    .connexion-inscription__second {
+      grid-column: 6 / span 7;
+      @media screen and (min-width: 1260px) {
+        grid-column: 7 / span 6;
+      }
+
+      .signup-form {
+        button.button {
+          @media screen and (max-width: 1023px) {
+            width: 100%;
+          }
+        }
+      }
+    }
+  }
+
+  &--confirmation {
+    &::after {
+      content: none;
+    }
+  }
+
+  &:not(.connexion-inscription--question):not(.connexion-inscription--confirmation) {
+    .connexion-inscription__image {
+      .svg-letter-m {
+        display: none;
+      }
+    }
+  }
+
+  .signup-form {
+    fieldset.fieldset {
+      padding: 0;
+      margin-bottom: var(--spacing-m);
+
+      .form__fields {
+        display: grid;
+        grid-template-columns: 1fr;
+        grid-gap: var(--spacing-xs) 24px;
+        padding: 0;
+        @media screen and (min-width: 1024px) {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      legend.form-section-title {
+        margin-bottom: var(--spacing-xs);
+        font-size: 20px;
+        font-weight: 500;
+        line-height: 28px;
+        color: var(--color-blue-petrol);
+        display: inline-flex;
+        align-items: center;
+        @media screen and (min-width: 1024px) {
+          margin-bottom: 20px;
+        }
+      }
+
+      &--large-spacing {
+        legend.form-section-title {
+          margin-bottom: var(--spacing-s);
+        }
+
+        .form__fields {
+          grid-gap: var(--spacing-s) 24px;
+        }
+      }
+    }
+  }
+}
+
+.btn-FC {
+  align-self: center;
+  justify-self: flex-start;
+  justify-content: flex-start;
+  @media screen and (max-width: 1024px) {
+    align-self: flex-start;
+  }
+}
+
+.fc_buttons_content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+
+  @media screen and (max-width: 1024px) {
+    margin-block: 30px;
+  }
+
+  a {
+    font-size: 15px;
+    color: blue;
+    text-decoration-line: none !important;
+  }
+
+  a:hover {
+    text-decoration-line: underline !important;
+  }
+
+  a:visited {
+    color: purple;
+  }
+}
+
+.fc_link {
+  background: url('../../assets/svg/franceconnect-btn.svg') no-repeat;
+  height: 70px;
+  width: 216px;
+}
+
+.fc_link:hover {
+  background: url('../../assets/svg/franceconnect-btn-hover.svg') no-repeat left top !important;
+}
+
+.separ-sections {
+  position: relative;
+  height: 2px;
+  margin: 40px 0 40px 0;
+  justify-content: center;
+  align-items: center;
+  background-color: var(--color-grey-light);
+}
+
+.separ-sections .label {
+  background-color: var(--color-white);
+  position: absolute;
+  left: 45.5%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 55px;
+  height: 25px;
+  line-height: 23px;
+  text-align: center;
+  @media screen and (max-width: 1260px) {
+    left: 41%;
+  }
+  @media screen and (max-width: 1024px) {
+    left: 50%;
+  }
+}

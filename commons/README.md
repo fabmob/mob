@@ -1,24 +1,24 @@
 # Description
 
-Dans ce dossier, plusieurs fichiers CI sont présents. Il regroupe les parties communes à tous les déploiements.
+Dans ce dossier, plusieurs fichiers CI sont présents. Il regroupe les parties communes à tous les déploiements, basés sur la solution [GitLab](https://about.gitlab.com/).
 
-Le .gitlab-ci.yml à la racine décrit les étapes communes à la pipeline des environnements ainsi que les rules pour les déclencher.
+Le _.gitlab-ci.yml_ à la racine décrit les étapes communes à la pipeline des environnements ainsi que les rules pour les déclencher.
 
-Chaque service contient un fichier .gitlab-ci.yml à leur racine ainsi qu'un dossier .gitlab-ci pour décrire les jobs spécifiques associés aux environnements.
+Chaque service contient un fichier _.gitlab-ci.yml_ à leur racine ainsi qu'un dossier _.gitlab-ci_ pour décrire les jobs spécifiques associés aux environnements.
 
 Les configurations des services selon les environnements peuvent différer.
 
-Dans le dossier overlays/config se trouvent des fichiers de configuration nécessaires au deploiement du service pour les environnements distants.
+Dans le dossier _overlays/config_ se trouvent des fichiers de configuration nécessaires au déploiement du service pour les environnements distants.
 
 ## Preview
 
-La pipeline de preview est déclenchée pour chaque branche de notre projet.
+La pipeline de preview est déclenchée pour chaque branche du projet.
 
-Les déploiements de la pipeline de preview sont fait grâce à kubectl via le fichier kompose.yml et des overlays qui accompagnent chaque service.
+Les déploiements de la pipeline de preview sont fait avec la commande `kubectl` via le fichier _kompose.yml_ et des _overlays_ qui accompagnent chaque service.
 
-Dans le dossier overlays se trouvent des configurations d'objets kubernetes à appliquer dans le déploiement et non descriptibles dans le kompose.yml.
+Dans le dossier _overlays_ se trouvent des configurations d'objets Kubernetes à appliquer dans le déploiement et non descriptibles dans le _kompose.yml_.
 
-Certains services ne sont configurés que sur la branche master et les autres branches de déploiement s'appuient dessus (s3/antivirus/vault/analytics)
+Certains services ne sont configurés que sur la branche principale et les autres branches de déploiement s'appuient dessus (s3/antivirus/vault/analytics)
 
 ## Testing
 
@@ -26,19 +26,19 @@ La pipeline de testing est déclenchée à la création d'un branche de Release 
 
 Elle se rapproche au maximum du déploiement fait pour les environnements de PPRD et PROD.
 
-Les déploiements de la pipeline de testing sont fait grâce à helm via des fichiers Chart.yaml & ${MODULE_NAME}-testing-values.yaml qui accompagnent chaque service.
+Les déploiements de la pipeline de testing sont fait grâce à [Helm](https://helm.sh/) via des fichiers _Chart.yaml_ & ${MODULE_NAME}-testing-values.yaml qui accompagnent chaque service.
 
 # Helm
 
 La pipeline "helm" est déclenchée à la création d'une Release sur le tag assiocié à la release candidate.
 
-Celle-ci permet de livrer le code à l'équipe Cloud en charge des déploiements PPRD et PROD.
+Celle-ci permet de livrer le code à l'équipe OPS en charge des déploiements PPRD et PROD.
 
 Ainsi, nous leur fournissons la pipeline de déploiement, un package helm par environnement, les images buildées de la dernière version du code de certaines images.
 
 # Variables
 
-Certaines variables comme les FQDN ou les images docker sont spécifiées dans les fichiers *gilab-ci.yml de ce dossier.
+Certaines variables comme les FQDN ou les images docker sont spécifiées dans les fichiers _gilab-ci.yml_ de ce dossier.
 
 
 ## Variables CI Communes preview & testing

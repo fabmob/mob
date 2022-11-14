@@ -1,0 +1,15 @@
+{
+  "nav.dashboard.value": "Mon tableau de bord",
+  "nav.management.dashboard.value": "Administrer les demandes",
+  "nav.gestion.salarie.dashboard.value": "Gérer mes salariés",
+  "nav.manage.citizens.dashboard.value": "Gérer mes citoyens",
+  "nav.search.value": "Trouver une aide",
+  "nav.search.value.authenticated": "Mes aides",
+  "nav.profile.value": "Mon profil",
+  "nav.sign.in.value": "Me connecter",
+  "nav.sign.out.value": "Me déconnecter",
+  "nav.contact.us.value": "Nous contacter",
+  "nav.contact.linkedin.value": "Linkedin",
+  "common.restriction.supervisor.tip": "Vous n'avez pas les droits de réaliser cette action. Rapprochez-vous de votre administrateur",
+  "nav.guide.user":"Comment ça marche ?"
+}

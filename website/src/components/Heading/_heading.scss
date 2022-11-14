@@ -1,0 +1,54 @@
+h1,
+h2,
+h3 {
+  &.blue {
+    color: var(--color-blue-petrol);
+  }
+  &.blue-dark {
+    color: var(--color-blue-petrol-dark);
+  }
+  &.dark {
+    color: var(--color-dark);
+  }
+  &.grey-dark {
+    color: var(--color-grey-dark);
+  }
+  &.grey-mid {
+    color: var(--color-grey-mid);
+  }
+}
+
+h1,
+.h1-like {
+  font-size: 34px;
+  line-height: 40px;
+  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: var(--spacing-s);
+  @media screen and (min-width: 1024px) {
+    font-size: 58px;
+    line-height: 60px;
+  }
+}
+
+h2,
+.h2-like {
+  font-weight: 600;
+  font-size: 26px;
+  line-height: 32px;
+  margin-top: 0;
+  margin-bottom: var(--spacing-xs);
+
+  @media screen and (min-width: 1024px) {
+    font-size: 32px;
+    line-height: 40px;
+  }
+}
+
+h3,
+.h3-like {
+  font-weight: 500;
+  font-size: 20px;
+  line-height: 28px;
+  margin-bottom: var(--spacing-xxs);
+}

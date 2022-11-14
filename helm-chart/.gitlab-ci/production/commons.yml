@@ -1,0 +1,57 @@
+# Include needed gitlab-ci files
+include:
+  - local: ".gitlab-ci/production/configure.yml"
+  - local: ".gitlab-ci/production/deploy.yml"
+  - local: ".gitlab-ci/production/test.yml"
+
+# Init base variables
+.helm-chart-production-base:
+  variables:
+    LANDSCAPE: production
+    TRUNCATED_LANDSCAPE: prod
+    HELM_PACKAGE_NAME: platform-${TRUNCATED_LANDSCAPE}
+
+# Job template for production job configure 
+.helm-configure-production-job:
+  stage: configure-production
+  extends:
+    - .helm-chart-production-base
+    - .helm-configure-production-tags
+    - .helm-configure-job
+
+# Job template for production job deploy
+.helm-deploy-production-job:
+  stage: deploy-production
+  extends:
+    - .helm-chart-production-base
+    - .helm-deploy-production-tags
+    - .helm-deploy-job
+
+# Job template for production job test
+.helm-test-production-job:
+  stage: test-production
+  extends:
+    - .helm-chart-production-base
+    - .helm-test-production-tags
+    - .smoke-tests-job
+
+# Tags to used the good runner gitlab in production
+.helm-configure-production-tags:
+  tags:
+    - os:linux
+    - platform:production
+    - task:configure
+
+# Tags to used the good runner gitlab in production
+.helm-deploy-production-tags:
+  tags:
+    - os:linux
+    - platform:production
+    - task:deploy
+
+# Tags to used the good runner gitlab in production
+.helm-test-production-tags:
+  tags:
+    - os:linux
+    - platform:production
+    - task:test

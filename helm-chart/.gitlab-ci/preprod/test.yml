@@ -1,0 +1,12 @@
+.smoke-test-preprod-base:
+  variables:
+    CYPRESS_ADMIN_FQDN: admin.${LANDSCAPE}.${BASE_DOMAIN}
+    CYPRESS_IDP_FQDN: idp.${LANDSCAPE}.${BASE_DOMAIN}
+    CYPRESS_WEBSITE_FQDN: website.${LANDSCAPE}.${BASE_DOMAIN}
+    CYPRESS_API_FQDN: api.${LANDSCAPE}.${BASE_DOMAIN}
+
+# --- Launch smoke tests ---
+smoke_tests_preprod:
+  extends:
+    - .smoke-test-preprod-base
+    - .helm-test-preprod-job

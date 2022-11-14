@@ -1,0 +1,19 @@
+include:
+  - local: "analytics/.gitlab-ci/preview.yml"
+    rules:
+      - if: $CI_COMMIT_BRANCH !~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger" && $CI_PIPELINE_SOURCE != "schedule"
+  - local: "analytics/.gitlab-ci/testing.yml"
+    rules:
+      - if: $CI_COMMIT_BRANCH =~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger"
+
+.analytics-base:
+  variables:
+    MODULE_NAME: analytics
+    MODULE_PATH: ${MODULE_NAME}
+    MATOMO_IMAGE_NAME: ${NEXUS_DOCKER_REPOSITORY_URL}/bitnami/matomo:4.8.0
+    NEXUS_IMAGE_MARIADB: ${NEXUS_DOCKER_REPOSITORY_URL}/mariadb:10.6
+  only:
+    changes:
+      - "*"
+      - "commons/**/*"
+      - "analytics/**/*"

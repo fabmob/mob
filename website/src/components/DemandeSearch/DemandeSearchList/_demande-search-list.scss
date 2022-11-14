@@ -1,0 +1,25 @@
+$tablet-breakpoint: 810px;
+$laptop-breakpoint: 1024px;
+
+.mcm-dispositifs {
+  padding-top: 60px;
+  padding-bottom: 60px;
+}
+.mcm-arrow-link__icon svg {
+  fill: var(--color-green-leaf);
+}
+.mcm-arrow-link__icon {
+  padding: 8px 14px;
+  border: 1px solid var(--color-green-leaf);
+  border-radius: 15px;
+}
+.fit-img {
+  margin-right: 32px;
+  width: 50px;
+}
+.mcm-block-mobile {
+  display: contents;
+  @media screen and (max-width: $laptop-breakpoint - 1) {
+    display: flex;
+  }
+}

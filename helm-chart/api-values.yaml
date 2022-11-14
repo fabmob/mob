@@ -1,0 +1,178 @@
+services:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kompose.image-pull-secret: ${PROXY_HANDOVER_IMAGE_PULL_SECRET_NAME}
+        kompose.service.type: clusterip
+        kubernetes.io/ingress.class: traefik
+      labels:
+        io.kompose.service: api
+      name: api
+    spec:
+      ports:
+        - name: "3000"
+          port: 3000
+          targetPort: 3000
+      selector:
+        io.kompose.service: api
+      type: ClusterIP
+    status:
+      loadBalancer: {}
+
+networkPolicies:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kubernetes.io/ingress.class: traefik
+      name: web-nw
+    spec:
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  com.capgemini.mcm.ingress: "true"
+      podSelector:
+        matchLabels:
+          io.kompose.network/web-nw: "true"
+
+deployments:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kompose.image-pull-secret: ${PROXY_HANDOVER_IMAGE_PULL_SECRET_NAME}
+        kompose.service.type: clusterip
+        kubernetes.io/ingress.class: traefik
+      labels:
+        io.kompose.service: api
+      name: api
+    spec:
+      replicas: 3
+      selector:
+        matchLabels:
+          io.kompose.service: api
+      strategy: {}
+      template:
+        metadata:
+          annotations:
+            app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+            app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+            kompose.image-pull-secret: ${PROXY_HANDOVER_IMAGE_PULL_SECRET_NAME}
+            kompose.service.type: clusterip
+            kubernetes.io/ingress.class: traefik
+          labels:
+            io.kompose.network/storage-nw: "true"
+            io.kompose.network/web-nw: "true"
+            io.kompose.service: api
+        spec:
+          containers:
+            env:
+              AFFILIATION_JWS_KEY: ${CLOUD_AFFILIATION_JWS_KEY}
+              API_FQDN: ${API_FQDN}
+              API_KEY: ${CLOUD_API_KEY}
+              BUS_HOST: bus.bus-${CLOUD_HELM_DEPLOY_NAMESPACE}.svc.cluster.local
+              BUS_MCM_HEADERS: ${BUS_MCM_HEADERS}
+              BUS_MCM_MESSAGE_TYPE: ${BUS_MCM_MESSAGE_TYPE}
+              BUS_CONSUMER_QUEUE: mob.subscriptions.status
+              BUS_MCM_CONSUME_PASSWORD: ${CLOUD_BUS_MCM_CONSUME_PASSWORD}
+              BUS_MCM_CONSUME_USER: ${CLOUD_BUS_MCM_CONSUME_USER}
+              CLIENT_SECRET_KEY_KEYCLOAK_API: ${CLOUD_IDP_API_CLIENT_SECRET}
+              CLAMAV_HOST: clamav.antivirus-${CLOUD_HELM_DEPLOY_NAMESPACE}.svc.cluster.local
+              CLAMAV_PORT: "3310"
+              IDP_FQDN: ${IDP_FQDN}
+              IDP_DB_HOST: ${CLOUD_PGSQL_FLEX_ADDRESS}
+              IDP_DB_PORT: ${CLOUD_PGSQL_DB_PORT}
+              IDP_DB_AUTH_SOURCE: ${CLOUD_PGSQL_NAME}
+              IDP_DB_DATABASE: ${CLOUD_PGSQL_NAME}
+              IDP_DB_SERVICE_USER: ${CLOUD_PGSQL_SERVICE_USER}
+              IDP_DB_SERVICE_PASSWORD: ${CLOUD_PGSQL_SERVICE_PASSWORD}
+              LANDSCAPE: ${LANDSCAPE}
+              BASE_DOMAIN: ${BASE_DOMAIN}
+              MONGO_AUTH_SOURCE: ${CLOUD_MONGO_AUTH_SOURCE}
+              MONGO_HOST: ${CLOUD_MONGO_HOST}
+              MONGO_PORT: ${CLOUD_MONGO_PORT}
+              MONGO_SERVICE_USER: ${CLOUD_MONGO_SERVICE_USER}
+              MONGO_SERVICE_PASSWORD: ${CLOUD_MONGO_SERVICE_PASSWORD}
+              MONGO_DATABASE: ${CLOUD_MONGO_DB_NAME}
+              S3_HOST: s3.s3-${CLOUD_HELM_DEPLOY_NAMESPACE}.svc.cluster.local
+              S3_PORT: "9000"
+              S3_SERVICE_PASSWORD: ${CLOUD_S3_SERVICE_PASSWORD}
+              S3_SERVICE_USER: ${CLOUD_S3_SERVICE_USER}
+              SENDGRID_API_KEY: ${CLOUD_SENDGRID_API_KEY}
+              SENDGRID_EMAIL_CONTACT: ${CLOUD_SENDGRID_EMAIL_CONTACT}
+              SENDGRID_EMAIL_FROM: ${CLOUD_SENDGRID_EMAIL_FROM}
+              SENDGRID_HOST: ${CLOUD_SENDGRID_HOST}
+              SENDGRID_USER: ${CLOUD_SENDGRID_USER}
+              WEBSITE_FQDN: ${WEBSITE_FQDN}
+              PGSQL_FLEX_SSL_CERT: ${CLOUD_PGSQL_FLEX_SSL_CERT}
+            image: ${API_IMAGE_NAME}
+            name: api
+            ports:
+              - containerPort: 3000
+            resources: {}
+          imagePullSecrets:
+            - name: ${PROXY_HANDOVER_IMAGE_PULL_SECRET_NAME}
+          restartPolicy: Always
+    status: {}
+
+middlewares:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kubernetes.io/ingress.class: traefik
+      name: api-headers-middleware
+    spec:
+      headers:
+        customRequestHeaders:
+          X-Forwarded-Port: "443"
+          X-Forwarded-Proto: https
+
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kubernetes.io/ingress.class: traefik
+      name: api-inflightreq-middleware
+    spec:
+      inFlightReq:
+        amount: 100
+
+  # - metadata:
+  #     annotations:
+  #       app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+  #       app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+  #       kubernetes.io/ingress.class: traefik
+  #     name: api-ratelimit-middleware
+  #   spec:
+  #     rateLimit:
+  #       average: 30
+  #       burst: 50
+  #       period: 1s
+  #       sourceCriterion:
+  #         ipStrategy:
+  #           depth: 2
+
+ingressRoutes:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kubernetes.io/ingress.class: traefik
+      name: api
+    spec:
+      entryPoints:
+        - web
+      routes:
+        - kind: Rule
+          match: Host(`${API_FQDN}`)
+          middlewares:
+            - name: api-headers-middleware
+            # - name: api-ratelimit-middleware
+            - name: api-inflightreq-middleware
+          services:
+            - kind: Service
+              name: api
+              port: 3000

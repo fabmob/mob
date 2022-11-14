@@ -1,0 +1,156 @@
+# STANDALONE GITLAB CI FOR DEPLOYMENT PURPOSES IN PREPROD & PROD
+# THIS FILE CONTAINS ALL GLOBAL INFORMATIONS, SCRIPTS AND JOBS NEEDED FOR PREPROD AND PROD STAGES
+
+# Include needed gitlab-ci files
+include:
+  - local: ".gitlab-ci/preprod/commons.yml"
+  - local: ".gitlab-ci/production/commons.yml"
+
+# Declare stages
+stages:
+  - configure-preprod
+  - deploy-preprod
+  - test-preprod
+  - configure-production
+  - deploy-production
+  - test-production
+
+# Base variables needed for all stages
+.helm-chart-base:
+  variables:
+    PROXY_IMAGE_PULL_SECRET_PREFIX: nexus-registry
+    PROXY_IMAGE_PULL_SECRET_HANDOVER_PREFIX: nexus-registry-handover
+    NEXUS_DOCKER_REGISTRY_URL: ${NEXUS_DOCKER_REPOSITORY_URL}
+    NEXUS_USER_NAME: ${NEXUS_DEV_USER}
+    NEXUS_USER_PWD: ${NEXUS_DEV_PASSWORD}
+    NEXUS_ROOT_USER_NAME: ${NEXUS_ROOT_USER}
+    NEXUS_ROOT_USER_PWD: ${NEXUS_ROOT_PASSWORD}
+    NEXUS_HELM_REPOSITORY_URL: ${NEXUS_HELM_REPOSITORY_URL}
+    NEXUS_DOCKER_REGISTRY_HANDOVER_URL: ${NEXUS_DOCKER_REGISTRY_HANDOVER_URL}    
+    CYPRESS_IMAGE_NAME: ${NEXUS_DOCKER_REGISTRY_URL}/cypress/browsers:node16.14.0-chrome99-ff97
+
+# Manual trigger for jobs
+.manual:
+  when: manual
+
+# No dependencies
+.no-dependencies:
+  dependencies: []
+
+# --- Function helpers to apply variables on all ENV conf files ---
+.helm-configure-script: &helm-configure-script |
+  for FILE in configs/*-${RELEASE_VERSION_SLUG}-${TRUNCATED_LANDSCAPE}.json
+  do
+    envsubst "$(env | cut -d= -f1 | sed -e 's/^/$/')" < $FILE > $FILE.tmp && mv $FILE.tmp $FILE
+  done
+
+# --- Job template to apply variables on all ENV conf files  ---
+.helm-configure-job:
+  image: ${NEXUS_DOCKER_REGISTRY_URL}/dtzar/helm-kubectl
+  extends:
+    - .helm-chart-base
+    - .manual
+    - .no-dependencies
+  script:
+    - *helm-configure-script
+  artifacts:
+    expire_in: 3 days
+    when: always
+    paths:
+      - configs/*-${RELEASE_VERSION_SLUG}-${TRUNCATED_LANDSCAPE}.json
+
+# --- Function helpers to deploy modules ---
+.helm-deploy-function: &helm-deploy-function |
+  function helm_deploy {
+    echo "Deploying ${MODULE_NAME} for ${CI_ENVIRONMENT_NAME}, subdomain ${LANDSCAPE}..."
+
+    export PROXY_IMAGE_PULL_SECRET_NAME=${PROXY_IMAGE_PULL_SECRET_PREFIX}-${MODULE_NAME}
+    export PROXY_HANDOVER_IMAGE_PULL_SECRET_NAME=${PROXY_IMAGE_PULL_SECRET_HANDOVER_PREFIX}-${MODULE_NAME}
+    export MODULE_PATH=${MODULE_NAME}
+
+    # CREATE NAMESPACE ENV
+    ENV_NAMESPACE="${TRUNCATED_LANDSCAPE^^}_HELM_DEPLOY_NAMESPACE"
+    kubectl create namespace ${MODULE_NAME}-${!ENV_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+
+    kubectl create secret docker-registry ${PROXY_IMAGE_PULL_SECRET_NAME} --docker-server="$NEXUS_DOCKER_REGISTRY_URL" --docker-username="$NEXUS_ROOT_USER_NAME" --docker-password="$NEXUS_ROOT_USER_PWD" --docker-email="$GITLAB_USER_EMAIL" --namespace=${MODULE_NAME}-${!ENV_NAMESPACE} -o yaml --dry-run=client | kubectl apply -f -
+    
+    kubectl create secret docker-registry ${PROXY_HANDOVER_IMAGE_PULL_SECRET_NAME} --docker-server="$NEXUS_DOCKER_HANDOVER_REGISTRY_URL" --docker-username="$NEXUS_ROOT_USER_NAME" --docker-password="$NEXUS_ROOT_USER_PWD" --docker-email="$GITLAB_USER_EMAIL" --namespace=${MODULE_NAME}-${!ENV_NAMESPACE} -o yaml --dry-run=client | kubectl apply -f -
+
+    # HELM ADD REPO
+    helm repo add Helm-chart-repo ${NEXUS_HELM_REPOSITORY_URL} --username "$NEXUS_USER_NAME" --password "$NEXUS_USER_PWD"
+
+    # HELM PULL CHART
+    helm pull ${NEXUS_HELM_REPOSITORY_URL}/${HELM_PACKAGE_NAME}-${RELEASE_VERSION}.tgz --version ${RELEASE_VERSION} --untar --username "$NEXUS_USER_NAME" --password "$NEXUS_USER_PWD"
+
+    # SUBSTITUTE VARIABLES FOR ALL MODULE_NAME-VALUES FILE
+    envsubst "$(env | cut -d= -f1 | sed -e 's/^/$/')" < ${HELM_PACKAGE_NAME}/${MODULE_NAME}-values.yaml > ${HELM_PACKAGE_NAME}/${MODULE_NAME}-values.yaml.tmp && mv ${HELM_PACKAGE_NAME}/${MODULE_NAME}-values.yaml.tmp ${HELM_PACKAGE_NAME}/${MODULE_NAME}-values.yaml
+  
+    # HELM UPDATE REPO WITH LOCAL CHART
+    helm repo update
+    
+    # HELM UPGRADE NEW PACKAGE
+    helm upgrade --install --version ${RELEASE_VERSION} ${HELM_PACKAGE_NAME} Helm-chart-repo/${HELM_PACKAGE_NAME} -n ${MODULE_NAME}-${!ENV_NAMESPACE} -f ${HELM_PACKAGE_NAME}/${MODULE_NAME}-values.yaml
+  }
+
+# --- Function helpers to wait for module dependencies---
+.helm-deploy-helpers: &helm-deploy-helpers |
+  function pod_namespace {
+    kubectl get pods -o wide --all-namespaces | grep $1 | awk '{ print $1 }' | head -n 1
+  }
+  function wait_pod {
+    while [[ $(pod_namespace $1) == "" ]]
+    do
+      echo "Wait $1 try"
+      sleep 10
+    done
+  }
+
+# --- Job template to deploy helm chart with helm and kubectl image ---
+.helm-deploy-job:
+  image: ${NEXUS_DOCKER_REGISTRY_URL}/dtzar/helm-kubectl
+  extends:
+    - .helm-chart-base
+    - .manual
+    - .no-dependencies
+  before_script:
+    - *helm-deploy-function
+    - *helm-deploy-helpers
+    - |
+      echo "ENV_URL=https://${MODULE_NAME}.${LANDSCAPE}.${BASE_DOMAIN}" > ${MODULE_NAME}-${LANDSCAPE}-deployment.env
+  script:
+    - |
+      helm_deploy
+  artifacts:
+      reports:
+        dotenv: ${MODULE_PATH:-${MODULE_NAME}}-${LANDSCAPE}-deployment.env
+  environment:
+    name: ${CI_COMMIT_REF_SLUG}-${LANDSCAPE}/${MODULE_NAME}
+    url: ${ENV_URL}
+
+# --- Smoke tests script to launch cypress ---
+.smoke-tests-script: &smoke-tests-script |
+  npm i
+  npx cypress run \
+  --spec "cypress/integration/smoke-tests/test-mcm/smoke_test.spec.js" \
+  --config-file cypress-smoke.json \
+  --browser chrome | tee cypress-smoke-tests.log
+  cat cypress-smoke-tests.log
+
+# --- Job template to implement smoke tests ---
+.smoke-tests-job:
+  variables:
+    MODULE_PATH: test
+  extends:
+    - .helm-chart-base
+    - .manual
+    - .no-dependencies
+  image: ${CYPRESS_IMAGE_NAME}
+  script:
+    - cd test
+    - *smoke-tests-script
+  artifacts:
+    expire_in: 3 days
+    when: always
+    paths:
+      - ${MODULE_PATH}/mochawesome-report
+

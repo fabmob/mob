@@ -1,0 +1,6 @@
+{
+  "url": "https://${IDP_FQDN}/auth",
+  "realm": "${IDP_MCM_REALM}",
+  "clientId": "${IDP_MCM_WEBSITE_CLIENT_ID}",
+  "enable-cors": true
+}

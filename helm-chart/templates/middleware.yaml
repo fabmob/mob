@@ -1,0 +1,16 @@
+{{- range .Values.middlewares }}
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ .metadata.name }}
+  annotations:
+   {{- with .metadata.annotations }}
+   {{- toYaml . | nindent 4 }}
+   {{- end }}
+spec:
+   {{- with .spec }}
+   {{- toYaml . | nindent 4 }}
+   {{- end }}
+{{- end }}
+

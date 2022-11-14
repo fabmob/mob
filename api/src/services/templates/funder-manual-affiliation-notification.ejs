@@ -1,0 +1,32 @@
+<%- include('css/style'); %> <%- include('commons/header'); %>
+
+<table style="margin-bottom: 40px;max-width: 640px;width: 640px;">
+  <tr>
+    <td>
+    <div>
+      <div>
+        <p>Bonjour <%= funderFirstName %>,</p>
+      </div>
+      <div>
+        <p>Vous avez une nouvelle demande d’affiliation à votre entreprise :</p>
+      </div>
+      <div>
+        <p>Nom & Prénom du salarié : <%= lastName %> <%= firstName %></p>
+        <p>Date de la demande : <%= creationDate %></p>
+      </div>
+      <div>
+        <p>Rendez-vous sur votre espace gestionnaire afin d’administrer cette demande.</p>
+      </div>
+      <div class="btn">
+        <%- include('commons/button', {link: `${manualAffiliationLink}`, text: 'Administrer la demande d’affiliation'}) %>
+      </div>
+      <div>
+        <p>Merci pour votre confiance,</p>
+        <p>L’équipe Mon Compte Mobilité</p>
+      </div>
+    </div>
+  </td>
+</tr>
+</table>
+
+<%- include('commons/footer'); %>
