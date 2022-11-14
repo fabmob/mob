@@ -1,0 +1,4 @@
+bus_testing_deploy:
+  extends:
+    - .testing-deploy-job
+    - .bus-base

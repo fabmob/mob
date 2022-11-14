@@ -1,0 +1,37 @@
+<%- include('css/style'); %> <%- include('commons/header'); %>
+
+<table style="margin-bottom: 40px;max-width: 640px;width: 640px;">
+  <tr>
+    <td>
+      <div>
+        <p>Bonjour <%= username %>,</p>
+      </div>
+      <div>
+        <p>
+          Bonne nouvelle ! Votre demande d’aide "<%- incentiveTitle %>" <%if (amount) { %>
+          d’un montant de <%- amount %>€ <% } %> en date du <%- date %> vient d’être
+          validée par votre administrateur. Votre financeur va procéder au versement ou à
+          la mise à disposition de l'aide. Vous pouvez le contacter si besoin.
+        </p>
+      </div>
+      <div>
+        <%if (comment) { %>
+        <p>Commentaire : <%= comment %></p>
+        <% } %>
+      </div>
+      <div>
+        <p>
+          Retrouvez l’ensemble des informations relatives à vos demandes depuis votre Compte
+        Mobilité
+        </p>
+      </div>
+      <%- include('commons/button', {link: `${subscriptionsLink}`, text: `Mes demandes d'aides`}) %>
+      <div>
+        <p>Merci pour votre confiance,</p>
+        <p>L’équipe Mon Compte Mobilité</p>
+      </div>
+    </td>
+    </tr>
+  </table>
+
+<%- include('commons/footer'); %>

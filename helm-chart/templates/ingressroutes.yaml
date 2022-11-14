@@ -1,0 +1,20 @@
+{{- range .Values.ingressRoutes }}
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ .metadata.name }}
+  annotations:
+   {{- with .metadata.annotations }}
+   {{- toYaml . | nindent 4 }}
+   {{- end }}
+spec:
+   entryPoints:
+   {{- with .spec.entryPoints }}
+   {{- toYaml . | nindent 3 }}
+   {{- end }}
+   routes:
+   {{- with .spec.routes }}
+   {{- toYaml . | nindent 3 }}
+   {{- end }}
+{{- end }}

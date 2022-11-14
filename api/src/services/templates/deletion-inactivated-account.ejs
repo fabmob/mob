@@ -1,0 +1,25 @@
+<%- include('css/style'); %> <%- include('commons/header'); %>
+
+<table style="margin-bottom: 40px;max-width: 640px;width: 640px;">
+  <tr>
+    <td>
+    <div>
+      <div>
+        <p>Bonjour <%= username %>,</p>
+      </div>
+      <p>
+        Votre compte étant inactif depuis le <%= inactifDate %>, date de votre dernière
+        connexion, nous avons procédé à la suppression de votre compte moB. A noter, dans
+        le respect des normes RGPD en vigueur, l’ensemble de vos données personnelles ont
+        été supprimées.
+      </p>
+      <div>
+        <p>Merci pour votre confiance,</p>
+        <p>L’équipe Mon Compte Mobilité</p>
+      </div>
+    </div>
+  </td>
+</tr>
+</table>
+
+<%- include('commons/footer'); %>

@@ -1,0 +1,30 @@
+.mcm-image {
+  &.mini {
+    height: auto;
+    width: 36px;
+  }
+  &.tiny {
+    height: auto;
+    width: 56px;
+  }
+  &.medium {
+    height: auto;
+    width: 86px;
+  }
+  &.large {
+    height: auto;
+    width: 170px;
+  }
+  &.top {
+    display: inline-block;
+    vertical-align: top;
+  }
+  &.middle {
+    display: inline-block;
+    vertical-align: middle;
+  }
+  &.bottom {
+    display: inline-block;
+    vertical-align: bottom;
+  }
+}

@@ -1,0 +1,1102 @@
+/* GENERAL */
+.login-pf body {
+  margin: 0 auto;
+  min-height: 100vh;
+  max-width: 100%;
+  font-family: 'sofia-pro', sans-serif;
+  color: #363757;
+  font-size: 18px;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+.login-pf-page {
+  height: 100vh;
+}
+
+.display-none {
+  display: none !important;
+}
+
+.responsive-not-display {
+  display: inline;
+}
+
+.responsive-display {
+  display: none;
+}
+
+.kc-feedback-text {
+  color: rgb(207, 29, 29);
+}
+
+#kc-page-title {
+  font-size: 58px;
+  line-height: 60px;
+}
+
+#kc-title-identity {
+  color: #464cd0;
+}
+
+#kc-oauth-data-protection {
+  color: #747480;
+  margin-top: 24px;
+  margin-bottom: 40px;
+}
+
+#kc-oauth-data-protection-consultation {
+  margin-top: 24px;
+}
+
+.link-to-chart {
+  display: inline-flex;
+}
+
+/* HEADER */
+#kc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 28px 40px;
+}
+
+#kc-header-wrapper {
+  display: inline;
+  content: url('../img/logo-with-baseline.svg');
+}
+
+/* NAVIGATION */
+nav .mcm-burger,
+nav .mcm-burger-checkbox,
+nav .mcm-mobile-nav {
+  display: none;
+}
+
+nav .mcm-burger-button {
+  fill: var(--color-green-leaf);
+  width: 40px;
+  height: 40px;
+  display: block;
+  pointer-events: none;
+  padding: 0 !important;
+  border: none !important;
+  background: none;
+}
+
+nav .mcm-nav {
+  display: block;
+  top: 0;
+  background: white;
+  left: 0;
+  bottom: 0;
+  z-index: 10;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+nav .mcm-nav .mcm-nav-list {
+  display: flex;
+  margin: 0;
+}
+
+nav .mcm-nav .mcm-nav-list .nav-item {
+  font-size: 16px;
+}
+
+nav .mcm-nav .nav-item {
+  list-style: none;
+  font-weight: 400;
+}
+
+nav .mcm-nav-list .nav-item:not(:last-child) {
+  margin-right: 40px;
+}
+
+nav .mcm-nav .nav-item a {
+  color: inherit;
+  text-decoration: inherit;
+}
+
+nav .mcm-nav .nav-login {
+  font-weight: 600;
+  color: #01bf7d;
+  cursor: pointer;
+}
+
+/* END - NAVIGATION */
+/* END - HEADER */
+
+/* INPUTS */
+label {
+  font-size: 14px;
+}
+
+input[type='text'],
+input[type='password'] {
+  margin-top: 12px;
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+  border: 1px solid #d5d6df;
+  padding: 18px 32px;
+  border-radius: 34px;
+  outline: 0;
+  max-width: 400px;
+}
+
+input[type='text']::placeholder,
+input[type='password']::placeholder {
+  color: #d5d6df;
+}
+
+input[type='text']:focus,
+input[type='password']:focus {
+  border: 1px solid #363757;
+}
+
+/* END - INPUTS */
+
+/* LINK */
+.kc-forgot-password > span > a,
+#kc-reset-password-form #kc-form-options a {
+  font-size: 13px;
+  color: #363757;
+  text-decoration: none;
+}
+
+.kc-forgot-password > span > a:hover,
+#kc-reset-password-form #kc-form-options a:hover {
+  text-decoration: underline;
+}
+
+/* END - LINK */
+
+/* MCM BUTTON STYLE */
+#button-activated,
+.pf-c-button,
+.mcm-link {
+  border-radius: 27px;
+  background-color: #01bf7d;
+  color: white;
+  font-family: 'sofia-pro', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.375;
+  padding: 14px 36px 16px;
+  border: 1px solid #01bf7d;
+  cursor: pointer;
+  text-decoration: none;
+  width: fit-content;
+  max-width: 400px;
+}
+
+#button-activated a,
+.mcm-link {
+  text-decoration: none;
+  color: white;
+}
+
+#button-activated:hover,
+#button-activated:hover > a,
+.pf-c-button:hover,
+.mcm-link:hover {
+  background-color: transparent;
+  transition: background-color 0.2s ease-in-out;
+  color: #01bf7d !important;
+}
+
+/* END - MCM BUTTON STYLE */
+/* END - GENERAL */
+
+/* MCM IMAGE GLOBAL */
+#mcm-img {
+  position: absolute;
+  height: 100vh;
+  width: 40%;
+  right: 0;
+  display: flex;
+  align-items: center;
+  z-index: -1;
+}
+
+#mcm-img-cover-right {
+  position: relative;
+  content: url('../img/woman-smiling.jpg');
+  border-radius: 300px 0px 0px 300px;
+  height: 60%;
+}
+
+#mcm-img-M-right {
+  position: absolute;
+  content: url('../img/letter-m.svg');
+  height: 23%;
+  bottom: 16%;
+  left: -16%;
+}
+
+/* END - MCM IMAGE GLOBAL */
+
+/* LOGIN PAGE */
+#kc-content {
+  height: 100%;
+}
+
+#kc-content-wrapper {
+  position: relative;
+  height: 100%;
+}
+
+#mcm-login-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#mcm-login-header h1 {
+  margin: 0;
+}
+
+#mcm-login-header p {
+  text-align: center;
+  margin: 0;
+}
+
+#mcm-login {
+  display: flex !important;
+  width: 100%;
+  justify-content: center;
+}
+
+#mcm-login > * {
+  flex: 1;
+}
+
+#mcm-login h1 {
+  font-size: 32px;
+  line-height: 40px;
+  margin-top: -12px;
+}
+
+/* LOGIN FORM */
+#kc-form {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  width: 100%;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+#kc-form-wrapper {
+  flex-grow: 1;
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
+#kc-form-login {
+  max-width: 400px;
+  padding-right: 8%;
+}
+
+#kc-form-login p {
+  display: flex;
+  flex: 1;
+  max-width: 415px;
+}
+
+.kc-inputs-form {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  color: #363757;
+}
+
+.form-section {
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.form-group label {
+  text-align: left;
+}
+
+/* PASSWORD */
+.kc-forgot-password {
+  text-align: right;
+  margin-top: 18px;
+}
+
+.mcm-eye-img {
+  content: url('../img/visible.svg');
+  color: #363757;
+  opacity: 0.1;
+  height: 16px;
+  position: absolute;
+  right: 30px;
+  top: 54px;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.mcm-eye-visible {
+  opacity: 1 !important;
+}
+
+/* END - PASSWORD */
+/* CHECKBOX */
+
+.checkbox {
+  position: relative;
+  font-size: 14px;
+}
+
+.checkbox * {
+  cursor: pointer !important;
+}
+
+.checkbox [type='checkbox']:not(:checked),
+.checkbox [type='checkbox']:checked {
+  height: 20px;
+  width: 20px;
+  opacity: 0.01;
+}
+
+/* Aspect de la case */
+.checkbox label::before {
+  content: '';
+  position: absolute;
+  left: -30px;
+  width: 20px;
+  height: 20px;
+  border: 1px solid #d1d1d1;
+  background: #fff;
+  border-radius: 5px;
+  transition: all 0.275s;
+}
+
+.checkbox [type='checkbox']:not(:checked),
+.checkbox [type='checkbox']:checked {
+  position: absolute;
+  opacity: 0;
+}
+
+/* Aspect de la coche */
+.checkbox label::after {
+  content: '';
+  background-image: url('../img/valid.svg');
+  background-size: 42px 42px;
+  background-repeat: no-repeat;
+  background-position: -8px -11px;
+  position: absolute;
+  left: -29px;
+  top: 1px;
+  width: 30px;
+  height: 20px;
+  transition: all 0.2s;
+}
+
+/* Aspect non cochée */
+.checkbox [type='checkbox']:not(:checked) + label::after {
+  opacity: 0;
+  transform: scale(0);
+}
+
+/* Aspect cochée */
+.checkbox [type='checkbox']:checked + label::after {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* END - CHECKBOX */
+/* END - LOGIN FORM */
+
+/* START - SIGNIN LINK */
+#mcm-signin-link-container {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  margin: 24px auto 40px auto;
+}
+
+#mcm-signin-link-container p {
+  font-size: 1.2em;
+  font-weight: bold;
+  text-align: center;
+  margin: 0;
+}
+
+/* BUTTON SIGNIN */
+
+a.mcm-basic-link {
+  text-decoration-line: none;
+  font-size: 1.2em;
+  font-weight: bold;
+  margin-inline: 5px;
+}
+
+a.mcm-basic-link:hover {
+  text-decoration-line: underline;
+}
+
+/* END - BUTTON SIGNIN */
+/* END - SIGNIN LINK */
+
+.separ-sections {
+  position: relative;
+  flex: 0 0 1px !important;
+  margin: 40px 0 5px 0;
+  background-color: #d5d6df;
+}
+
+.separ-sections .label {
+  background-color: white;
+  position: absolute;
+  left: -50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 37px;
+  height: 25px;
+  line-height: 23px;
+  text-align: center;
+}
+
+/* SIGNIN FORM */
+#signin-section {
+  display: flex;
+  justify-content: space-between;
+  padding-left: 8%;
+  max-width: 400px;
+}
+
+#signin-section .signin-section-left {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+#signin-section .signin-text > * {
+  max-width: 400px;
+}
+
+#kc-form #mcm-img-login {
+  background-image: url('../img/girl-bike.jpg');
+  border-radius: 300px 0px 0px 300px;
+  height: 400px;
+  margin-right: -40px;
+  margin-bottom: 40px;
+  width: 224px;
+}
+
+/* END - SIGNIN FORM */
+/* END - LOGIN PAGE */
+
+/* INFOS PAGE */
+.card-pf {
+  margin: auto 40px auto 40px;
+  height: 75%;
+}
+
+.card-pf-minimal {
+  margin: 100px;
+}
+
+.mcm-subtitle {
+  color: #464cd0;
+  font-size: 24px;
+  line-height: 28px;
+  font-family: 'sofia-pro', sans-serif;
+}
+
+.retour-ligne {
+  width: 500px;
+}
+
+.button-redirect {
+  margin-top: 40px;
+  width: 100%;
+}
+
+/* END - INFOS PAGE */
+
+/* RESET PASSWORD PAGE */
+#kc-reset-password-form {
+  margin-top: 20px;
+}
+#kc-reset-password-form input[type='text'] {
+  max-width: 326px;
+}
+
+#kc-form-options {
+  margin: 20px 0px;
+}
+
+#kc-reset-password-form #kc-form-buttons {
+  margin-top: 20px;
+}
+
+#kc-reset-password-form .mcm-regex-error {
+  color: #e35447;
+}
+
+/* END - RESET PASSWORD PAGE */
+
+/* BANNER ERROR & SUCCESS */
+.alert-error,
+.alert-success {
+  display: flex;
+  justify-content: center;
+  position: absolute;
+  top: 0;
+  width: 100%;
+  right: 0px;
+  font-size: 14px;
+  z-index: 100;
+}
+
+.alert-error .kc-feedback-text {
+  position: absolute;
+  background-color: #e35447;
+  padding: 10px;
+  border-radius: 0px 0px 6px 6px;
+  padding: 10px 24px 10px 16px;
+}
+
+.alert-success .kc-feedback-text {
+  position: absolute;
+  background-color: #01bf7d;
+  padding: 10px;
+  border-radius: 0px 0px 6px 6px;
+  padding: 10px 24px 10px 16px;
+}
+
+.alert-error span,
+.alert-success span {
+  color: white !important;
+}
+
+.alert-error .span-line-retour,
+.alert-success .span-line-retour {
+  display: block;
+}
+
+.alert-error #close-error,
+.alert-success #close-error {
+  position: absolute;
+  top: 0px;
+  right: 10px;
+  cursor: pointer;
+  display: block !important;
+}
+
+#close-error {
+  display: none;
+  font-family: sans-serif;
+  font-size: 20px;
+}
+
+/* END - BANNER ERROR */
+
+/* VERIFICATION EMAIL PAGE */
+.instruction {
+  max-width: 50%;
+}
+
+/* END - VERIFICATION EMAIL PAGE */
+
+/* LOGIN IDP LINK PAGE */
+.instruction-link {
+  display: block;
+}
+/* END - LOGIN IDP LINK PAGE */
+
+.kc-screen-list-group li::marker {
+  color: #464cd0;
+  font-size: 20px;
+}
+
+/* FRANCECONNECT BUTTON */
+
+a.zocial.franceconnect-particulier {
+  background: url('../img/franceconnect-btn.svg') no-repeat left top;
+  height: 60px;
+  width: 216px;
+  margin-bottom: 8px;
+  display: block;
+}
+
+a.zocial.franceconnect-particulier:hover {
+  background: url('../img/franceconnect-btn-hover.svg') no-repeat left top;
+  height: 60px;
+  width: 216px;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.franceconnect-container {
+  display: flex;
+  flex-direction: column;
+  width: 230px;
+  margin-top: 50px;
+}
+
+.franceconnect-link {
+  font-size: 15px;
+  text-decoration-line: none !important;
+}
+
+.franceconnect-link:hover {
+  text-decoration-line: underline !important;
+}
+
+/*END FRANCECONNECT BUTTON */
+
+/** BEGIN LINK IDP **/
+
+.submit-btn {
+  margin: 30px 0;
+}
+
+.go-back-btn {
+  margin: 25px 0 0 95px;
+  width: fit-content;
+}
+
+/** END LINK IDP **/
+
+/* RESPONSIVE */
+@media screen and (max-width: 1600px) {
+  .kc-forgot-password {
+    margin-top: 5px;
+  }
+
+  .form-section {
+    margin-bottom: 10px;
+  }
+
+  input[type='text'],
+  input[type='password'] {
+    margin-top: 5px;
+  }
+
+  #kc-form #mcm-img-login {
+    margin-bottom: 10px;
+  }
+
+  .mcm-eye-img {
+    top: 47px;
+  }
+}
+
+@media screen and (max-width: 1250px) {
+  #mcm-img {
+    align-items: flex-end;
+  }
+
+  #mcm-img-cover-right {
+    height: 40%;
+    margin-bottom: 20%;
+  }
+
+  #mcm-img-M-right {
+    height: 15%;
+    bottom: 6.5%;
+    left: -17%;
+  }
+
+  #kc-form #mcm-img-login {
+    display: none;
+  }
+
+  .instruction {
+    max-width: 100%;
+  }
+}
+
+@media screen and (max-width: 1070px) {
+  #kc-content-wrapper {
+    position: relative;
+  }
+
+  #kc-form {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    width: 100%;
+    position: static;
+    transform: initial;
+  }
+
+  #mcm-login-header {
+    max-width: 350px;
+    text-align: center;
+    margin: 20px auto;
+  }
+
+  #mcm-login-header h1 {
+    margin-bottom: 20px;
+  }
+
+  #mcm-login-header p {
+    width: auto;
+  }
+
+  /* START - SIGNIN LINK RESPONSIVE */
+  #mcm-signin-link-container {
+    flex-direction: column;
+    max-width: 355px;
+    text-align: center;
+    margin: 0 auto 40px auto;
+  }
+
+  #mcm-signin-link-container p {
+    width: auto;
+  }
+  /* END - SIGNIN LINK RESPONSIVE */
+
+  #kc-header {
+    padding: 28px 24px !important;
+  }
+
+  #kc-header-wrapper {
+    content: url('../img/logo-mobile.svg');
+    width: 76px;
+  }
+
+  #kc-oauth {
+    margin-top: 40px;
+  }
+
+  #kc-oauth-form #kc-form-buttons-group {
+    background-color: #ffffff;
+    border-top: 1px solid #dddddd;
+    box-sizing: border-box;
+    bottom: 0;
+    left: 0;
+    padding: 32px 32px 32px 32px;
+    position: fixed;
+    width: 100%;
+  }
+
+  #kc-oauth-data-protection {
+    font-size: 16px;
+    margin-bottom: 0;
+  }
+
+  #kc-form-buttons-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #kc-oauth-form #kc-form-buttons-group #kc-form-buttons-content #kc-login {
+    margin-bottom: 24px;
+  }
+
+  #kc-oauth-form #kc-form-buttons-group #kc-form-buttons-content #kc-cancel {
+    background-color: #ffffff;
+    color: #363757;
+  }
+
+  .kc-forgot-password {
+    margin-top: 18px;
+  }
+
+  input[type='submit'] {
+    width: 100%;
+  }
+
+  input[type='text'],
+  input[type='password'] {
+    margin-top: 12px;
+  }
+
+  .retour-ligne {
+    width: auto;
+  }
+
+  #mcm-img {
+    display: none;
+  }
+
+  #mcm-login {
+    max-height: max-content;
+    flex-direction: column;
+    text-align: center;
+    align-items: center;
+    margin: 20px auto 20px auto;
+  }
+
+  .form-group {
+    width: 100%;
+  }
+
+  .form-section {
+    margin-bottom: 20px;
+  }
+
+  #kc-form-login {
+    margin-top: 10px;
+    padding-right: 0;
+  }
+
+  .kc-inputs-form {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .mcm-eye-img {
+    top: 50px;
+  }
+
+  .kc-inputs-form .checkbox {
+    margin-bottom: 30px;
+    margin-left: 30px;
+  }
+
+  .franceconnect-container {
+    margin-top: 40px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .separ-sections {
+    margin-bottom: 0px;
+    margin-top: 60px;
+  }
+
+  .separ-sections .label {
+    left: 50%;
+    transform: translate(-50%, -50%);
+    line-height: 21px;
+  }
+
+  #signin-section {
+    flex-direction: column;
+    border-left: none;
+    align-items: center;
+    padding-left: 0;
+    width: 100%;
+  }
+
+  #signin-section .signin-section-left {
+    flex-direction: row;
+    margin-top: 30px;
+  }
+
+  #signin-section > a {
+    width: 75%;
+    max-width: 326px;
+    display: inline;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 40px;
+  }
+
+  #signin-section .signin-text > * {
+    max-width: auto;
+  }
+
+  .form-group > input[type='text'],
+  .form-group > input[type='password'] {
+    margin-top: 8px;
+    font-size: 16px;
+    line-height: 22px;
+    font-weight: 600;
+    border: 1px solid #d5d6df;
+    padding: 18px 32px;
+    border-radius: 34px;
+    outline: 0;
+  }
+
+  .responsive-not-display {
+    display: none !important;
+  }
+
+  .responsive-display {
+    display: flex;
+    width: inherit;
+    max-width: 400px;
+    align-self: center;
+  }
+
+  .mcm-link {
+    width: 100%;
+    max-width: 400px;
+    padding: 14px 0px 16px;
+    text-align: center;
+  }
+
+  nav .mcm-burger-checkbox,
+  nav .mcm-mobile-nav,
+  nav .mcm-burger {
+    display: block !important;
+  }
+
+  nav .mcm-burger {
+    margin-left: auto;
+    width: 40px;
+    position: relative;
+    cursor: pointer;
+    z-index: 20;
+  }
+
+  nav .mcm-nav .nav-item {
+    line-height: 32px;
+    font-size: 26px;
+    font-weight: 600;
+    margin-bottom: 40px;
+  }
+
+  nav .mcm-burger-checkbox {
+    opacity: 0;
+    position: absolute;
+  }
+
+  nav .mcm-burger-checkbox:checked + .mcm-burger {
+    position: fixed;
+    top: 28px;
+    right: 28px;
+  }
+
+  nav .mcm-burger-checkbox:checked + .mcm-burger-button {
+    margin-left: auto;
+  }
+
+  nav .mcm-burger-checkbox:checked ~ .mcm-burger .mcm-burger-button > i {
+    background-image: none;
+    justify-content: center;
+    background-position-x: center;
+    z-index: 1000;
+  }
+
+  nav
+    .mcm-burger-checkbox:checked
+    ~ .mcm-burger
+    .mcm-burger-button
+    > i::before {
+    transform: translateY(50%) translateX(12%) rotate3d(0, 0, 1, 45deg);
+    width: 24px;
+  }
+
+  nav .mcm-burger-checkbox:checked ~ .mcm-burger .mcm-burger-button > i::after {
+    transform: translateY(-50%) translateX(12%) rotate3d(0, 0, 1, -45deg);
+    width: 24px;
+  }
+
+  nav .mcm-burger-checkbox:checked ~ .mcm-nav {
+    display: block !important;
+    position: fixed;
+    width: 100%;
+    height: 100vh;
+  }
+
+  nav .mcm-burger-checkbox:checked ~ .mcm-nav .mcm-nav-list .nav-item {
+    font-size: 26px;
+  }
+
+  nav .mcm-burger-checkbox:not(:checked) ~ .mcm-nav {
+    display: none;
+  }
+
+  nav .mcm-burger-button > i {
+    display: inline-flex;
+    vertical-align: top;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: stretch;
+    padding: 9px 5px;
+    background-color: transparent;
+    background-image: linear-gradient(#01bf7d, #01bf7d);
+    background-position: left center;
+    background-repeat: no-repeat;
+    background-origin: content-box;
+    background-size: 24px 2px;
+    transition: 0.25s;
+    transition-property: transform;
+    will-change: transform;
+    width: 22px;
+    height: 22px;
+  }
+
+  nav .mcm-burger-button > i::before,
+  nav .mcm-burger-button > i::after {
+    content: '';
+    height: 2px;
+    background: #01bf7d;
+    transition: 0.25s;
+    transition-property: transform, top;
+    will-change: transform, top;
+  }
+
+  nav .mcm-burger-button > i::before {
+    width: 30px;
+  }
+
+  nav .mcm-burger-button > i::after {
+    width: 16px;
+  }
+
+  nav .mcm-nav {
+    padding: 28px 24px;
+  }
+
+  nav .mcm-nav .mcm-nav-list {
+    flex-direction: column-reverse;
+  }
+
+  nav .mcm-nav ul {
+    padding: 51px 0px;
+  }
+
+  nav .mcm-mobile-nav {
+    margin: 0px 50px 0px 0px;
+    border-top: 1px solid #d5d6df;
+  }
+
+  nav .mcm-mobile-nav .nav-item {
+    font-size: 20px;
+    line-height: 28px;
+    margin-bottom: 26px;
+  }
+
+  nav .mcm-nav-list .nav-item {
+    font-weight: bold !important;
+  }
+
+  nav .mcm-nav-list .nav-item:first-child {
+    margin-bottom: 0px;
+  }
+}
+
+@media screen and (max-width: 620px) {
+  #kc-page-title {
+    font-size: 24px;
+    line-height: 28px;
+  }
+
+  .card-pf,
+  .card-pf-minimal {
+    margin: 10px 30px;
+  }
+
+  .go-back-btn {
+    margin: 0;
+    align-items: center;
+  }
+
+  .submit-btn {
+    margin: 30px 0;
+  }
+}
+
+/* END - RESPONSIVE */

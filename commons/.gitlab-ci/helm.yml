@@ -1,0 +1,285 @@
+.declare-helm-functions: &declare-helm-functions |
+  function get_rc_name {
+    echo "### GET RC NAME FROM TRIGGER PAYLOAD ###"
+    export RC_VERSION=$(cat $TRIGGER_PAYLOAD | jq -r '.tag')
+    echo $RC_VERSION
+  }
+
+  function get_release_name {
+    echo "### FORMAT RELEASE NAME (ex: rc-v1-0-0 => v1.0.0) ###"
+    export RELEASE_VERSION=$(cat $TRIGGER_PAYLOAD | jq -r '.tag | sub("rc-";"") | gsub("-";".")')
+    echo $RELEASE_VERSION
+  }
+
+  function get_release_name_slug {
+    echo "### FORMAT RELEASE NAME (ex: rc-v1-0-0 => v1-0-0) ###"
+    export RELEASE_VERSION_SLUG=$(cat $TRIGGER_PAYLOAD | jq -r '.tag | sub("rc-";"")')
+    echo $RELEASE_VERSION_SLUG
+  }
+
+  function push_to_gitlab {
+    echo "### CREATE FOLDER TO PUSH TO GITLAB ###"
+    mkdir handover
+
+    echo "### GIT CLONE DISTANT REPO ###"
+    git clone -b ${HANDOVER_GITLAB_TARGET_BRANCH} --single-branch "https://${HANDOVER_GITLAB_USERNAME}:${HANDOVER_GITLAB_TOKEN}@${HANDOVER_GITLAB_URL}" handover
+
+    echo "### GO TO HANDOVER FOLDER ###"
+    cd handover
+
+    echo "### GIT CREATE BRANCH ###"
+    git checkout -b ${RELEASE_VERSION_SLUG}
+
+    echo "### GIT PUSH CREATE REMOTE ###"
+    git push --set-upstream origin ${RELEASE_VERSION_SLUG}
+
+    echo "# CREATE NEEDED DIRECTORY IF NOT EXISTING"
+    [[ ! -d .gitlab-ci ]] && mkdir .gitlab-ci
+    [[ ! -d test ]] && mkdir test
+    [[ ! -d reports ]] && mkdir reports
+    [[ ! -d configs ]] && mkdir configs
+
+    echo "### CP GITLAB CI HELM TO OUTPUT DIRECTORY ###"
+    cp ../helm-chart/.gitlab-ci.yml .gitlab-ci.yml
+
+    echo "### CP GITLAB FOLDER HELM TO OUTPUT DIRECTORY ###"
+    cp -rT ../helm-chart/.gitlab-ci .gitlab-ci
+
+    echo "### CP TEST FOLDER HELM TO OUTPUT DIRECTORY ###"
+    cp -rT ../helm-chart/test test
+
+    echo "### CP IDP REALMS MULTIPLE FILES TO OUTPUT DIRECTORY ###"
+    for FILE in ../idp/overlays/realms/*-realm-${RELEASE_VERSION_SLUG}-*.json; do cp $FILE configs;done
+
+    echo "### CP BUS CONFIG MULTIPLE FILES TO OUTPUT DIRECTORY ###"
+    for FILE in ../bus/overlays/definition-${RELEASE_VERSION_SLUG}-*.json; do cp $FILE configs;done
+
+    echo "### CP SCRIPT FOLDER HELM TO OUTPUT DIRECTORY ###"
+    cp -rT ../helm-chart/scripts scripts
+
+    echo "### CP EXISTING API INDEXATION SCRIPT TO OUTPUT DIRECTORY ###"
+    cp ../api/mongo/databaseConfig/setup.js scripts/mongodb/
+
+    echo "### GET ALL ARTIFACTS FROM RELEASE  ###"
+    for link in $(cat $TRIGGER_PAYLOAD | jq -c '.assets.links | map({url: .url, name: .name}) | .[]')
+    do
+      echo "### DOWNLOAD ARTIFACTS ###"
+      echo $link
+      curl $(echo $link | jq -r '.url') -o "reports/"$(echo $link | jq -r '.name')"-${RELEASE_VERSION_SLUG}.zip" -H "JOB-TOKEN: ${CI_JOB_TOKEN}" -L
+    done
+
+    echo "### GIT ADD CHANGES ###"
+    git add .
+
+    echo "### SHOW CHANGES ###"
+    git status
+
+    echo "### GIT COMMIT CHANGES ###"
+    git -c user.name=${HANDOVER_GITLAB_USERNAME} -c user.email=${HANDOVER_GITLAB_EMAIL} commit -m ${RELEASE_VERSION}
+
+    echo "### GIT PUSH AND MR ###"
+    git push -o merge_request.create -o merge_request.remove_source_branch -o merge_request.target=${HANDOVER_GITLAB_TARGET_BRANCH} -o ci.skip
+
+    echo "### CHANGE RELEASE VARIABLES IN DISTANT REPO ###"
+    curl --request PUT -H "PRIVATE-TOKEN: ${HANDOVER_GITLAB_TOKEN}" \
+     "${CI_API_V4_URL}/projects/${HANDOVER_PROJECT_ID}/variables/RELEASE_VERSION" --form "value=${RELEASE_VERSION}"
+
+    curl --request PUT -H "PRIVATE-TOKEN: ${HANDOVER_GITLAB_TOKEN}" \
+     "${CI_API_V4_URL}/projects/${HANDOVER_PROJECT_ID}/variables/RELEASE_VERSION_SLUG" --form "value=${RELEASE_VERSION_SLUG}"
+
+  }
+
+  function push_images_to_nexus {
+    echo "### GET IMAGE TAG NAME FOR LATEST PIPELINE ###"
+    LATEST_IMAGE_TAG=$(docker images ${CI_REGISTRY_IMAGE}/${MODULE_NAME}:${RC_VERSION}-* --format {{.Tag}} | sort -nr | head -n 1 )
+    echo $LATEST_IMAGE_TAG
+
+    echo "### PULL IMAGE FROM GITLAB REGISTRY ###"
+    docker login -u ${REGISTRY_USER} -p ${REGISTRY_PASSWORD} ${REGISTRY_URL}
+    docker image pull ${CI_REGISTRY_IMAGE}/${MODULE_NAME}:${LATEST_IMAGE_TAG}
+
+    echo "### LOGIN TO NEXUS ###"
+    docker login -u ${NEXUS_ROOT_USER} -p ${NEXUS_ROOT_PASSWORD} ${NEXUS_DOCKER_REGISTRY_HANDOVER_URL}
+
+    echo "### TAG GITLAB IMAGES FOR NEXUS ###"
+    docker tag ${CI_REGISTRY_IMAGE}/${MODULE_NAME}:${LATEST_IMAGE_TAG} ${NEXUS_DOCKER_REGISTRY_HANDOVER_URL}/platform/${RELEASE_VERSION}/${MODULE_NAME}:latest
+
+    echo "### PUSH IMAGES TO NEXUS REGISTRY ###"
+    docker push ${NEXUS_DOCKER_REGISTRY_HANDOVER_URL}/platform/${RELEASE_VERSION}/${MODULE_NAME}:latest
+  }
+
+  function set_config_files {
+    # --- IDP ---- #
+
+    # Create uppercase env variable (pprd => PPRD / prod => PROD)
+    UPPERCASE_ENV=$(echo $1 | tr '[:lower:]' '[:upper:]')
+
+    # Create path variables
+    MCM_REALM_PATH=idp/overlays/realms/mcm-realm-${RELEASE_VERSION_SLUG}-$1.json
+    MASTER_REALM_PATH=idp/overlays/realms/master-realm-${RELEASE_VERSION_SLUG}-$1.json
+
+    cp idp/overlays/realms/mcm-realm.json ${MCM_REALM_PATH}
+    cp idp/overlays/realms/master-realm.json ${MASTER_REALM_PATH}
+
+    # MCM REALM
+    sed -i "s/IDP_API_CLIENT_SECRET/${UPPERCASE_ENV}_IDP_API_CLIENT_SECRET/g" ${MCM_REALM_PATH}
+    sed -i "s/IDP_SIMULATION_MAAS_CLIENT_SECRET/${UPPERCASE_ENV}_IDP_SIMULATION_MAAS_CLIENT_SECRET/g" ${MCM_REALM_PATH}
+
+    # SMTP
+    export SMTP_AUTH=true
+
+    sed -i "s/MAIL_API_KEY/${UPPERCASE_ENV}_SENDGRID_API_KEY/g" ${MCM_REALM_PATH}
+    sed -i "s/MAIL_HOST/${UPPERCASE_ENV}_SENDGRID_HOST/g" ${MCM_REALM_PATH}
+    sed -i "s/EMAIL_FROM_KC/${UPPERCASE_ENV}_SENDGRID_EMAIL_FROM_KC/g" ${MCM_REALM_PATH}
+    sed -i "s/MAIL_PORT/${UPPERCASE_ENV}_SENDGRID_PORT/g" ${MCM_REALM_PATH}
+    sed -i "s/MAIL_USER/${UPPERCASE_ENV}_SENDGRID_USER/g" ${MCM_REALM_PATH}
+
+    ### IDENTITY PROVIDER ###
+    sed -i "s/FRANCE_CONNECT_IDP_PROVIDER_CLIENT_ID/${UPPERCASE_ENV}_FRANCE_CONNECT_IDP_PROVIDER_CLIENT_ID/g" ${MCM_REALM_PATH}
+    sed -i "s/FRANCE_CONNECT_IDP_PROVIDER_CLIENT_SECRET/${UPPERCASE_ENV}_FRANCE_CONNECT_IDP_PROVIDER_CLIENT_SECRET/g" ${MCM_REALM_PATH}
+    sed -i "s/IDP_MCM_IDENTITY_PROVIDER_CLIENT_ID/${UPPERCASE_ENV}_IDP_MCM_IDENTITY_PROVIDER_CLIENT_ID/g" ${MCM_REALM_PATH}
+    sed -i "s/IDP_MCM_IDENTITY_PROVIDER_CLIENT_SECRET/${UPPERCASE_ENV}_IDP_MCM_IDENTITY_PROVIDER_CLIENT_SECRET/g" ${MCM_REALM_PATH}
+    sed -i "s/IDP_MCM_IDENTITY_PROVIDER_CLIENT_ID/${UPPERCASE_ENV}_IDP_MCM_IDENTITY_PROVIDER_CLIENT_ID/g" ${MASTER_REALM_PATH}
+    sed -i "s/IDP_MCM_IDENTITY_PROVIDER_CLIENT_SECRET/${UPPERCASE_ENV}_IDP_MCM_IDENTITY_PROVIDER_CLIENT_SECRET/g" ${MASTER_REALM_PATH}
+
+    # --- RABBITMQ ---- #
+
+    # Create path variables
+    BUS_DEFINITION_PATH=bus/overlays/definition-${RELEASE_VERSION_SLUG}-$1.json
+
+    cp bus/overlays/definition.json ${BUS_DEFINITION_PATH}
+
+    sed -i "s/BUS_ADMIN_USER/${UPPERCASE_ENV}_BUS_ADMIN_USER/g" ${BUS_DEFINITION_PATH}
+    sed -i "s/BUS_ADMIN_PASSWORD/${UPPERCASE_ENV}_BUS_ADMIN_PASSWORD/g" ${BUS_DEFINITION_PATH}
+    sed -i "s/BUS_MCM_CONSUME_USER/${UPPERCASE_ENV}_BUS_MCM_CONSUME_USER/g" ${BUS_DEFINITION_PATH}
+    sed -i "s/BUS_MCM_CONSUME_PASSWORD/${UPPERCASE_ENV}_BUS_MCM_CONSUME_PASSWORD/g" ${BUS_DEFINITION_PATH}
+
+    sed -i "s/IDP_API_CLIENT_SECRET/${UPPERCASE_ENV}_IDP_API_CLIENT_SECRET/g" ${BUS_DEFINITION_PATH}
+    sed -i "s/CAPGEMINI_SECRET_KEY/${UPPERCASE_ENV}_CAPGEMINI_SECRET_KEY/g" ${BUS_DEFINITION_PATH}
+
+    for FILE in ${MCM_REALM_PATH} ${MASTER_REALM_PATH} ${BUS_DEFINITION_PATH}
+    do
+      envsubst "$(env | cut -d= -f1 | sed -e 's/^/$/')" < $FILE > $FILE.tmp && mv $FILE.tmp $FILE
+    done
+
+  }
+
+  function apply_env {
+    # APPLY ENV VALUES
+    source commons/.gitlab-ci/.env.commons
+    source commons/.gitlab-ci/.env.$1
+  }
+
+  function push_package_to_nexus {
+
+    # Configure helm package name according to env
+    export HELM_PACKAGE_NAME=platform-$1
+    envsubst '${HELM_PACKAGE_NAME}' < helm-chart/Chart.yaml > helm-chart/Chart.yaml.tmp && mv helm-chart/Chart.yaml.tmp helm-chart/Chart.yaml
+
+    echo ### push configMap on nexus ###
+    echo "# Is a release candidate - create and push configMap on nexus #"
+    # Loops to create configMap in helm template
+    for DIR in *
+    do
+      if [ -d "$DIR/overlays/config/" ]
+      then
+        # ENVSUBS
+        for FILE in $DIR/overlays/config/*
+        do
+          envsubst "$(env | cut -d= -f1 | sed -e 's/^/$/')" < $FILE > $FILE.tmp && mv $FILE.tmp $FILE
+        done
+
+        # Copy configMap in helm-chart
+        cp -a $DIR/overlays/config/. helm-chart/$DIR
+      fi
+
+      # IDP config map
+      if [ $DIR == "idp" ]
+      then
+        MASTER_REALM_PATH=$DIR/overlays/realms/master-realm.json
+        sed -i "s/IDP_MCM_IDENTITY_PROVIDER_CLIENT_ID/${1^^}_IDP_MCM_IDENTITY_PROVIDER_CLIENT_ID/g" ${MASTER_REALM_PATH}
+        sed -i "s/IDP_MCM_IDENTITY_PROVIDER_CLIENT_SECRET/${1^^}_IDP_MCM_IDENTITY_PROVIDER_CLIENT_SECRET/g" ${MASTER_REALM_PATH}
+        [[ ! -d helm-chart/$DIR ]] && mkdir helm-chart/idp && cp ${MASTER_REALM_PATH} helm-chart/$DIR/
+      fi
+    done
+
+    # SUBSTITUTE VARIABLES FOR ALL *-VALUES FILES AND CHANGE ALL CLOUD VARIABLE TO ENV_CLOUD
+    for FILE in helm-chart/*-values.yaml
+    do
+      envsubst "$(env | cut -d= -f1 | sed -e 's/^/$/')" < $FILE > $FILE.tmp && mv $FILE.tmp $FILE
+      sed -i "s/CLOUD/${1^^}/g" $FILE
+      cat $FILE
+    done
+
+    helm package helm-chart --app-version ${RELEASE_VERSION} --version ${RELEASE_VERSION}
+    curl -v --upload-file ${HELM_PACKAGE_NAME}-${RELEASE_VERSION}.tgz -u ${NEXUS_ROOT_USER}:${NEXUS_ROOT_PASSWORD} ${NEXUS_HELM_REPOSITORY_URL}/
+  }
+
+# Job template to push image to nexus
+.helm-push-image-job:
+  extends:
+    - .commons
+    - .image-job-tags
+  stage: helm-push-image
+  image: ${NEXUS_DOCKER_REPOSITORY_URL}/tiangolo/docker-with-compose:2021-09-18
+  before_script:
+    - *declare-helm-functions
+  script:
+    - |
+      cd ${MODULE_PATH}
+      apk add jq
+      get_rc_name
+      get_release_name
+      push_images_to_nexus
+
+# Job to push the gitlab ci and artifacts to cloud repository
+helm_gitlab:
+  stage: helm-gitlab
+  image:
+    name: ${NEXUS_DOCKER_REPOSITORY_URL}/alpine/git:v2.32.0
+    entrypoint: [""]
+  before_script:
+    - *declare-helm-functions
+  script:
+    - |
+      apk add jq curl gettext
+      get_release_name
+      get_release_name_slug
+      apply_env pprd
+      set_config_files pprd
+      apply_env prod
+      set_config_files prod
+      push_to_gitlab
+
+# Job template to create helm package
+.helm_package_job:
+  stage: helm-package
+  extends:
+    - .commons
+  image: ${NEXUS_DOCKER_REPOSITORY_URL}/dtzar/helm-kubectl
+
+# Job to create preprod helm package
+helm_package_preprod:
+  extends:
+    - .helm_package_job
+  before_script:
+    - *declare-helm-functions
+  script:
+    - |
+      get_release_name
+      get_release_name_slug
+      apply_env pprd
+      push_package_to_nexus pprd
+
+# Job to create prod helm package
+helm_package_prod:
+  extends:
+    - .helm_package_job
+  before_script:
+    - *declare-helm-functions
+  script:
+    - |
+      get_release_name
+      get_release_name_slug
+      apply_env prod
+      push_package_to_nexus prod

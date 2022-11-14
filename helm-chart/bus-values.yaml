@@ -1,0 +1,164 @@
+configMaps:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kubernetes.io/ingress.class: traefik
+      name: bus-custom-conf
+    data:
+      custom.conf: "bus/custom.conf"
+
+services:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kompose.image-pull-secret: ${PROXY_IMAGE_PULL_SECRET_NAME}
+        kompose.service.type: clusterip
+        kubernetes.io/ingress.class: traefik
+      creationTimestamp: null
+      labels:
+        io.kompose.service: bus
+      name: bus
+    spec:
+      ports:
+        - name: "5672"
+          port: 5672
+          targetPort: 5672
+        - name: "15672"
+          port: 15672
+          targetPort: 15672
+      selector:
+        io.kompose.service: bus
+      type: ClusterIP
+    status:
+      loadBalancer: {}
+
+headlessService:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kompose.image-pull-secret: ${PROXY_IMAGE_PULL_SECRET_NAME}
+        kompose.service.type: clusterip
+        kubernetes.io/ingress.class: traefik
+      creationTimestamp: null
+      labels:
+        io.kompose.service: bus
+      name: bus-headless
+    spec:
+      clusterIP: None
+      ports:
+        - name: "5672"
+          port: 5672
+          targetPort: 5672
+        - name: "15672"
+          port: 15672
+          targetPort: 15672
+      publishNotReadyAddresses: true
+      selector:
+        io.kompose.service: bus
+      sessionAffinity: None
+      type: ClusterIP
+
+statefulSet:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kompose.image-pull-secret: ${PROXY_IMAGE_PULL_SECRET_NAME}
+        kompose.service.type: clusterip
+        kubernetes.io/ingress.class: traefik
+      labels:
+        io.kompose.service: bus
+      name: bus
+    spec:
+      podManagementPolicy: OrderedReady
+      replicas: 2
+      selector:
+        matchLabels:
+          io.kompose.service: bus
+      updateStrategy:
+        type: RollingUpdate
+      strategy: {}
+      template:
+        metadata:
+          annotations:
+            app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+            app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+            kompose.image-pull-secret: ${PROXY_IMAGE_PULL_SECRET_NAME}
+            kompose.service.type: clusterip
+            kubernetes.io/ingress.class: traefik
+          labels:
+            io.kompose.service: bus
+        spec:
+          containers:
+            env:
+              IDP_FQDN: ${IDP_FQDN}
+              MCM_IDP_REALM: ${IDP_MCM_REALM}
+              RABBITMQ_ERL_COOKIE: KxAzS-=mFrXvRU9m
+              RABBITMQ_PASSWORD: ${CLOUD_BUS_ADMIN_PASSWORD}
+              addressType: hostname
+              RABBITMQ_PLUGINS: rabbitmq_management,rabbitmq_auth_backend_oauth2,rabbitmq_prometheus,rabbitmq_peer_discovery_k8s
+              RABBITMQ_USERNAME: ${CLOUD_BUS_ADMIN_USER}
+              K8S_SERVICE_NAME: bus
+              RABBITMQ_NODE_NAME: rabbit@$(MY_POD_NAME).bus.$(MY_POD_NAMESPACE).svc.cluster.local
+              K8S_HOSTNAME_SUFFIX: .bus.$(MY_POD_NAMESPACE).svc.cluster.local
+              RABBITMQ_USE_LONGNAME: true
+              RABBITMQ_ULIMIT_NOFILES: 65536
+              RABBITMQ_DISK_FREE_ABSOLUTE_LIMIT: ${CLOUD_RABBITMQ_DISK_LIMIT}
+              RABBITMQ_MNESIA_DIR: /bitnami/rabbitmq/mnesia/bus-def
+              K8S_ADDRESS_TYPE: hostname
+              RABBITMQ_FORCE_BOOT: yes
+            image: ${BUS_IMAGE_NAME}
+            name: bus
+            ports:
+              - containerPort: 5672
+              - containerPort: 15672
+            resources: {}
+            volumeMounts:
+              - name: bus-config
+                mountPath: /bitnami/rabbitmq/conf/custom.conf
+                subPath: custom.conf
+              - name: bus-data
+                mountPath: /bitnami/rabbitmq/mnesia
+            securityContext:
+              runAsUser: 1001
+              runAsNonRoot: true
+          imagePullSecrets:
+            - name: ${PROXY_IMAGE_PULL_SECRET_NAME}
+          terminationGracePeriodSeconds: 10
+          securityContext:
+            fsGroup: 1001
+          restartPolicy: Always
+          volumes:
+            - name: bus-config
+              configMap:
+                name: bus-custom-conf
+      volumeClaimTemplates:
+        - metadata:
+            name: bus-data
+          spec:
+            accessModes: ["ReadWriteOnce"]
+            storageClassName: "azurefile-${TRUNCATED_LANDSCAPE}"
+            resources:
+              requests:
+                storage: ${CLOUD_RABBITMQ_STORAGE}
+
+ingressRoutes:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kubernetes.io/ingress.class: traefik
+      name: bus
+    spec:
+      entryPoints:
+        - web
+      routes:
+        - kind: Rule
+          match: Host(`${ADMIN_BUS_FQDN}`)
+          services:
+            - kind: Service
+              name: bus
+              port: 15672

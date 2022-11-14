@@ -1,0 +1,44 @@
+{{- range .Values.pods }}
+---
+apiVersion: apps/v1
+kind: Pod
+metadata:
+  annotations:
+  {{- with .metadata.annotations }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+  {{- with .metadata.labels }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+  name: {{ .metadata.name }}
+spec:
+  containers:
+    {{ if (.spec.containers.command) }}
+    command:
+    {{- range $k, $v := .spec.containers.command }}
+    - {{ $v | quote -}}
+    {{ end }}
+    {{- end }}
+    image: {{ .spec.containers.image }}
+    name: {{ .spec.containers.name }}
+    {{- with .spec.containers.resources }}
+    resources:
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  imagePullSecrets:
+    {{- with .spec.imagePullSecrets }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  restartPolicy: {{ .spec.restartPolicy }}
+  {{ if (.spec.volumes) }}
+  volumes:
+  {{- with .spec.volumes }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- end }}
+status:
+{{- with .status }}
+{{- toYaml . | nindent 2 }}
+{{- end }}
+{{- end }}

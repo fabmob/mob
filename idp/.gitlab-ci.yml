@@ -1,0 +1,36 @@
+include:
+  - local: 'idp/.gitlab-ci/preview.yml'
+    rules:
+      - if: $CI_COMMIT_BRANCH !~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger" && $CI_PIPELINE_SOURCE != "schedule"
+  - local: 'idp/.gitlab-ci/testing.yml'
+    rules:
+      - if: $CI_COMMIT_BRANCH =~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger"
+  - local: 'idp/.gitlab-ci/helm.yml'
+    rules:
+      - if: $CI_PIPELINE_SOURCE == "trigger"
+
+.idp-base:
+  variables:
+    MODULE_NAME: idp
+    MODULE_PATH: ${MODULE_NAME}
+    MCM_IDP_REALM: ${IDP_MCM_REALM}
+    MCM_GK_CLIENTID: ${MCM_GK_CLIENTID}
+    MCM_GK_CLIENTSECRET: ${MCM_GK_CLIENTSECRET}
+    MCM_CMS_ACCESS_ROLE: ${MCM_CMS_ACCESS_ROLE}
+    MCM_CMS_GITLAB_TOKEN: ${MCM_CMS_GITLAB_TOKEN}
+    IDP_DATABASE_USER_NAME: ${IDP_DEV_USER}
+    IDP_DATABASE_USER_PWD: ${IDP_DEV_PASSWORD}
+    IDP_DATABASE_ROOT_PWD: ${PGSQL_ROOT_PASSWORD}
+    IDP_DB_SERVICE_USER: ${PGSQL_SERVICE_USER}
+    IDP_DB_SERVICE_PASSWORD: ${PGSQL_SERVICE_PASSWORD}
+    BASE_POSTGRES_IMAGE_NAME: ${NEXUS_DOCKER_REPOSITORY_URL}/postgres:13.6
+    NEXUS_IMAGE_KEYCLOAK: ${NEXUS_DOCKER_REPOSITORY_URL}/jboss/keycloak:16.1.1
+    KEYCLOAK_IMAGE_NAME: ${REGISTRY_BASE_NAME}/${MODULE_NAME}:${IMAGE_TAG_NAME}
+    KEYCLOAK_MAAS_IMAGE_NAME: ${REGISTRY_BASE_NAME}/keycloak-maas:${IMAGE_TAG_NAME}
+    POSTGRES_IMAGE_NAME: ${REGISTRY_BASE_NAME}/postgres:${IMAGE_TAG_NAME}
+  only:
+    changes:
+      - '*'
+      - 'commons/**/*'
+      - 'idp/**/*'
+

@@ -1,0 +1,16 @@
+{{- range .Values.configMaps }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .metadata.name }}
+  annotations:
+   {{- with .metadata.annotations }}
+   {{- toYaml . | nindent 4 }}
+   {{- end }}
+data:
+  {{- range  $key, $val := .data }}
+  {{ $key }}: |
+  {{ $.Files.Get $val | nindent 4}}
+  {{- end }}
+{{- end }}

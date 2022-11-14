@@ -1,0 +1,3 @@
+dist
+*.json
+mongo/databaseConfig/*.js

@@ -1,0 +1,42 @@
+<%- include('css/style'); %> <%- include('commons/header'); %>
+
+<table style="margin-bottom: 40px;max-width: 640px;width: 640px;">
+  <tr>
+    <td>
+    <div>
+      <div>
+        <p>Bonjour <%= username %>,</p>
+      </div>
+      <div>
+        <p>
+          Nous vous informons que votre employeur a supprimé votre affiliation. Vous ne
+          pouvez donc plus accéder aux aides de votre entreprise*.
+        </p>
+      </div>
+      <div>
+        <p>
+          A noter, vous pouvez toujours accéder au moteur de recherche d’aides moB
+          librement accessible sur notre site !
+        </p>
+      </div>
+      <div class="btn">
+        <%- include('commons/button', {link: `${incentiveLink}`, text: 'Trouver une aide'}) %>
+      </div>
+      <div>
+        <p class="italic">
+          * NB : vous pourrez toujours retrouver les demandes traitées dans votre suivi
+          des demandes. Si vous pensez qu'il s'agit d'une erreur, nous vous invitons à
+          contacter votre employeur.
+        </p>
+      </div>
+
+      <div>
+        <p>Merci pour votre confiance,</p>
+        <p>L’équipe Mon Compte Mobilité</p>
+      </div>
+    </div>
+  </td>
+</tr>
+</table>
+
+<%- include('commons/footer'); %>

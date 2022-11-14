@@ -1,0 +1,29 @@
+.field {
+  .react-date-picker {
+    font-family: var(--font-family);
+    padding: 0;
+    border: 1px solid var(--color-grey-light);
+    border-radius: var(--radius-l);
+    width: 100%;
+    margin-top: var(--spacing-xxs);
+
+    .react-date-picker__wrapper {
+      padding: 18px 32px 22px;
+      border: none;
+    }
+
+    .react-date-picker__calendar {
+      inset: 100% auto auto 0px !important;
+    }
+  }
+
+  .react-date-picker--disabled {
+    background: var(--color-grey-ultralight);
+  }
+}
+
+.field--error {
+  .react-date-picker {
+    border-color: var(--color-red-error);
+  }
+}

@@ -1,0 +1,15 @@
+.mcm-subscription-reject__form {
+  .comments, .other {
+    margin-top: var(--spacing-s);
+    margin-bottom: var(--spacing-s);
+    .field__text {
+      width: 100% !important;
+      border-radius: 2px;
+      padding: 18px;
+      font-weight: normal;
+    }
+  }
+  .comments .field__text {
+    height: 200px;
+  }
+}

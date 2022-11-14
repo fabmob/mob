@@ -1,0 +1,18 @@
+simulation_maas_image_build:
+  extends:
+    - .preview-image-job
+    - .simulation-maas-base
+  needs: ["simulation_maas_build"]
+
+simulation_maas_preview_deploy:
+  extends:
+    - .preview-deploy-job
+    - .simulation-maas-base
+  needs: ["simulation_maas_image_build"]
+  environment:
+    on_stop: simulation_maas_preview_cleanup
+
+simulation_maas_preview_cleanup:
+  extends:
+    - .commons_preview_cleanup
+    - .simulation-maas-base

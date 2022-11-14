@@ -1,0 +1,4 @@
+admin_image_push:
+  extends:
+    - .helm-push-image-job
+    - .admin-base

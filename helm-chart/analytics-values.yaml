@@ -1,0 +1,151 @@
+services:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kompose.image-pull-secret: ${PROXY_IMAGE_PULL_SECRET_NAME}
+        kompose.service.type: clusterip
+        kubernetes.io/ingress.class: traefik
+      creationTimestamp: null
+      labels:
+        io.kompose.service: analytics
+      name: analytics
+    spec:
+      ports:
+        - name: "8082"
+          port: 8082
+          targetPort: 8080
+      selector:
+        io.kompose.service: analytics
+      type: ClusterIP
+    status:
+      loadBalancer: {}
+
+persistentVolumeClaim:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kubernetes.io/ingress.class: traefik
+      creationTimestamp: null
+      labels:
+        io.kompose.service: matomo-data
+      name: matomo-data
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 100Mi
+    status: {}
+
+deployments:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kompose.image-pull-secret: ${PROXY_IMAGE_PULL_SECRET_NAME}
+        kompose.service.type: clusterip
+        kubernetes.io/ingress.class: traefik
+      labels:
+        io.kompose.service: analytics
+      name: analytics
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          io.kompose.service: analytics
+      strategy:
+        type: Recreate
+      template:
+        metadata:
+          annotations:
+            app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+            app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+            kompose.image-pull-secret: ${PROXY_IMAGE_PULL_SECRET_NAME}
+            kompose.service.type: clusterip
+            kubernetes.io/ingress.class: traefik
+          labels:
+            io.kompose.network/maria-matomo-nw: "true"
+            io.kompose.network/web-nw: "true"
+            io.kompose.service: analytics
+        spec:
+          containers:
+            env:
+              MATOMO_DATABASE_HOST: ${CLOUD_ANALYTICS_DB_HOST}
+              MATOMO_DATABASE_NAME: ${CLOUD_ANALYTICS_DB_NAME}
+              MATOMO_DATABASE_PASSWORD: ${CLOUD_ANALYTICS_DB_DEV_PASSWORD}
+              MATOMO_DATABASE_PORT_NUMBER: ${CLOUD_ANALYTICS_DB_PORT}
+              MATOMO_DATABASE_USER: ${CLOUD_ANALYTICS_DB_DEV_USER}
+              MATOMO_EMAIL: ${CLOUD_ANALYTICS_SUPER_EMAIL}
+              MATOMO_PASSWORD: ${CLOUD_ANALYTICS_SUPER_PASSWORD}
+              MATOMO_USERNAME: ${CLOUD_ANALYTICS_SUPER_USER}
+              MATOMO_WEBSITE_HOST: ${WEBSITE_FQDN}
+              MATOMO_WEBSITE_NAME: ${WEBSITE_FQDN}
+            image: ${MATOMO_IMAGE_NAME}
+            name: analytics
+            ports:
+              - containerPort: 8080
+            resources: {}
+            volumeMounts:
+              - mountPath: /bitnami/matomo
+                name: matomo-data
+          imagePullSecrets:
+            - name: ${PROXY_IMAGE_PULL_SECRET_NAME}
+          restartPolicy: Always
+          securityContext:
+            fsGroup: 1000
+          volumes:
+            - name: matomo-data
+              persistentVolumeClaim:
+                claimName: matomo-data
+    status: {}
+
+networkPolicies:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kubernetes.io/ingress.class: traefik
+      name: web-nw
+    spec:
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  com.capgemini.mcm.ingress: "true"
+      podSelector:
+        matchLabels:
+          io.kompose.network/web-nw: "true"
+
+ingressRoutes:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kubernetes.io/ingress.class: traefik
+      name: analytics
+    spec:
+      entryPoints:
+        - web
+      routes:
+        - kind: Rule
+          match: Host(`${MATOMO_FQDN}`)
+          middlewares:
+            - name: analytics-headers
+          services:
+            - kind: Service
+              name: analytics
+              port: 8082
+
+middlewares:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kubernetes.io/ingress.class: traefik
+      name: analytics-headers
+    spec:
+      headers:
+        customRequestHeaders:
+          X-Forwarded-Proto: https

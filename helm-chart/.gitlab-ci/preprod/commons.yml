@@ -1,0 +1,57 @@
+# Include needed gitlab-ci files
+include:
+  - local: ".gitlab-ci/preprod/configure.yml"
+  - local: ".gitlab-ci/preprod/deploy.yml"
+  - local: ".gitlab-ci/preprod/test.yml"
+
+# Init base variables
+.helm-chart-preprod-base:
+  variables:
+    LANDSCAPE: preprod
+    TRUNCATED_LANDSCAPE: pprd
+    HELM_PACKAGE_NAME: platform-${TRUNCATED_LANDSCAPE}
+
+# Job template for preprod job configure 
+.helm-configure-preprod-job:
+  stage: configure-preprod
+  extends:
+    - .helm-chart-preprod-base
+    - .helm-configure-preprod-tags
+    - .helm-configure-job
+
+# Job template for preprod job deploy
+.helm-deploy-preprod-job:
+  stage: deploy-preprod
+  extends:
+    - .helm-chart-preprod-base
+    - .helm-deploy-preprod-tags
+    - .helm-deploy-job
+
+# Job template for preprod job test
+.helm-test-preprod-job:
+  stage: test-preprod
+  extends:
+    - .helm-chart-preprod-base
+    - .helm-test-preprod-tags
+    - .smoke-tests-job
+
+# Tags to used the good runner gitlab in pprd
+.helm-configure-preprod-tags:
+  tags:
+    - os:linux
+    - platform:preprod
+    - task:configure
+
+# Tags to used the good runner gitlab in pprd
+.helm-deploy-preprod-tags:
+  tags:
+    - os:linux
+    - platform:preprod
+    - task:deploy
+
+# Tags to used the good runner gitlab in pprd
+.helm-test-preprod-tags:
+  tags:
+    - os:linux
+    - platform:preprod
+    - task:test

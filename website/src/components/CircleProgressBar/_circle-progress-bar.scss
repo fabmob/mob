@@ -1,0 +1,42 @@
+.mcm-background-circle {
+  stroke: var(--color-grey-light);
+  fill: none;
+}
+
+.mcm-front-circle {
+  fill: none;
+}
+
+.mcm-value {
+  font-weight: 600;
+  font-size: 26px;
+  line-height: 32px;
+  @media screen and (min-width: 1024px) {
+    font-size: 32px;
+    line-height: 40px;
+  }
+}
+
+.mcm-front-circle.mcm-green-leaf {
+  stroke: var(--color-green-leaf);
+}
+
+.mcm-value.mcm-green-leaf {
+  fill: var(--color-green-leaf);
+}
+
+.mcm-front-circle.mcm-red {
+  stroke: var(--color-red-error);
+}
+
+.mcm-value.mcm-red {
+  fill: var(--color-red-error);
+}
+
+.mcm-front-circle.mcm-blue-petrol {
+  stroke: var(--color-blue-petrol);
+}
+
+.mcm-value.mcm-blue-petrol {
+  fill: var(--color-blue-petrol);
+}

@@ -1,0 +1,106 @@
+version: '3'
+
+services:
+  postgres-keycloak:
+    image: ${POSTGRES_IMAGE_NAME}
+    build:
+      context: .
+      dockerfile: ./postgres-dockerfile.yml
+      args:
+        BASE_POSTGRES_IMAGE_NAME: ${BASE_POSTGRES_IMAGE_NAME}
+    environment:
+      - POSTGRES_USER=${IDP_DATABASE_USER_NAME}
+      - POSTGRES_PASSWORD=${IDP_DATABASE_USER_PWD}
+      - POSTGRES_DB=${PGSQL_NAME}
+      - POSTGRES_SERVICE_USER=${PGSQL_SERVICE_USER}
+      - POSTGRES_SERVICE_PASSWORD=${PGSQL_SERVICE_PASSWORD}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_keycloak_data:/var/lib/postgresql/data
+    ports:
+      - '5432'
+    labels:
+      - 'kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}'
+      - 'kompose.service.type=clusterip'
+
+  idp:
+    image: ${KEYCLOAK_IMAGE_NAME}
+    build:
+      context: .
+      dockerfile: ./keycloak-dockerfile.yml
+      args:
+        BASE_IMAGE_KEYCLOAK: ${NEXUS_IMAGE_KEYCLOAK}
+    command:
+      [
+        '-b',
+        '0.0.0.0',
+        '-Djboss.modules.system.pkgs=org.jboss.logmanager',
+        '-Dkeycloak.migration.action=import',
+        '-Dkeycloak.migration.provider=singleFile',
+        '-Dkeycloak.migration.file=/tmp/all-realm.json',
+        '-Dkeycloak.migration.strategy=${MIGRATION_STRATEGY_REALM}',
+      ]
+    depends_on:
+      - postgres-keycloak
+    networks:
+      - web-nw
+    environment:
+      - KEYCLOAK_USER=${IDP_ADMIN_USER}
+      - KEYCLOAK_PASSWORD=${IDP_ADMIN_PASSWORD}
+      - PROXY_ADDRESS_FORWARDING=true
+      - WEBSITE_FQDN
+      - API_FQDN
+      - IDP_FQDN
+      - IMAGE_PULL_SECRET_NAME
+      - DB_ADDR=postgres-keycloak
+      - DB_PORT=5432
+      - DB_VENDOR=postgres
+      - DB_DATABASE=${PGSQL_NAME}
+      - DB_USER=${IDP_DATABASE_USER_NAME}
+      - DB_PASSWORD=${IDP_DATABASE_USER_PWD}
+      - DB_SCHEMA=${PGSQL_NAME}
+      - LANDSCAPE
+      - BASE_DOMAIN
+      - MATOMO_FQDN
+    ports:
+      - '8080'
+    labels:
+      - 'kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}'
+      - 'kompose.service.type=clusterip'
+
+  idp-maas:
+    image: ${KEYCLOAK_MAAS_IMAGE_NAME}
+    build:
+      context: .
+      dockerfile: ./keycloak-maas-dockerfile.yml
+      args:
+        BASE_IMAGE_KEYCLOAK: ${NEXUS_IMAGE_KEYCLOAK}
+    command:
+      [
+        '-b',
+        '0.0.0.0',
+        '-Djboss.modules.system.pkgs=org.jboss.logmanager',
+        '-Dkeycloak.migration.action=import',
+        '-Dkeycloak.migration.provider=singleFile',
+        '-Dkeycloak.migration.file=/tmp/maas-realm.json',
+        '-Dkeycloak.migration.strategy=${MIGRATION_STRATEGY_REALM}',
+      ]
+    networks:
+      - web-nw
+    environment:
+      - KEYCLOAK_USER
+      - KEYCLOAK_PASSWORD
+      - PROXY_ADDRESS_FORWARDING=true
+      - KEYCLOAK_IMPORT=/tmp/maas-realm.json
+      - IMAGE_PULL_SECRET_NAME
+    ports:
+      - '8087:8080'
+    labels:
+      - 'kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}'
+      - 'kompose.service.type=clusterip'
+
+volumes:
+  postgres_keycloak_data:
+
+networks:
+  web-nw:

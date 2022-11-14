@@ -1,0 +1,46 @@
+idp_image_build:
+  extends:
+    - .preview-image-job
+    - .idp-base
+    - .no-needs
+
+.idp_deploy_script: &idp_deploy_script |
+    # SMTP
+    export MAIL_HOST=mailhog.mailhog-${CI_COMMIT_REF_SLUG}-${LANDSCAPE}.svc.cluster.local
+    export EMAIL_FROM_KC=${MAILHOG_EMAIL_FROM_KC}
+    export MAIL_PORT=1025
+    export SMTP_AUTH=false
+
+    # CONCATENATE REALMS INTO ONE
+    jq -s '.' overlays/realms/*-realm.json > overlays/realms/all-realm.json
+
+    ALL_REALM_PATH=overlays/realms/all-realm.json
+
+    envsubst "$(env | cut -d= -f1 | sed -e 's/^/$/')" < ${ALL_REALM_PATH} > ${ALL_REALM_PATH}.tmp && mv ${ALL_REALM_PATH}.tmp ${ALL_REALM_PATH}
+
+    ### REALM STRATEGY ###
+    export MIGRATION_STRATEGY_REALM=IGNORE_EXISTING
+    if [ ${MIGRATION_STRATEGY} == "yes" ]
+    then
+        echo "Migration strategy override"
+        export MIGRATION_STRATEGY_REALM=OVERWRITE_EXISTING
+    fi
+
+idp_preview_deploy:
+  extends:
+    - .preview-deploy-job
+    - .idp-base
+  script:
+    - *idp_deploy_script
+    - |
+      deploy
+      wait_pod postgres-keycloak
+      config_volume postgres-keycloak-data
+  needs: ['idp_image_build', 'commons-kubetools-image']
+  environment:
+    on_stop: idp_preview_cleanup
+
+idp_preview_cleanup:
+  extends:
+    - .commons_preview_cleanup
+    - .idp-base

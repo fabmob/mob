@@ -1,0 +1,46 @@
+.mcm-paper {
+  background-color: var(--color-white);
+  border-radius: 8px;
+  padding: 24px;
+
+  &--outlined {
+    border: 1px solid var(--color-grey-light);
+  }
+}
+
+.mcm-citizen-card {
+  &__name {
+    font-weight: 500;
+    font-size: 20px;
+    line-height: 28px;
+    margin-bottom: var(--spacing-xxs);
+    color: var(--color-blue-petrol);
+
+    > img {
+      margin-right: 12px;
+    }
+  }
+  &__section {
+    margin: 32px 0;
+
+    dl {
+      font-size: 14px;
+      margin: 24px 0;
+    }
+    dt {
+      font-size: 14px;
+      color: var(--color-grey-mid);
+      margin-bottom: 8px;
+    }
+    dd {
+      margin-bottom: 24px;
+      font-weight: 500;
+    }
+  }
+  &__link {
+    text-decoration: underline;
+    font-weight: 500;
+    text-decoration: underline;
+    text-underline-position: under;
+  }
+}

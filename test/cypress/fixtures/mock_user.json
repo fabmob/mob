@@ -1,0 +1,11 @@
+{
+    "lastName": "Lafripouille",
+    "firstName": "Jacqouille",
+    "birthdate": "05/08/1900",
+    "email": "",
+    "password": "Jacq00illes!",
+    "passwordConfirmation": "Jacq00illes!",
+    "city": "MontMirail",
+    "postcode": "31000",
+    "status": "Étudiant"
+}

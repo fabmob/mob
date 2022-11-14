@@ -1,0 +1,19 @@
+include:
+  - local: "mailhog/.gitlab-ci/preview.yml"
+    rules:
+      - if: $CI_COMMIT_BRANCH !~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger" && $CI_PIPELINE_SOURCE != "schedule"
+  - local: "mailhog/.gitlab-ci/testing.yml"
+    rules:
+      - if: $CI_COMMIT_BRANCH =~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger"
+
+.mailhog-base:
+  variables:
+    MODULE_NAME: mailhog
+    MODULE_PATH: ${MODULE_NAME}
+    MAILHOG_IMAGE_NAME: ${NEXUS_DOCKER_REGISTRY_URL}/mailhog/mailhog:v1.0.1
+  only:
+    changes:
+      - "*"
+      - "commons/**/*"
+      - "mailhog/**/*"
+

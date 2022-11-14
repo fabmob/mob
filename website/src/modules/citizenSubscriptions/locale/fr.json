@@ -1,0 +1,7 @@
+{
+  "dashboard.management.employees.subscriptions.title": "Historique des demandes",
+  "dashboard.management.employees.subscriptions.number.plural": "demandes",
+  "dashboard.management.employees.subscriptions.btn.see.more": "Afficher plus de demandes",
+  "dashboard.management.employees.subscriptions.no.subscriptions": "Aucune demande pour ce salarié",
+  "dashboard.management.citizen.subscriptions.no.subscriptions": "Aucune demande pour ce citoyen"
+}

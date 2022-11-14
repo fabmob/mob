@@ -1,0 +1,11 @@
+{
+  "failOnStatusCode": false,
+  "chromeWebSecurity": false,
+  "redirectionLimit": 20,
+  "retries": {
+    "runMode": 1,
+    "openMode": 1
+  },
+  "experimentalStudio": true,
+  "reporter": "mochawesome"
+}

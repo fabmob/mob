@@ -1,0 +1,18 @@
+<%
+const landscape = process.env.LANDSCAPE
+const baseDomain = process.env.BASE_DOMAIN
+
+getLink = function(imgName) {
+    if (landscape !== null && landscape !== undefined) {
+        if (landscape === "production") {
+            return `https://static.${baseDomain}/assets/${imgName}`
+        } else if (landscape === "testing") {
+            return `https://static.preview.${baseDomain}/assets/${imgName}`
+        } else {
+            return `https://static.${landscape}.${baseDomain}/assets/${imgName}`
+        }
+    } else {
+        return `https://static.preview.${baseDomain}/assets/${imgName}`
+    }
+}
+%>

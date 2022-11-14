@@ -1,0 +1,16 @@
+<table style="margin:10px">
+  <% for(const [key, value] of Object.entries(keys)) { %>
+    <tr>
+      <td style="text-align:right;font-weight:bold;padding:8px;">
+        <%= value %> :
+          </th>
+      <td style="padding:8px;padding-left:32px;">
+        <% if (contact[key]) { %>
+          <%= contact[key] %>
+            <%} else { %>
+              <I style="color:gray;">Non renseigné</I>
+              <% } %>
+                </th>
+    </tr>
+    <% } %>
+</table>

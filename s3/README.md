@@ -2,21 +2,20 @@
 
 Le service s3 se base sur la brique logicielle **[MinIO](https://min.io/)**
 
-Elle est compliant s3 et nous permet de stocker les fichiers que nous pouvons recevoir.
+Elle est s3-compliant et permet de stocker les fichiers que moB peut être amené à recevoir de la part des citoyens dans les souscriptions déposées.
+Ainsi, ce sont les fonctions AWS S3 pour créer des buckets, uploader, downloader des fichiers ...
 
-Nous utilisons les fontions S3 AWS pour créer des buckets, uploader, downloader des fichiers ...
+Les documents stockés sont tous encryptés avant écriture par le service [api](api), au moyen de la clé publique RSA paramétrée active sur le financeur de l'aide (incentive).
 
-Les documents stockés sont encryptés en amont grâce au service vault.
+L'architecture des buckets choisie est la suivante :
 
-L'architecture des buckets est la suivante :
-
-![s3BucketArchitecture](docs/assets/s3BucketArchitecture.png)
-
-(Voir relation avec les autres services)
+![s3BucketArchitecture](docs/assets/s3bucketArchitecture.png)
 
 # Installation en local
 
-`docker run --name minio -p 9001:9000 minio/minio:RELEASE.2021-06-17T00-10-46Z server /data`
+```sh
+docker run --name minio -p 9001:9000 minio/minio:RELEASE.2021-06-17T00-10-46Z server /data
+```
 
 ⚠ la version minio de l'image de minio n'est pas iso environnement preview & testing
 
@@ -30,18 +29,18 @@ En local, c'est le compte d'admin qui peut être utilisé par l'api.
 
 ## Variables
 
-| Variables      | Description | Obligatoire |
-| ----------- | ----------- | ----------- |
-| S3_SERVICE_USER      | Username pour le compte de service       | Oui |
-| S3_SERVICE_PASSWORD   | Password pour le compte de service          | Oui |
-| S3_SUPPORT_USER   | Username pour le compte de support       | Non |
-| S3_SUPPORT_PASSWORD  | Password pour le compte de support        | Non |
+| Variables           | Description                        | Obligatoire |
+| ------------------- | ---------------------------------- | ----------- |
+| S3_SERVICE_USER     | Username pour le compte de service | Oui         |
+| S3_SERVICE_PASSWORD | Password pour le compte de service | Oui         |
+| S3_SUPPORT_USER     | Username pour le compte de support | Non         |
+| S3_SUPPORT_PASSWORD | Password pour le compte de support | Non         |
 
 - Compte de service : ReadWrite
 - Compte de support : Diagnostics
 
-
 ## URL / Port
+
 - URL : localhost
 - Port : 9001
 
@@ -49,35 +48,34 @@ En local, c'est le compte d'admin qui peut être utilisé par l'api.
 
 ## Preview
 
-Un job s3mc est lancé au déploiement pour créer les comptes de service et de support.
+Un job K8S _s3mc_ est lancé au déploiement pour créer les comptes de service et de support.
 
 ## Testing
 
 L'ajout des comptes de service et de support est à faire manuellement via l'interface avec les droits mentionnés dans l'installation locale.
 
-Le deploiement de s3 est de type statefulSet.
-
+Le déploiement de s3 dans K8S est de type statefulSet.
 
 # Relation avec les autres services
 
-Comme présenté dans le schéma global de l'architecture ci-dessus (# TODO)
+Comme présenté dans le [schéma d'architecture détaillée](docs/assets/MOB-CME_Archi_technique_detaillee.png) :
+
+![technicalArchitecture](../docs/assets/MOB-CME_Archi_technique_detaillee.png)
 
 L'api effectue une requête HEAD HTTP vers s3 pour vérifier l'existence du bucket (voir achitecture bucket mentionnée au début du fichier).
 
-L'api effectue une requête POST HTTP vers s3 pour créer le bucket s'il n'est pas déjà existant.
-
-L'api effectue une requête POST HTTP vers s3 pour uploader les fichiers dans le bucket associé.
-
-L'api effectue une requête GET HTTP vers s3 pour récupérer les fichiers afin qu'ils soient visualisable via Website.
+- api effectue une requête HEAD HTTP vers s3 pour vérifier l'existence du bucket (voir architecture des buckets mentionnée plus haut).
+- api effectue une requête POST HTTP vers s3 pour créer le bucket s'il n'est pas déjà existant.
+- api effectue une requête POST HTTP vers s3 pour uploader les fichiers dans le bucket associé.
+- api effectue une requête GET HTTP vers s3 pour récupérer les fichiers afin qu'ils soient visualisables via [website](website).
 
 **Bilan des relations:**
 
-- Requête HTTP de l'api vers s3 pour vérifier existence du bucket
-- Requête HTTP de l'api vers s3 pour créer le bucket associé s'il n'existe pas
-- Requête HTTP de l'api vers s3 pour enregistrer le fichier
-- Requête HTTP de l'api vers s3 pour télécharger le fichier
+- Requête HTTP de _api_ vers _s3_ pour vérifier existence du bucket
+- Requête HTTP de _api_ vers _s3_ pour créer le bucket associé s'il n'existe pas
+- Requête HTTP de _api_ vers _s3_ pour enregistrer le fichier
+- Requête HTTP de _api_ vers _s3_ pour télécharger le fichier
 
 # Tests Unitaires
 
 Pas de tests unitaires nécéssaires pour ce service
-

@@ -1,0 +1,4 @@
+antivirus_testing_deploy:
+  extends:
+    - .testing-deploy-job
+    - .antivirus-base

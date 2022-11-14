@@ -1,0 +1,181 @@
+configMaps:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kubernetes.io/ingress.class: traefik
+      name: master-realm-config
+    data:
+      master-realm.json: "idp/master-realm.json"
+
+services:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kompose.image-pull-secret: ${PROXY_HANDOVER_IMAGE_PULL_SECRET_NAME}
+        kompose.service.type: clusterip
+        kubernetes.io/ingress.class: traefik
+      creationTimestamp: null
+      labels:
+        io.kompose.service: idp
+      name: idp
+    spec:
+      ports:
+        - name: "8080"
+          port: 8080
+          targetPort: 8080
+      selector:
+        io.kompose.service: idp
+      type: ClusterIP
+    status:
+      loadBalancer: {}
+
+deployments:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kompose.image-pull-secret: ${PROXY_HANDOVER_IMAGE_PULL_SECRET_NAME}
+        kompose.service.type: clusterip
+        kubernetes.io/ingress.class: traefik
+      labels:
+        io.kompose.service: idp
+      name: idp
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          io.kompose.service: idp
+      strategy: {}
+      template:
+        metadata:
+          annotations:
+            app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+            app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+            kompose.image-pull-secret: ${PROXY_HANDOVER_IMAGE_PULL_SECRET_NAME}
+            kompose.service.type: clusterip
+            kubernetes.io/ingress.class: traefik
+          labels:
+            io.kompose.network/web-nw: "true"
+            io.kompose.service: idp
+        spec:
+          containers:
+            args:
+              - -b
+              - 0.0.0.0
+              - -Djboss.modules.system.pkgs=org.jboss.logmanager
+              - -Dkeycloak.migration.action=import
+              - -Dkeycloak.migration.provider=singleFile
+              - -Dkeycloak.migration.file=/tmp/master-realm.json
+              - -Dkeycloak.migration.strategy=IGNORE_EXISTING
+            env:
+              KEYCLOAK_USER: ${CLOUD_IDP_ADMIN_USER}
+              KEYCLOAK_PASSWORD: ${CLOUD_IDP_ADMIN_PASSWORD}
+              PROXY_ADDRESS_FORWARDING: "true"
+              WEBSITE_FQDN: ${WEBSITE_FQDN}
+              API_FQDN: ${API_FQDN}
+              DB_SCHEMA: ${CLOUD_PGSQL_NAME}
+              DB_ADDR: ${CLOUD_PGSQL_FLEX_ADDRESS}
+              DB_PORT: ${CLOUD_PGSQL_DB_PORT}
+              DB_VENDOR: postgres
+              DB_DATABASE: ${CLOUD_PGSQL_NAME}
+              DB_USER: ${CLOUD_IDP_DEV_USER}
+              DB_PASSWORD: ${CLOUD_IDP_DEV_PASSWORD}
+              LANDSCAPE: ${LANDSCAPE}
+              BASE_DOMAIN: ${BASE_DOMAIN}
+              MATOMO_FQDN: ${MATOMO_FQDN}
+            image: ${KEYCLOAK_IMAGE_NAME}
+            name: idp
+            ports:
+              - containerPort: 8080
+            resources: {}
+            volumeMounts:
+              - mountPath: /tmp
+                name: realm-config
+          imagePullSecrets:
+            - name: ${PROXY_HANDOVER_IMAGE_PULL_SECRET_NAME}
+          restartPolicy: Always
+          securityContext:
+            fsGroup: 1000
+          volumes:
+            - configMap:
+                name: master-realm-config
+              name: realm-config
+    status: {}
+
+networkPolicies:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kubernetes.io/ingress.class: traefik
+      name: web-nw
+    spec:
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  com.capgemini.mcm.ingress: "true"
+      podSelector:
+        matchLabels:
+          io.kompose.network/web-nw: "true"
+
+ingressRoutes:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kubernetes.io/ingress.class: traefik
+      name: idp
+    spec:
+      entryPoints:
+        - web
+      routes:
+        - kind: Rule
+          match: Host(`${IDP_FQDN}`)
+          middlewares:
+            - name: idp-headers-middleware
+            # - name: idp-ratelimit-middleware
+            - name: idp-inflightreq-middleware
+          services:
+            - name: idp
+              port: 8080
+
+middlewares:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kubernetes.io/ingress.class: traefik
+      name: idp-headers-middleware
+    spec:
+      headers:
+        customRequestHeaders:
+          X-Forwarded-Port: "443"
+          X-Forwarded-Proto: https
+
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kubernetes.io/ingress.class: traefik
+      name: idp-inflightreq-middleware
+    spec:
+      inFlightReq:
+        amount: 100
+
+  # - metadata:
+  #     annotations:
+  #       app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+  #       app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+  #       kubernetes.io/ingress.class: traefik
+  #     name: idp-ratelimit-middleware
+  #   spec:
+  #     rateLimit:
+  #       average: 30
+  #       burst: 50
+  #       period: 1s
+  #       sourceCriterion:
+  #         ipStrategy:
+  #           depth: 3

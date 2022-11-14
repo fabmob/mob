@@ -1,0 +1,18 @@
+.mcm-stepper {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: var(--spacing-s);
+  margin-top: var(--spacing-s);
+  position: relative;
+
+  .activeStep {
+    color: var(--color-dark);
+    font-weight: 700;
+  }
+
+  p,
+  span {
+    margin-right: var(--spacing-xs);
+    color: var(--color-grey-mid);
+  }
+}

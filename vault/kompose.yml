@@ -1,0 +1,94 @@
+version: '3'
+
+services:
+  vault:
+    image: ${VAULT_IMAGE_NAME}
+    build: 
+      context: .
+      dockerfile: vault-dockerfile
+      args:
+        BASE_IMAGE_VAULT: ${BASE_IMAGE_VAULT}
+    networks:
+      - web-nw
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - vault-data:/vault/file/
+    environment:
+      VAULT_ADDR: https://${VAULT_FQDN}
+      VAULT_API_ADDR: https://${VAULT_FQDN}
+      VAULT_LOCAL_CONFIG: '{"backend": {"file": {"path": "/vault/file"}}, "default_lease_ttl": "168h", "max_lease_ttl": "720h"}'
+      CLIENT_ID: 'simulation-maas-backend'
+      CLIENT_SECRET: ${IDP_SIMULATION_MAAS_CLIENT_SECRET}
+      FUNDER_TOKEN: ${VAULT_FUNDER_TOKEN}
+      AVAILABLE_KEYS: 2
+    ports:
+      - '8200'
+    command: server
+    labels:
+      - 'kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}'
+      - 'kompose.service.type=clusterip'
+
+  vault-init:
+    image: ${VAULT_IMAGE_NAME}
+    build: 
+      context: .
+      dockerfile: vault-dockerfile
+      args:
+        BASE_IMAGE_VAULT: ${BASE_IMAGE_VAULT}
+    environment:
+      VAULT_ADDR: https://${VAULT_FQDN}
+      CLIENT_ID: 'simulation-maas-backend'
+      CLIENT_SECRET: ${IDP_SIMULATION_MAAS_CLIENT_SECRET}
+      FUNDER_TOKEN: ${VAULT_FUNDER_TOKEN}
+      API_URL: https://api.preprod.moncomptemobilite.fr
+      IDP_URL: https://idp.preprod.moncomptemobilite.fr
+      # API_URL: https://${API_FQDN}
+      # IDP_URL: https://${IDP_FQDN}
+      AVAILABLE_KEYS: 2
+    networks:
+      - web-nw
+    volumes:
+      - vault-init-data:/vault/file/
+    command: /bin/sh -c ". /usr/local/bin/init-vault.sh"
+    restart: on-failure
+    depends_on:
+      - vault
+    labels:
+      - 'kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}'
+      - 'kompose.service.type=clusterip'
+
+  vault-cron:
+    image: ${VAULT_IMAGE_NAME}
+    build: 
+      context: .
+      dockerfile: vault-dockerfile
+      args:
+        BASE_IMAGE_VAULT: ${BASE_IMAGE_VAULT}
+    environment:
+      VAULT_ADDR: https://${VAULT_FQDN}
+      CLIENT_ID: 'simulation-maas-backend'
+      CLIENT_SECRET: ${IDP_SIMULATION_MAAS_CLIENT_SECRET}
+      FUNDER_TOKEN: ${VAULT_FUNDER_TOKEN}
+      API_URL: https://api.preprod.moncomptemobilite.fr
+      IDP_URL: https://idp.preprod.moncomptemobilite.fr
+      # API_URL: https://${API_FQDN}
+      # IDP_URL: https://${IDP_FQDN}
+      AVAILABLE_KEYS: 2
+    networks:
+      - web-nw
+    volumes:
+      - vault-cron-data:/vault/file/
+    command: crond -f
+    depends_on:
+      - vault-init
+    labels:
+      - 'kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}'
+      - 'kompose.service.type=clusterip'
+
+volumes:
+  vault-data:
+  vault-init-data:
+  vault-cron-data:
+networks:
+  web-nw:

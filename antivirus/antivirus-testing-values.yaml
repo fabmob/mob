@@ -1,0 +1,65 @@
+services:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kompose.image-pull-secret: ${PROXY_IMAGE_PULL_SECRET_NAME}
+        kompose.service.type: clusterip
+        kompose.volume.size: 200Mi
+      creationTimestamp: null
+      labels:
+        io.kompose.service: clamav
+      name: clamav
+    spec:
+      ports:
+        - name: "3310"
+          port: 3310
+          targetPort: 3310
+      selector:
+        io.kompose.service: clamav
+      type: ClusterIP
+    status:
+      loadBalancer: {}
+
+deployments:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kompose.image-pull-secret: ${PROXY_IMAGE_PULL_SECRET_NAME}
+        kompose.service.type: clusterip
+        kompose.volume.size: 200Mi
+      creationTimestamp: null
+      labels:
+        io.kompose.service: clamav
+      name: clamav
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          io.kompose.service: clamav
+      strategy: {}
+      template:
+        metadata:
+          annotations:
+            app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+            app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+            kompose.image-pull-secret: ${PROXY_IMAGE_PULL_SECRET_NAME}
+            kompose.volume.size: 200Mi
+            kompose.service.type: clusterip
+          creationTimestamp: null
+          labels:
+            io.kompose.service: clamav
+        spec:
+          containers:
+            image: ${ANTIVIRUS_IMAGE_NAME}
+            name: clamav
+            ports:
+              - containerPort: 3310
+            resources:
+              requests:
+                memory: 4Gi
+          imagePullSecrets:
+            - name: ${PROXY_IMAGE_PULL_SECRET_NAME}
+          restartPolicy: Always
+    status: {}

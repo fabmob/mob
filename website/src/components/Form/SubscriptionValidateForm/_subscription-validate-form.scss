@@ -1,0 +1,19 @@
+.mcm-subscription-validate__form {
+    .checkbox-radio {
+        margin-top: var(--spacing-s);
+        margin-bottom: var(--spacing-s);
+    }
+    .comments {
+        margin-top: var(--spacing-s);
+        margin-bottom: var(--spacing-s);
+        
+        .field__text {
+            width: 100% !important;
+            border-radius: 2px;
+            height: 200px;
+            padding: 18px;
+            font-weight: normal;
+        }
+    }
+
+}

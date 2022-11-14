@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault
+spec:
+  template:
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+      - name: vault
+        volumeMounts:
+        - name: vault-cert-config
+          mountPath: /etc/ssl/certs/vault-cert.pem
+          subPath: vault-cert.pem
+        - name: vault-key-config
+          mountPath: /etc/ssl/certs/vault-key.pem
+          subPath: vault-key.pem
+        - name: vault-ca-config
+          mountPath: /etc/ssl/certs/vault-ca.pem
+          subPath: vault-ca.pem
+      volumes:
+        - name: vault-cert-config
+          configMap:
+            name: vault-cert-configmap
+        - name: vault-key-config
+          configMap:
+            name: vault-key-configmap
+        - name: vault-ca-config
+          configMap:
+            name: vault-ca-configmap

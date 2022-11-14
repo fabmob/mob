@@ -1,0 +1,50 @@
+{
+  "invoices": [
+    {
+      "enterprise": {
+        "enterpriseName": "IDFM",
+        "sirenNumber": "362521879",
+        "siretNumber": "36252187900034",
+        "apeCode": "4711D",
+        "enterpriseAddress": {
+          "zipCode": 75018,
+          "city": "Paris",
+          "street": "6 rue Lepic"
+        }
+      },
+      "customer": {
+        "customerId": "123789",
+        "customerName": "Toto",
+        "customerSurname": "Samy",
+        "customerAddress": {
+          "zipCode": 75018,
+          "city": "Paris",
+          "street": "15 rue Veron"
+        }
+      },
+      "transaction": {
+        "orderId": "30723",
+        "purchaseDate": "2021-03-03T14:54:18+01:00",
+        "amountInclTaxes": 7520,
+        "amountExclTaxes": 7520
+      },
+      "products": [
+        {
+          "productName": "Forfait Navigo Mois",
+          "quantity": 1,
+          "amountInclTaxes": 7520,
+          "amountExclTaxes": 7520,
+          "percentTaxes": 10,
+          "productDetails": {
+            "periodicity": "Mensuel",
+            "zoneMin": 1,
+            "zoneMax": 5,
+            "validityStart": "2021-03-01T00:00:00+01:00",
+            "validityEnd": "2021-03-31T00:00:00+01:00"
+          }
+        }
+      ]
+    }
+  ],
+  "totalElements": 1
+}

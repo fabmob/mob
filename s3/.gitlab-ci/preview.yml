@@ -1,0 +1,33 @@
+.s3_remove_mc_service: &s3_remove_mc_service |
+  # After_script do not have access to function declared in script or before_script, that's why we do not use them here
+  # https://docs.gitlab.com/ee/ci/variables/where_variables_can_be_used.html#execution-shell-environment
+
+  kubectl wait --for=condition=ContainersReady pod $(kubectl get pods -A | grep -- -${BRANCH_NAME}- | grep -w s3 | awk '{ print $2 }') --timeout=-1s
+  while [[ $(kubectl get pods -A | grep -- -${BRANCH_NAME}- | grep s3mc | grep  Completed  | awk '{ print $1 }') == "" ]]
+  do
+    echo "Wait the end of s3mc script"
+    sleep 5
+  done
+  kubectl delete -n $(kubectl get pods -A | grep ${BRANCH_NAME} | grep -w s3mc | awk '{ print $1 }') pods $(kubectl get pods -A | grep ${BRANCH_NAME} | grep -w s3mc | awk '{ print $2 }')
+
+s3_preview_deploy:
+  extends:
+    - .preview-deploy-job
+    - .s3-base
+    - .no-needs
+    - .only-master
+    - .manual
+  script:
+    - |
+      deploy
+      config_volume s3-claim
+  after_script:
+    - *s3_remove_mc_service
+  environment:
+    on_stop: s3_preview_cleanup
+
+s3_preview_cleanup:
+  extends:
+    - .commons_preview_cleanup
+    - .s3-base
+    - .only-master

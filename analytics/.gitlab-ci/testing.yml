@@ -1,0 +1,4 @@
+analytics_testing_deploy:
+  extends:
+    - .testing-deploy-job
+    - .analytics-base

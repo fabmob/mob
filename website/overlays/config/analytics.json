@@ -1,0 +1,3 @@
+{
+  "url": "https://${MATOMO_FQDN}"
+}

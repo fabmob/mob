@@ -1,0 +1,18 @@
+commonAnnotations:
+  app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+  app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+  kubernetes.io/ingress.class: traefik
+
+resources:
+  - bus-ingressroute.yml
+  # - bus-certificate.yml
+patchesStrategicMerge:
+  - bus_configmap_volumes.yml
+
+configMapGenerator:
+  - name: bus-custom-conf
+    files:
+      - config/custom-dev.conf
+  - name: bus-custom-definition
+    files:
+      - definition.json

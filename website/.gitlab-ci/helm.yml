@@ -1,0 +1,4 @@
+website_image_push:
+  extends:
+    - .helm-push-image-job
+    - .website-base

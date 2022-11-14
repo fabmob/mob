@@ -1,0 +1,4 @@
+s3_testing_deploy:
+  extends:
+    - .testing-deploy-job
+    - .s3-base

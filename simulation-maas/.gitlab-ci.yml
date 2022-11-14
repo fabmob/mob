@@ -1,0 +1,41 @@
+include:
+  - local: "simulation-maas/.gitlab-ci/preview.yml"
+    rules:
+      - if: $CI_COMMIT_BRANCH !~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger" && $CI_PIPELINE_SOURCE != "schedule"
+  - local: "simulation-maas/.gitlab-ci/testing.yml"
+    rules:
+      - if: $CI_COMMIT_BRANCH =~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger"
+  - local: "simulation-maas/.gitlab-ci/helm.yml"
+    rules:
+      - if: $CI_PIPELINE_SOURCE == "trigger"
+
+.simulation-maas-base:
+  variables:
+    MODULE_NAME: simulation-maas
+    MODULE_PATH: ${MODULE_NAME}
+    COMMON_NAME: common
+    NEXUS_IMAGE_NGINX: ${NEXUS_DOCKER_REPOSITORY_URL}/nginx:1.21
+    SIMULATION_MAAS_IMAGE_NAME: ${REGISTRY_BASE_NAME}/simulation-maas:${IMAGE_TAG_NAME}
+  only:
+    changes:
+      - "*"
+      - "commons/**/*"
+      - "simulation-maas/**/*"
+
+.simulation_maas_build_script: &simulation_maas_build_script |
+  sed -i "s/%IDP_FQDN%/${IDP_FQDN}/g" .env.production
+  sed -i "s/%API_FQDN%/${API_FQDN}/g" .env.production
+  npm install
+  npm version ${PACKAGE_VERSION}
+  npm run build
+
+simulation_maas_build:
+  extends:
+    - .build-job
+    - .simulation-maas-base
+  script:
+    - *simulation_maas_build_script
+  artifacts:
+    paths:
+      - ${MODULE_PATH}/build/
+    expire_in: 5 days

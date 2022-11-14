@@ -1,0 +1,14 @@
+ARG BASE_IMAGE_NGINX
+FROM ${BASE_IMAGE_NGINX}
+
+COPY /webserver-docker-context/* /
+COPY /webserver-docker-context/etc/nginx/conf.d/default.conf /etc/nginx/conf.d/default.conf
+
+RUN apt-get install -y gettext-base
+
+COPY /webserver-docker-context/start-nginx.sh /usr/bin/start-nginx.sh
+RUN chmod +x /usr/bin/start-nginx.sh
+
+COPY public/ /usr/share/nginx/html/
+
+ENTRYPOINT [ "start-nginx.sh" ]

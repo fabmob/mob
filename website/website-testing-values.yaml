@@ -1,0 +1,175 @@
+configMaps:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kubernetes.io/ingress.class: traefik
+      name: website-keycloak-config
+    data:
+      keycloak.json: 'website/keycloak.json'
+
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kubernetes.io/ingress.class: traefik
+      name: website-matomo-config
+    data:
+      analytics.json: 'website/analytics.json'
+
+services:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kompose.image-pull-secret: ${GITLAB_IMAGE_PULL_SECRET_NAME}
+        kompose.service.type: clusterip
+        kubernetes.io/ingress.class: traefik
+      creationTimestamp: null
+      labels:
+        io.kompose.service: website
+      name: website
+    spec:
+      ports:
+        - name: '80'
+          port: 80
+          targetPort: 80
+      selector:
+        io.kompose.service: website
+      type: ClusterIP
+    status:
+      loadBalancer: {}
+
+deployments:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kompose.image-pull-secret: ${GITLAB_IMAGE_PULL_SECRET_NAME}
+        kompose.service.type: clusterip
+        kubernetes.io/ingress.class: traefik
+      labels:
+        io.kompose.service: website
+      name: website
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          io.kompose.service: website
+      strategy: {}
+      template:
+        metadata:
+          annotations:
+            app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+            app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+            kompose.image-pull-secret: ${GITLAB_IMAGE_PULL_SECRET_NAME}
+            kompose.service.type: clusterip
+            kubernetes.io/ingress.class: traefik
+          labels:
+            io.kompose.network/storage-nw: 'true'
+            io.kompose.network/web-nw: 'true'
+            io.kompose.service: website
+        spec:
+          containers:
+            env:
+              IDP_FQDN: ${IDP_FQDN}
+              MATOMO_FQDN: ${MATOMO_FQDN}
+              MATOMO_ID: ${ANALYTICS_MCM_WEBSITE_ID}
+              API_KEY: ${TESTING_API_KEY}
+              LANDSCAPE: ${LANDSCAPE}
+            image: ${WEBSITE_IMAGE_NAME}
+            name: website
+            ports:
+              - containerPort: 80
+            resources: {}
+            volumeMounts:
+              - mountPath: /usr/share/nginx/html/keycloak.json
+                name: keycloak-config
+                subPath: keycloak.json
+              - mountPath: /usr/share/nginx/html/analytics.json
+                name: matomo-config
+                subPath: analytics.json
+          imagePullSecrets:
+            - name: ${GITLAB_IMAGE_PULL_SECRET_NAME}
+          restartPolicy: Always
+          securityContext:
+            fsGroup: 1000
+          volumes:
+            - configMap:
+                name: website-keycloak-config
+              name: keycloak-config
+            - configMap:
+                name: website-matomo-config
+              name: matomo-config
+    status: {}
+
+networkPolicies:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kubernetes.io/ingress.class: traefik
+      creationTimestamp: null
+      name: storage-nw
+    spec:
+      ingress:
+        - from:
+            - podSelector:
+                matchLabels:
+                  io.kompose.network/storage-nw: 'true'
+      podSelector:
+        matchLabels:
+          io.kompose.network/storage-nw: 'true'
+
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kubernetes.io/ingress.class: traefik
+      name: web-nw
+    spec:
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  com.capgemini.mcm.ingress: 'true'
+      podSelector:
+        matchLabels:
+          io.kompose.network/web-nw: 'true'
+
+ingressRoutes:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kubernetes.io/ingress.class: traefik
+      name: website
+    spec:
+      entryPoints:
+        - web
+      routes:
+        - kind: Rule
+          match: Host(`${WEBSITE_FQDN}`)
+          services:
+            - name: website
+              port: 80
+        - kind: Rule
+          match: Host(`${WEBSITE_FQDN}`) && PathPrefix(`/api/`)
+          middlewares:
+            - name: stripprefix
+          services:
+            - name: api
+              namespace: api-testing
+              port: 3000
+
+middlewares:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kubernetes.io/ingress.class: traefik
+      name: stripprefix
+    spec:
+      stripPrefix:
+        prefixes:
+          - /api

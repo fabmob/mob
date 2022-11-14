@@ -1,0 +1,12 @@
+mailhog_preview_deploy:
+  extends:
+    - .preview-deploy-job
+    - .mailhog-base
+  needs: ["commons-kubetools-image"]
+  environment:
+    on_stop: mailhog_preview_cleanup
+
+mailhog_preview_cleanup:
+  extends:
+    - .commons_preview_cleanup
+    - .mailhog-base

@@ -1,0 +1,16 @@
+include:
+  - local: "vault/.gitlab-ci/preview.yml"
+    rules:
+      - if: $CI_COMMIT_BRANCH !~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger" && $CI_PIPELINE_SOURCE != "schedule"
+      
+.vault-base:
+  variables:
+    MODULE_NAME: vault
+    MODULE_PATH: ${MODULE_NAME}
+    BASE_IMAGE_VAULT: ${NEXUS_DOCKER_REPOSITORY_URL}/vault:1.11.3
+    VAULT_IMAGE_NAME: ${REGISTRY_BASE_NAME}/${MODULE_NAME}:${IMAGE_TAG_NAME}
+  only:
+    changes:
+      - "*"
+      - "commons/**/*"
+      - "vault/**/*"

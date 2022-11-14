@@ -1,0 +1,29 @@
+<%- include('css/style'); %> <%- include('commons/header'); %>
+
+<table style="margin-bottom: 40px;max-width: 640px;width: 640px;">
+  <tr>
+    <td>
+      <p>Bonjour <%= username %>,</p>
+      <p>
+        Félicitations, votre demande d'affiliation à <%= enterpriseName %> vient d'être
+        acceptée !
+      </p>
+      <p>
+        Votre catalogue d'aides s'enrichit : vous pouvez désormais bénéficier des aides de
+        votre employeur.
+      </p>
+      <p>
+        Connectez-vous sur Mon Compte Mobilité pour en bénéficier.
+      </p>
+      <div class="btn">
+        <%- include('commons/button', {link: websiteLink, text: 'Je me connecte'}) %>
+      </div>
+      <div>
+        <p>Merci pour votre confiance,</p>
+        <p>L’équipe Mon Compte Mobilité</p>
+      </div>
+    </td>
+  </tr>
+</table>
+
+<%- include('commons/footer'); %>

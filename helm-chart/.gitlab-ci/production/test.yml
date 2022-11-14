@@ -1,0 +1,12 @@
+.smoke-test-production-base:
+  variables:
+    CYPRESS_ADMIN_FQDN: admin.${BASE_DOMAIN}
+    CYPRESS_IDP_FQDN: idp.${BASE_DOMAIN}
+    CYPRESS_WEBSITE_FQDN: ${BASE_DOMAIN}
+    CYPRESS_API_FQDN: api.${BASE_DOMAIN}
+
+# --- Launch smoke tests ---
+smoke_tests_production:
+  extends:
+    - .smoke-test-production-base
+    - .helm-test-production-job

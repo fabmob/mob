@@ -1,0 +1,167 @@
+.mcm-mon-dashboard {
+    .mcm-section {
+        border: 1px solid var(--color-grey-light);
+        border-radius: 8px;
+        padding: var(--spacing-s);
+        margin-top: var(--spacing-xs);
+        margin-bottom: var(--spacing-xs);
+
+        .mcm-section-header {
+            margin-bottom: var(--spacing-xs);
+        }
+    }
+}
+
+.filter-container {
+  display: flex;
+  margin-left: auto;
+  flex-direction: row;
+  justify-content: flex-end;
+  width: 100% !important;
+  padding-left: 20px;
+  
+  .mcm-filters__dropdown {
+    width: 250px;
+    max-width: 250px;
+
+    .field {
+        width: auto;
+      .field__label {
+        font-weight: 400;
+        font-size: 14px;
+        line-height: 18px;
+      }
+    }
+    .field__select {
+      margin-top: var(--spacing-xxs);
+      width: 100%;
+  
+      .field__label {
+        font-weight: 400;
+        font-size: 14px;
+        line-height: 18px;
+        &:first-letter {
+          text-transform: capitalize;
+        }
+      }
+    }
+  
+    .field--error {
+      margin-top: unset;
+    }
+  }
+
+  .mcm-filters__dropdown:not(:last-child){
+    margin-right: 20px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .filter-container  {
+    justify-content: space-between;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100% !important;
+
+    .mcm-filters__dropdown {
+      width: 100%;
+      max-width: none;
+    }
+  }
+}
+
+.citizen-subscription-card {
+    margin: 25px auto;
+    width: 100% !important;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-items: stretch;
+    flex-grow: 1.0;
+    border-radius: 8px;
+    background-color: #ffffff;
+    padding: 30px;
+
+    .img-container {
+        display: flex;
+        align-items: center;
+        .mini {
+            width: 45px !important;
+            margin-right: 8px;
+        }
+    }
+
+    .card-content {
+        padding-left: 10px;
+        min-width: calc(100% - 50px);
+        > h3 {
+            font-weight: 900;
+            margin-top: 7px;
+        }
+    }
+
+    .middle-section {
+        display: flex;
+        flex-direction: row;
+        align-items: stretch;
+        justify-content: flex-start;
+        min-width: 100%;
+        margin-left: 53px;
+        > * {
+            min-width: 33%;
+            margin: 5px 5px 0 0;
+        }
+        > p.funder {
+            font-size: 16px;
+        }
+        .renew-button {
+            font-weight: 900;
+            font-size: 16px;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+    }
+
+    .status-container {
+        display: flex;
+        >.status-icon {
+            margin-right: 5px;
+            .mcm-image.mini {
+                width: 20px;
+            }
+        }
+        >.status-body {
+            width: 100%;
+            > .status-title {
+                font-weight: bolder;
+                margin-bottom: 5px;
+            }
+            > .status-description {
+                font-size: 14px;
+            }
+        }
+    }
+
+    @media screen and (max-width: 768px) {
+        .img-container .mini {
+            display: none;
+        }
+        .middle-section {
+            flex-direction: column;
+            margin-left: unset;
+            .renew-button {
+                margin-bottom: var(--spacing-xs);
+            }
+        }
+    }
+}
+
+.load-more-items {
+    width: 100% !important;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: center;
+}

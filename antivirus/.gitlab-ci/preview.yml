@@ -1,0 +1,13 @@
+antivirus_preview_deploy:
+  extends:
+    - .preview-deploy-job
+    - .antivirus-base
+    - .only-master
+  environment:
+    on_stop: antivirus_preview_cleanup
+
+antivirus_preview_cleanup:
+  extends:
+    - .commons_preview_cleanup
+    - .antivirus-base
+    - .only-master

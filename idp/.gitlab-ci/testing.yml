@@ -1,0 +1,10 @@
+idp_testing_image_build:
+  extends:
+    - .testing-image-job
+    - .idp-base
+
+idp_testing_deploy:
+  extends:
+    - .testing-deploy-job
+    - .idp-base
+  needs: ["idp_testing_image_build"]

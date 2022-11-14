@@ -1,0 +1,313 @@
+.testing-fqdn:
+  variables:
+      ADMIN_FQDN: admin.${LANDSCAPE}.${BASE_DOMAIN}
+      API_FQDN: api.${LANDSCAPE}.${BASE_DOMAIN}
+      ADMIN_BUS_FQDN: admin-bus.${LANDSCAPE}.${BASE_DOMAIN}
+      S3_FQDN: s3.${LANDSCAPE}.${BASE_DOMAIN}
+      IDP_FQDN: idp.${LANDSCAPE}.${BASE_DOMAIN}
+      MATOMO_FQDN: analytics.${LANDSCAPE}.${BASE_DOMAIN}
+      VAULT_FQDN: vault.${LANDSCAPE}.${BASE_DOMAIN}
+      WEBSITE_FQDN: website.${LANDSCAPE}.${BASE_DOMAIN}
+      SIMULATION_MAAS_FQDN: simulation-maas.${LANDSCAPE}.${BASE_DOMAIN}
+      MAILHOG_FQDN: mailhog.${LANDSCAPE}.${BASE_DOMAIN}
+      
+.testing-env-vars:
+  variables:
+    LANDSCAPE: "testing"
+    landscape_subdomain: "testing.${BASE_DOMAIN}"
+    SECRET_NAME: ${MODULE_NAME}-tls
+    CLUSTER_ISSUER: clusterissuer-mcm-dev
+
+  extends:
+    - .testing-fqdn
+
+#### TAGS ####
+.testing-deploy-tags:
+  tags:
+    - os:linux
+    - platform:testing
+    - task:deploy
+
+#### IMAGE JOB ####
+.testing-image-job:
+  extends:
+    - .testing-env-vars
+    - .image-job
+
+#### PREPARE ####
+.version_update: &version_update |
+  echo "### FORMAT RELEASE NAME (ex: rc-v1-0-0 => 1.0.0) ###"
+  FIRST_FORMAT=${CI_COMMIT_BRANCH:4}
+  export PACKAGE_VERSION_NEW=${FIRST_FORMAT//-/.}
+  echo "### CHANGE PACKAGE VERSION VARIABLES ###"
+
+  curl --request PUT -H "PRIVATE-TOKEN: ${MCM_GITLAB_TOKEN}" \
+  "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/variables/PACKAGE_VERSION_SAVE" --form "value=${PACKAGE_VERSION}"
+
+  curl --request PUT -H "PRIVATE-TOKEN: ${MCM_GITLAB_TOKEN}" \
+  "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/variables/PACKAGE_VERSION" --form "value=${PACKAGE_VERSION_NEW}"
+
+# UPDATE PACKAGE VERSION WITH CI COMMIT BRANCH
+update_version:
+  stage: prepare
+  image: ${KUBETOOLS_IMAGE_TAGNAME}
+  extends:
+    - .commons
+    - .test-job-tags
+    - .testing-env-vars
+  script:
+    - *version_update
+  needs: ['commons-kubetools-image']
+
+.configure_script: &configure_script |
+  # Create config folder
+  [[ ! -d configs ]] && mkdir configs
+ 
+  # Copy files to configure
+  cp idp/overlays/realms/mcm-realm.json configs/master-realm-${CI_COMMIT_BRANCH}-${LANDSCAPE}.json
+  cp idp/overlays/realms/mcm-realm.json configs/mcm-realm-${CI_COMMIT_BRANCH}-${LANDSCAPE}.json
+  cp bus/overlays/definition.json configs/definition-${CI_COMMIT_BRANCH}-${LANDSCAPE}.json
+
+  # Define variables
+
+  IDP_API_CLIENT_SECRET=${TESTING_IDP_API_CLIENT_SECRET}
+
+  # idp
+  IDP_SIMULATION_MAAS_CLIENT_SECRET=${TESTING_IDP_SIMULATION_MAAS_CLIENT_SECRET}
+  export MAIL_HOST=mailhog.mailhog-${LANDSCAPE}.svc.cluster.local
+  export EMAIL_FROM_KC=${MAILHOG_EMAIL_FROM_KC}
+  export MAIL_PORT=1025
+  export SMTP_AUTH=false
+
+  # rabbitmq
+  BUS_ADMIN_USER=${TESTING_BUS_ADMIN_USER}
+  BUS_ADMIN_PASSWORD=${TESTING_BUS_ADMIN_PASSWORD}
+  BUS_MCM_CONSUME_USER=${TESTING_BUS_MCM_CONSUME_USER}
+  BUS_MCM_CONSUME_PASSWORD=${TESTING_BUS_MCM_CONSUME_PASSWORD}
+
+  for FILE in configs/*-${CI_COMMIT_BRANCH}-${LANDSCAPE}.json
+  do
+    envsubst "$(env | cut -d= -f1 | sed -e 's/^/$/')" < $FILE > $FILE.tmp && mv $FILE.tmp $FILE
+  done
+  
+
+# CONFIGURE FILES TO INIT TESTING ENV
+configure_testing:
+  stage: prepare
+  extends:
+    - .commons
+    - .test-job-tags
+    - .testing-env-vars
+    - .manual
+  image: ${KUBETOOLS_IMAGE_TAGNAME}
+  script:
+    - *configure_script
+  needs: ['commons-kubetools-image']
+  artifacts:
+    expire_in: 3 days
+    when: always
+    paths:
+      - configs/*-${CI_COMMIT_BRANCH}-${LANDSCAPE}.json
+
+#### DEPLOY ####
+.declare-deployment-testing-functions: &declare-deployment-testing-functions |
+  function deploy_testing {
+
+    echo "Deploying ${MODULE_NAME} for ${CI_ENVIRONMENT_NAME}, subdomain ${LANDSCAPE}..."
+
+    export GITLAB_IMAGE_PULL_SECRET_NAME=${IMAGE_PULL_SECRET_PREFIX}-${MODULE_NAME}
+    export PROXY_IMAGE_PULL_SECRET_NAME=${PROXY_IMAGE_PULL_SECRET_PREFIX}-${MODULE_NAME}
+
+    # CREATE NAMESPACE ENV
+    export TESTING_HELM_DEPLOY_NAMESPACE=${MODULE_NAME}-${LANDSCAPE}
+
+    kubectl create namespace ${TESTING_HELM_DEPLOY_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+
+    kubectl create secret docker-registry ${GITLAB_IMAGE_PULL_SECRET_NAME} --docker-server="$CI_REGISTRY" --docker-username="$CI_DEPLOY_USER" --docker-password="$CI_DEPLOY_PASSWORD" --docker-email="$GITLAB_USER_EMAIL" --namespace=${TESTING_HELM_DEPLOY_NAMESPACE} -o yaml --dry-run=client | kubectl apply -f -
+
+    kubectl create secret docker-registry ${PROXY_IMAGE_PULL_SECRET_NAME} --docker-server="$NEXUS_DOCKER_REGISTRY_URL" --docker-username="$NEXUS_DEV_USER" --docker-password="$NEXUS_DEV_PASSWORD" --docker-email="$GITLAB_USER_EMAIL" --namespace=${TESTING_HELM_DEPLOY_NAMESPACE} -o yaml --dry-run=client | kubectl apply -f -
+    
+    # SUBSTITUTE VARIABLES FOR ALL MODULE_NAME-LANDSCAPE-VALUES FILE
+    VALUE_FILE="${MODULE_PATH}-${LANDSCAPE}-values.yaml"
+    CHART_FILE=Chart.yaml
+    envsubst "$(env | cut -d= -f1 | sed -e 's/^/$/')" < ${VALUE_FILE} > ${VALUE_FILE}.tmp && mv ${VALUE_FILE}.tmp ${VALUE_FILE}
+    envsubst "$(env | cut -d= -f1 | sed -e 's/^/$/')" < ${CHART_FILE} > ${CHART_FILE}.tmp && mv ${CHART_FILE}.tmp ${CHART_FILE}
+
+    # CREATE DEPLOY PACKAGE
+    [[ ! -d deploy ]] && mkdir deploy
+
+    cp -R ../helm-chart/templates deploy/
+    cp Chart.yaml deploy/
+    cp ${VALUE_FILE} deploy/
+
+    # COPY OVERLAYS
+    if [ -d "overlays/config/" ]
+      then
+        # ENVSUBS
+        for FILE in overlays/config/*
+        do
+          envsubst "$(env | cut -d= -f1 | sed -e 's/^/$/')" < $FILE > $FILE.tmp && mv $FILE.tmp $FILE
+        done
+
+        # Copy configMap in helm-chart
+        cp -a overlays/config/. deploy/${MODULE_PATH}
+    fi
+
+    ls -lah deploy/
+
+    # CREATE HELM PACKAGE FROM DEPLOY
+    helm package deploy --version ${PACKAGE_VERSION} 
+
+    ls -lah
+
+    # HELM UPGRADE NEW PACKAGE
+    helm upgrade ${MODULE_PATH} ${MODULE_PATH}-${PACKAGE_VERSION}.tgz --install --version ${PACKAGE_VERSION} -n ${TESTING_HELM_DEPLOY_NAMESPACE} -f ${VALUE_FILE} --debug
+    
+  }
+
+.testing-deploy-job:
+  extends:
+    - .commons
+    - .subdomains
+    - .testing-env-vars
+    - .manual
+    - .no-dependencies
+  stage: deploy-testing
+  image: ${NEXUS_DOCKER_REGISTRY_URL}/dtzar/helm-kubectl
+  before_script:
+    - |
+      cd ${MODULE_PATH}
+    - *declare-deployment-testing-functions
+    - |
+      echo "ENV_URL=https://${MODULE_NAME}.${LANDSCAPE}.${BASE_DOMAIN}" > deployment.env
+  script:
+    - |
+      deploy_testing
+  artifacts:
+    paths:
+      - ${MODULE_PATH:-${MODULE_NAME}}/k8s/${LANDSCAPE}
+    reports:
+      dotenv: ${MODULE_PATH:-${MODULE_NAME}}/deployment.env
+  environment:
+    name: ${CI_COMMIT_REF_SLUG}-${LANDSCAPE}/${MODULE_NAME}
+    url: ${ENV_URL}
+
+
+#### UTILS ####
+.testing_cleanup_mongo: &testing_cleanup_mongo |
+  echo "MONGO CLEANING START"
+  mongosh "mongodb+srv://${TESTING_MONGO_HOST}" --username ${TESTING_MONGO_SERVICE_USER} --password ${TESTING_MONGO_SERVICE_PASSWORD} --tls --eval "db=db.getSiblingDB('${TESTING_MONGO_DB_NAME}'); db.getCollectionNames().forEach(function(c) { if (c.indexOf('system.') == -1) db[c].deleteMany({}); }); quit(0);"
+  echo "MONGO CLEANING STOP"
+
+# GET MONGO ATLAS URL TO DELETE COLLECTION DATA
+mongo_testing_clean_data:
+  stage: utils
+  extends:
+    - .commons
+    - .test-job-tags
+    - .manual
+    - .no-dependencies
+    - .no-needs
+  image: ${KUBETOOLS_IMAGE_TAGNAME}
+  script:
+    - *testing_cleanup_mongo
+
+.testing_cleanup_postgres: &testing_cleanup_postgres |
+  echo "POSTGRES IDP CLEANING START"
+  IDP_NAMESPACE=idp-${LANDSCAPE}
+  IDP_POD_NAME=$(kubectl get pods -o wide -A | grep ${IDP_NAMESPACE} | grep idp | awk '{ print $2 }')
+  echo "INIT CONNECTION"
+  kubectl exec $IDP_POD_NAME -n $IDP_NAMESPACE -c idp -- sh -c \
+  "/opt/jboss/keycloak/bin/kcadm.sh config credentials --server http://localhost:8080/auth --realm master --user ${TESTING_PGSQL_ADMIN_USER} --password ${TESTING_PGSQL_ADMIN_PASSWORD}"
+  echo "---------"
+  echo "GET USERS"
+  USER_LIST_ID=$(kubectl exec $IDP_POD_NAME -n $IDP_NAMESPACE -c idp -- sh -c "/opt/jboss/keycloak/bin/kcadm.sh get users -r mcm --fields id" | jq -r '.[] | .id')
+  echo $USER_LIST_ID
+  if [ -z "$USER_LIST_ID" ]
+  then
+    echo "No user to delete"
+  else
+    echo "---------"
+    echo "DELETE USERS"
+    for i in $USER_LIST_ID
+    do
+      $(kubectl exec $IDP_POD_NAME -n $IDP_NAMESPACE -c idp -- sh -c "/opt/jboss/keycloak/bin/kcadm.sh delete users/$i -r mcm")
+    done
+  fi
+  echo "---------"
+  echo "GET GROUPS"
+  GROUP_LIST_ID=$(kubectl exec $IDP_POD_NAME -n $IDP_NAMESPACE -c idp -- sh -c "/opt/jboss/keycloak/bin/kcadm.sh get groups -r mcm" | jq -r '.[] | select( .name == "entreprises" or .name == "collectivités") | .subGroups | .[] | .id')
+  echo $GROUP_LIST_ID
+  if [ -z "$GROUP_LIST_ID" ]
+  then
+    echo "No group to delete"
+  else
+    echo "---------"
+    echo "DELETE GROUPS"
+    for i in $GROUP_LIST_ID
+    do
+      $(kubectl exec $IDP_POD_NAME -n $IDP_NAMESPACE -c idp -- sh -c "/opt/jboss/keycloak/bin/kcadm.sh delete groups/$i -r mcm")
+    done
+  fi
+  echo "POSTGRES IDP CLEANING STOP"
+
+# GET IDP POD TO EXECUTE KC SCRIPTS
+idp_testing_clean_data:
+  stage: utils
+  extends:
+    - .commons
+    - .test-job-tags
+    - .testing-env-vars
+    - .manual
+    - .no-dependencies
+    - .no-needs
+  image: ${KUBETOOLS_IMAGE_TAGNAME}
+  script:
+    - *testing_cleanup_postgres
+
+.testing_cleanup_s3: &testing_cleanup_s3 |
+  echo "S3 CLEANING START"
+  /bin/sh -c "
+  bash +o history;
+  chmod +x /usr/bin/mc;
+  until (mc alias set s3alias http://s3.s3-${LANDSCAPE}.svc.cluster.local:9000 ${TESTING_S3_ROOT_USER} ${TESTING_S3_ROOT_PASSWORD} --api S3v4) do echo '...waiting...' && sleep 1; done;
+  until (mc admin info s3alias) do echo '...waiting...' && sleep 1; done;
+  mc rb --force --dangerous s3alias;
+  bash -o history;
+  "
+  echo "S3 CLEANING STOP"
+
+
+# GET S3 SVC TO DELETE FILES
+s3_testing_clean_data:
+  stage: utils
+  extends:
+    - .commons
+    - .testing-env-vars
+    - .test-job-tags
+    - .manual
+    - .no-dependencies
+    - .no-needs
+  image: ${NEXUS_DOCKER_REPOSITORY_URL}/minio/mc:RELEASE.2022-04-16T21-11-21Z
+  script:
+    - *testing_cleanup_s3
+
+.version_rollback: &version_rollback |
+  echo "### ROLLBACK AND DELETE FOR PACKAGE VERSION VARIABLES ###"
+
+  curl --request PUT -H "PRIVATE-TOKEN: ${MCM_GITLAB_TOKEN}" \
+  "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/variables/PACKAGE_VERSION" --form "value=${PACKAGE_VERSION_SAVE}"
+
+# ROLLBACK PACKAGE VERSION IN CASE OF FAILURE
+version_rollback:
+  stage: utils
+  when: on_failure
+  image: ${KUBETOOLS_IMAGE_TAGNAME}
+  extends:
+    - .commons
+    - .test-job-tags
+    - .testing-env-vars
+    - .manual
+    - .no-needs
+  script:
+    - *version_rollback

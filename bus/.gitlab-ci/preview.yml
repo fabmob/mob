@@ -1,0 +1,11 @@
+bus_preview_deploy:
+  extends:
+    - .preview-deploy-job
+    - .bus-base
+  environment:
+    on_stop: bus_preview_cleanup
+
+bus_preview_cleanup:
+  extends:
+    - .commons_preview_cleanup
+    - .bus-base

@@ -1,0 +1,37 @@
+.scroll-top-button {
+  position: fixed;
+  pointer-events: none;
+  opacity: 0;
+  height: 68px;
+  width: 68px;
+  bottom: 30px;
+  right: 24px;
+  box-shadow: 0 2px 24px 0 rgba(165, 165, 165, 0.28);
+  background-color: var(--color-white);
+  z-index: 3;
+  border-radius: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.5s opacity;
+
+  svg {
+    fill: var(--color-green-leaf);
+    width: 40px;
+    height: 40px;
+  }
+
+  &:focus {
+    outline: 0;
+  }
+
+  &--is-visible {
+    opacity: 0.5;
+    pointer-events: all;
+    transition: 0.2s opacity;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+}

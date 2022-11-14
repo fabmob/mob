@@ -1,0 +1,56 @@
+version: "3"
+
+services:
+  mariadb:
+    image: ${NEXUS_IMAGE_MARIADB}
+    command: --max_allowed_packet=67108864 # Set max_allowed_packet to 64MB (default value is 16MB and Matomo need of 64MB min for performed)
+    environment:
+      - MYSQL_USER=${ANALYTICS_DB_DEV_USER}
+      - MYSQL_PASSWORD=${ANALYTICS_DB_DEV_PASSWORD}
+      - MYSQL_DATABASE=matomo_db
+      - MYSQL_ROOT_PASSWORD=${ANALYTICS_DB_ROOT_PASSWORD}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    networks:
+      - maria-matomo-nw
+    ports:
+      - "3006:3306"
+    labels:
+      - "kompose.image-pull-secret=${PROXY_IMAGE_PULL_SECRET_NAME}"
+      - "kompose.service.type=clusterip"
+      - "traefik.enable=false"
+      # - "kompose.volume.size=500Mi"
+
+  analytics:
+    image: ${MATOMO_IMAGE_NAME}
+    environment:
+      - MATOMO_USERNAME=${ANALYTICS_SUPER_USER}
+      - MATOMO_PASSWORD=${ANALYTICS_SUPER_PASSWORD}
+      - MATOMO_EMAIL=${ANALYTICS_SUPER_EMAIL}
+      - MATOMO_DATABASE_PORT_NUMBER=3006
+      - MATOMO_DATABASE_HOST=mariadb
+      - MATOMO_DATABASE_USER=${ANALYTICS_DB_DEV_USER}
+      - MATOMO_DATABASE_PASSWORD=${ANALYTICS_DB_DEV_PASSWORD}
+      - MATOMO_DATABASE_NAME=matomo_db
+      - MATOMO_WEBSITE_NAME=${WEBSITE_FQDN}
+      - MATOMO_WEBSITE_HOST=${WEBSITE_FQDN}
+    volumes:
+      - matomo_data:/bitnami/matomo
+    depends_on:
+      - mariadb
+    networks:
+      - maria-matomo-nw
+      - web-nw
+    ports:
+      - "8082:8080"
+    labels:
+      - "kompose.image-pull-secret=${PROXY_IMAGE_PULL_SECRET_NAME}"
+      - "kompose.service.type=clusterip"
+
+volumes:
+  mariadb_data:
+  matomo_data:
+
+networks:
+  web-nw:
+  maria-matomo-nw:

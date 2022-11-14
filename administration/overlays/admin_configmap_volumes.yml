@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin
+spec:
+  template:
+    spec:
+      containers:
+        - name: admin
+          volumeMounts:
+            - name: keycloak-config
+              mountPath: /usr/share/nginx/html/keycloak.json
+              subPath: keycloak.json
+      securityContext:
+        fsGroup: 1000
+      volumes:
+        - name: keycloak-config
+          configMap:
+            name: admin-keycloak-config

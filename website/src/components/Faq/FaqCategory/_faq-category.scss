@@ -1,0 +1,11 @@
+.category-title h2 {
+    font-weight: bold;
+	font-size: 45px;
+}
+
+
+@media screen and (max-width: 1023px) {
+    .category-title h2 {
+        font-size: 32px;
+    }
+}

@@ -1,0 +1,25 @@
+.mcm-employeeName {
+  padding: 14px 40px;
+  width: fit-content;
+  font-size: 32px;
+  background-color: var(--color-white);
+}
+
+.mcm-employeeBlock {
+  margin-top: 40px;
+  .mcm-heading {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .mcm-body {
+    .mcm-employee-no-demande {
+      text-align: center;
+      padding-top: 8px;
+    }
+  }
+
+  .mcm-btn-bloc {
+    text-align: center;
+  }
+}

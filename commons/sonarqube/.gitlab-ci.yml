@@ -1,0 +1,12 @@
+sonarqube-verify-image-build:
+  extends:
+    - .preview-image-job
+    - .only-branches
+  stage: prepare
+  variables:
+    MODULE_NAME: verify
+    MODULE_PATH: commons/sonarqube
+  except:
+    variables:
+      - $SKIP_TEST_N_VERIFY == "yes"
+      - $CLEAN_DATA == "yes"

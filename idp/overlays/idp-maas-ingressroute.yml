@@ -1,0 +1,17 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: idp-maas
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`${IDP_MAAS_FQDN}`)
+      middlewares:
+        - name: idp-headers-middleware
+      kind: Rule
+      services:
+        - name: idp-maas
+          port: 8087

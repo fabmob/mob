@@ -1,0 +1,44 @@
+/** TODO: tous les espacements seront à revoir une fois qu'on aura les accès à Invision en mode inspection. */
+$breakpoint-fluid: 1024px;
+
+.card-line {
+  background-color: white;
+  margin-bottom: 24px;
+  border-radius: 8px;
+}
+
+.card-line__content {
+  padding: 24px 0;
+  margin: 0 24px;
+  border-top: 1px solid var(--color-grey-light);
+
+  &:first-child {
+    border-top: 0;
+  }
+
+  @media screen and (min-width: $breakpoint-fluid) {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start; // rendre configurable avec props
+    flex-wrap: nowrap;
+  }
+}
+
+.card-line__column {
+  margin-top: 24px;
+  @media screen and (min-width: $breakpoint-fluid) {
+    margin: 0 12px;
+
+    &:first-child {
+      margin-left: 0;
+    }
+    &:last-child {
+      margin-right: 0;
+    }
+  }
+  &:first-child {
+    margin-top: 0;
+    overflow: hidden;
+    flex-wrap: wrap;
+  }
+}

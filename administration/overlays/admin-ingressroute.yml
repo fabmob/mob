@@ -1,0 +1,22 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: admin
+spec:
+  entryPoints:
+    - web
+    # - websecure
+  routes:
+    - match: Host(`${ADMIN_FQDN}`)
+      kind: Rule
+      services:
+        - kind: Service
+          name: admin
+          port: 8081
+  # tls:
+  #   secretName: ${SECRET_NAME} # admin-tls # cert-dev
+  #   domains:
+  #     - main: ${BASE_DOMAIN}
+  #       sans:
+  #         - '*.preview.${BASE_DOMAIN}'
+  #         - '*.testing.${BASE_DOMAIN}'

@@ -1,0 +1,5 @@
+
+idp_image_push:
+  extends:
+    - .helm-push-image-job
+    - .idp-base

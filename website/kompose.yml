@@ -1,0 +1,40 @@
+version: '3'
+
+services:
+  website:
+    image: ${WEBSITE_IMAGE_NAME}
+    build:
+      context: .
+      dockerfile: ./website-dockerfile.yml
+      args:
+        BASE_IMAGE_NGINX: ${NEXUS_IMAGE_NGINX}
+        CI_PROJECT_ID: ${CI_PROJECT_ID}
+        MCM_GITLAB_DEPLOY_NPM_TOKEN: ${GITLAB_REGISTRY_NPM_TOKEN}
+        NEXUS_NPM_PROXY_TOKEN: ${NEXUS_NPM_PROXY_TOKEN}
+        MCM_CMS_ACCESS_ROLE: ${MCM_CMS_ACCESS_ROLE}
+        MATOMO_FQDN: ${MATOMO_FQDN}
+        MATOMO_ID: ${MATOMO_ID}
+        PATH_API: ${PATH_API}
+    environment:
+      - GITLAB_PROJECT_PATH
+      - GITLAB_BRANCH
+      - IDP_FQDN
+      - IDP_MCM_REALM
+      - IDP_MCM_WEBSITE_CLIENT_ID
+      - MATOMO_FQDN
+      - MATOMO_ID="${MATOMO_ID}"
+      - API_KEY
+      - LANDSCAPE
+      - NETLIFYCMS_APP_ID
+    networks:
+      - web-nw
+      - storage-nw
+    ports:
+      - '80'
+    labels:
+      - 'kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}'
+      - 'kompose.service.type=clusterip'
+
+networks:
+  web-nw:
+  storage-nw:

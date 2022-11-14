@@ -1,0 +1,64 @@
+.mcm-request {
+  margin-bottom: 60px;
+  .mcm-demande__button-section {
+    margin-top: 32px;
+  }
+  @media screen and (min-width: 768px) {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-gap: 0 24px;
+    margin-bottom: 120px;
+  }
+  &__main {
+    margin-bottom: 48px;
+    @media screen and (min-width: 768px) {
+      grid-column: 1 / span 7;
+      margin-bottom: 0;
+    }
+  }
+  &__sidebar {
+    @media screen and (min-width: 768px) {
+      grid-column: 9 / span 4;
+    }
+  }
+
+  @media screen and (min-width: 1024px) {
+    .mcm-demande__button-section {
+      display: flex;
+      justify-content: space-between;
+    }
+  }
+
+  @media screen and (max-width: 1023px) {
+    .mcm-demande__button-section button {
+      width: 100%;
+      margin-top: var(--spacing-xs);
+      margin-bottom: var(--spacing-xs);
+    }
+  }
+
+  .field {
+    margin-top: var(--spacing-s);
+    .field__text,
+    .field__select {
+      width: 40%;
+    }
+    .field__select {
+      margin-top: 0px;
+    }
+  }
+
+  span.field__error {
+    display: flex;
+  }
+
+  @media screen and (max-width: 1023px) {
+    .field .field__text,
+    .field .field__select {
+      width: 100%;
+    }
+    span.field__error {
+      display: inline-grid;
+    }
+  }
+}

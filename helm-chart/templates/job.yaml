@@ -1,0 +1,43 @@
+{{- range .Values.jobs }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .metadata.name }}-job
+  labels:
+  {{- with .metadata.labels }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+  annotations:
+  {{- with .metadata.annotations }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+    # This is what defines this resource as a hook. Without this line, the
+    # job is considered part of the release.
+    "helm.sh/hook": post-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  template:
+    metadata:
+      name: {{ .metadata.name }}-job
+      labels:
+      {{- with .metadata.labels }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: {{ .metadata.name }}-job
+        image: {{ .spec.template.spec.containers.image }}
+        {{ if (.spec.template.spec.containers.command) }}
+        command:
+        {{- range $k, $v := .spec.template.spec.containers.command }}
+        - {{ $v | quote -}}
+        {{ end }}
+        {{- end }}
+      imagePullSecrets:
+      {{- with .spec.template.spec.imagePullSecrets }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

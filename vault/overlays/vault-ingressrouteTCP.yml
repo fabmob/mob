@@ -1,0 +1,25 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRouteTCP
+metadata:
+  labels:
+    app: external
+  name: external-traefik-ingressroutetcp-vault
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+  - match: HostSNI(`${VAULT_FQDN}`)
+    priority: 50
+    services:
+    - name: vault
+      port: 8200
+      terminationDelay: 400
+
+  tls:
+    options:
+      name: default
+      namespace: default
+    secretName: cert-dev
+    passthrough: true

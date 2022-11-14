@@ -1,0 +1,29 @@
+.note-required-field {
+  color: var(--color-grey-dark);
+  font-size: small;
+  padding-left: var(--spacing-xs);
+}
+.lastName-input-container {
+  grid-column: 1;
+}
+
+@media screen and (max-width: 1024px) {
+  .signup-form {
+    .form__fields {
+      .checkbox-radio {
+        margin-top: 0;
+        margin-bottom: 16px;
+      }
+    }
+  }
+}
+
+@media screen and (max-width: 1024px) {
+  .reverse-order {
+    display: flex;
+    flex-direction: column-reverse;
+  }
+  .margin-button {
+    margin-top: var(--spacing-xs);
+  }
+}

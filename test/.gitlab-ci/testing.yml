@@ -1,0 +1,47 @@
+smoke_tests_testing:
+  extends:
+    - .test-base
+    - .testing-env-vars
+    - .manual
+    - .no-dependencies
+  image: ${CYPRESS_IMAGE_NAME}
+  stage: smoke-test
+  script:
+    - !reference [.cypress_env_setup, script]
+    - !reference [.smoke_tests_script, script]
+  artifacts:
+    when: always
+    paths:
+      - ${MODULE_PATH}/cypress-smoke-tests.log
+    expire_in: 5 days
+
+integration_tests_testing:
+  extends:
+    - .commons
+    - .test-base
+    - .testing-env-vars
+    - .manual
+    - .no-dependencies
+  image: ${POSTMAN_IMAGE_NAME}
+  stage: integration-test
+  script:
+    - !reference [.replace_variables, script]
+    - !reference [.integration_tests_script, script]
+  needs: ['smoke_tests_testing']
+  artifacts:
+    expire_in: 5 days
+    when: always
+    paths:
+      - ${MODULE_PATH}/api-tests/integration-tests-report.html
+
+
+functional_tests_testing:
+  extends:
+    - .test-base
+    - .testing-env-vars
+    - .manual
+  stage: functional-test
+  trigger:
+    include: ${MODULE_PATH}/cypress/integration/functional-tests/.gitlab-ci.yml
+    strategy: depend
+  needs: ['integration_tests_testing']

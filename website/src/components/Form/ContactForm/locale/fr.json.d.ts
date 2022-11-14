@@ -1,0 +1,31 @@
+interface Fr {
+  'contact.error.required': string;
+  'contact.error.email.format': string;
+  'contact.error.firstName.minLength': string;
+  'contact.error.lastName.minLength': string;
+  'contact.error.postcode.length': string;
+  'contact.error.postcode.type': string;
+  'contact.error.tos.false': string;
+  'contact.error.invalid.field': string;
+  'success.message': string;
+  'you.are': string;
+  'a.citizen': string;
+  'an.employer': string;
+  'a.community': string;
+  'mobility.operator': string;
+  'lastName.label': string;
+  'firstName.label': string;
+  'email.label': string;
+  'postal.code.label': string;
+  'your.message': string;
+  'message.subject': string;
+  'send.button': string;
+  'required.fields': string;
+  'acknowledge.check': string;
+  'terms.of.service': string;
+  'of.site': string;
+  'personal.data.charter': string;
+  'and.accepte': string;
+}
+declare const value: Fr;
+export = value;

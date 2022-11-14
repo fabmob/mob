@@ -1,0 +1,37 @@
+.total-citizens {
+  margin-bottom: var(--spacing-m);
+  margin-top: var(--spacing-xs);
+  font-size: 24px;
+}
+
+.citizens-card {
+  display: flex;
+
+  &__name {
+    flex: 1 0 13%;
+    width: 100%;
+    justify-content: space-between;
+    font-size: 20px;
+    line-height: 28px;
+    margin-bottom: var(--spacing-xxs);
+  }
+
+  &__error-icon {
+    display: flex;
+    align-items: center;
+
+    span {
+      margin-left: var(--spacing-xxs);
+    }
+  }
+}
+
+.load-more-btn {
+  display: flex;
+  justify-content: center;
+}
+
+.mcm-employee-no-demande {
+  text-align: center;
+  font-size: 24px;
+}
