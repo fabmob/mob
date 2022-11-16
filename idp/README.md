@@ -20,7 +20,7 @@ Un template MCM a aussi été créé.
 ```sh
 docker run -d --name postgres-mcm -p 5432:5432 -e POSTGRES_ROOT_PASSWORD=${ROOT_PASSWORD} -e POSTGRES_DB=idp_db -e POSTGRES_USER=${DB_USER} -e POSTGRES_PASSWORD=${DB_PASSWORD} -d postgres:13.6
 # Exectuer une commande pour modifier le schema public
-docker exec -it postgres-mcm psql -U admin -a idp_db -c 'ALTER SCHEMA public RENAME TO idp_db;'
+docker exec -it postgres-mcm psql -U ${DB_USER} -a idp_db -c 'ALTER SCHEMA public RENAME TO idp_db;'
 ```
 
 ## Keycloak
