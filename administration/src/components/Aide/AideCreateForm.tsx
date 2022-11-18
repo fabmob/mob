@@ -121,13 +121,11 @@ const AideCreateForm = (save, record) => {
                   validate={[required()]}
                   choices={FUNDER_CHOICE}
                   optionText={(choice) =>
-                    choice ? 
-                    (choice.label ? choice.label : choice.name ) :
-                    null
+                    choice ? (choice.label ? choice.label : choice.name) : null
                   }
                   optionValue="name"
                   translateChoice={false}
-                  />
+                />
                 <TextInput
                   source="conditions"
                   label="Condition d'obtention"
@@ -214,16 +212,19 @@ const AideCreateForm = (save, record) => {
                   label="Mon Compte Mobilité"
                 />
               </Box>
-              {!isMobilityChecked ? (
-                <Box maxWidth={700}>
-                  <TextInput
-                    source="subscriptionLink"
-                    label="Site de souscription"
-                    fullWidth
-                    validate={[required(), validateUrl]}
-                  />
-                </Box>
-              ) : (
+              <Box maxWidth={700}>
+                <TextInput
+                  source="subscriptionLink"
+                  label="Site de souscription"
+                  fullWidth
+                  validate={
+                    isMobilityChecked
+                      ? [validateUrl]
+                      : [required(), validateUrl]
+                  }
+                />
+              </Box>
+              {isMobilityChecked && (
                 <Box
                   mt={2}
                   display="flex"

@@ -210,17 +210,19 @@ const AideEditForm = (props: EditProps) => {
                       checked={isMobilityChecked}
                       onChange={handleShowMobilityInputs}
                     />
-
-                    {!isMobilityChecked ? (
-                      <Box maxWidth={700}>
-                        <TextInput
-                          source="subscriptionLink"
-                          label="Site de souscription"
-                          fullWidth
-                          validate={[required(), validateUrl]}
-                        />
-                      </Box>
-                    ) : (
+                    <Box maxWidth={700}>
+                      <TextInput
+                        source="subscriptionLink"
+                        label="Site de souscription"
+                        fullWidth
+                        validate={
+                          isMobilityChecked
+                            ? [validateUrl]
+                            : [required(), validateUrl]
+                        }
+                      />
+                    </Box>
+                    {isMobilityChecked && (
                       <Box
                         mt={2}
                         display="flex"

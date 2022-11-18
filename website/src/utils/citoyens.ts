@@ -2,7 +2,9 @@ export interface Citizen {
   id: string;
   firstName: string;
   lastName: string;
-  email: string;
+  personalInformation: {
+    email: CmsType;
+  };
   birthdate: string;
   city: string;
   postcode: number;

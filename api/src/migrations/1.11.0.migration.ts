@@ -10,7 +10,7 @@ import {logger, GENDER, IUser} from '../utils';
 export class MigrationScript111 implements MigrationScript {
   version = '1.11.0';
   scriptName = MigrationScript111.name;
-  description = 'add identity object to citizen';
+  description = 'add identity and personal information object to citizen';
 
   constructor(
     @repository(CitizenRepository)
@@ -24,19 +24,30 @@ export class MigrationScript111 implements MigrationScript {
   async up(): Promise<void> {
     logger.info(`${MigrationScript111.name} - Started`);
 
-    // Update all citizens to add identity object
+    // Update all citizens to add identity and personalnformation object
     const citizens: Array<AnyObject> = await this.citizenMigrationRepository.find({
-      where: {identity: {exists: false}},
+      where: {or: [{identity: {exists: false}}, {personalInformation: {exists: false}}]},
     });
 
+    logger.info(
+      `${MigrationScript111.name} - Citizen ${citizens.length} will be updated`,
+    );
+
     const updateCitizens: Promise<void>[] = citizens.map(async citizen => {
+      const citizenName: string = citizen.lastName ?? citizen.identity?.lastName?.value;
+      let citizenGender = citizen.gender === GENDER.FEMALE ? 2 : 1;
+      if (citizen.gender) {
+        citizenGender = citizen.gender === GENDER.FEMALE ? 2 : 1;
+      } else if (citizen.identity.gender.value) {
+        citizenGender = citizen.identity.gender.value;
+      }
       logger.info(
-        `${MigrationScript111.name} - Citizen ${citizen.lastName} with ID \
-        ${citizen.id} will be updated with identity object`,
+        `${MigrationScript111.name} - Citizen ${citizenName} with ID \
+        ${citizen.id} will be updated with identity and personal information object`,
       );
 
       logger.info(
-        `${MigrationScript111.name} - Citizen ${citizen.lastName} with ID \
+        `${MigrationScript111.name} - Citizen ${citizenName} with ID \
         ${citizen.id} Get User Information for certification source`,
       );
 
@@ -51,22 +62,29 @@ export class MigrationScript111 implements MigrationScript {
         ...citizen,
         identity: {
           gender: {
-            value: citizen.gender === GENDER.FEMALE ? 2 : 1,
+            value: citizenGender,
             source: certificationSource,
             certificationDate: new Date(),
           },
           lastName: {
-            value: citizen.lastName,
+            value: citizen.lastName ?? citizen.identity?.lastName?.value,
             source: certificationSource,
             certificationDate: new Date(),
           },
           firstName: {
-            value: citizen.firstName,
+            value: citizen.firstName ?? citizen.identity?.firstName?.value,
             source: certificationSource,
             certificationDate: new Date(),
           },
           birthDate: {
-            value: citizen.birthdate,
+            value: citizen.birthdate ?? citizen.identity?.birthDate?.value,
+            source: certificationSource,
+            certificationDate: new Date(),
+          },
+        },
+        personalInformation: {
+          email: {
+            value: citizen.email ?? citizen.personalInformation?.email?.value,
             source: certificationSource,
             certificationDate: new Date(),
           },
@@ -77,22 +95,24 @@ export class MigrationScript111 implements MigrationScript {
       delete newCitizen.lastName;
       delete newCitizen.firstName;
       delete newCitizen.birthdate;
+      delete newCitizen?.email;
       delete newCitizen?.certifiedData;
 
       // Update the citizen attributes on KC
       logger.info(
-        `${MigrationScript111.name} - Citizen ${citizen.lastName} with ID \
-        ${citizen.id} will be updated on KC with identity attributes`,
+        `${MigrationScript111.name} - Citizen ${citizenName} with ID \
+        ${citizen.id} will be updated on KC with identity and personalInformation attributes`,
       );
 
       await this.kcService.updateCitizenAttributes(citizen.id, {
         ...newCitizen.identity,
+        ...newCitizen.personalInformation,
       });
 
       // Update the citizen on mongo
       logger.info(
-        `${MigrationScript111.name} - Citizen ${citizen.lastName} with ID \
-        ${citizen.id} will be updated on Mongo with identity object`,
+        `${MigrationScript111.name} - Citizen ${citizenName} with ID \
+        ${citizen.id} will be updated on Mongo with identity and personalInformation object`,
       );
 
       return this.citizenRepository.replaceById(citizen.id, newCitizen);

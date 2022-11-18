@@ -61,7 +61,6 @@ import {
   incentiveContentDifferentExample,
 } from './utils/incentiveExample';
 import {TerritoryService} from '../services/territory.service';
-
 @intercept(IncentiveInterceptor.BINDING_KEY)
 export class IncentiveController {
   constructor(
@@ -353,6 +352,7 @@ export class IncentiveController {
         description: true,
         isMCMStaff: true,
         territory: true,
+        territoryName: true,
       },
     };
     const incentiveList: Incentive[] = await this.incentiveRepository.find({
@@ -662,6 +662,13 @@ export class IncentiveController {
         $unset: {validityDate: ''},
       } as any);
     }
+    // Remove subscriptionLink from incentive object
+    if (!incentive.subscriptionLink) {
+      delete incentive.subscriptionLink;
+      await this.incentiveRepository.updateById(incentiveId, {
+        $unset: {subscriptionLink: ''},
+      } as any);
+    }
 
     if (incentive.territory) {
       if (!incentive.territory.id) {
@@ -706,12 +713,6 @@ export class IncentiveController {
         incentive.title,
         incentive.specificFields,
       );
-      // Remove subscription from incentive object
-      delete incentive.subscriptionLink;
-      // Unset subscription
-      await this.incentiveRepository.updateById(incentiveId, {
-        $unset: {subscriptionLink: ''},
-      } as any);
     }
 
     // Add subscription link and unset specificFields and jsonSchema

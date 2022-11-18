@@ -131,13 +131,12 @@ export class AffiliationInterceptor implements Provider<Interceptor> {
       const funders: any = inputFunderId && (await this.funderService.getFunders());
       const funderMatch = funders && funders.find(({id}: any) => inputFunderId === id);
       const citizen = await this.citizenRepository.findOne({where: {id}});
-
       // Users from platform can subscribe to all collectivity aid
       // Users from MaaS can subscribe to all collectivity aid
       // Users from platform needs to be affiliated to a company to subscribe
       if (
         (roles?.includes(Roles.PLATFORM) || roles?.includes(Roles.MAAS)) &&
-        (funderMatch?.funderType === FUNDER_TYPE.collectivity ||
+        (funderMatch?.funderType !== FUNDER_TYPE.enterprise ||
           isEnterpriseAffilitation({citizen, funderMatch, inputFunderId}))
       ) {
         const result = await next();

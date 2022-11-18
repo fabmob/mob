@@ -83,7 +83,11 @@ const userContext = {
     firstName: 'Roger',
     lastName: 'Dupond',
     birthdate: '1991-11-17T00:00:00.000+00:00',
-    email: 'roger@mail.fr',
+    personalInformation: {
+      email: {
+        value: 'test@test.com',
+      },
+    },
     mdp: 'Nicolas32!',
     city: 'Paris',
     postcode: '75001',

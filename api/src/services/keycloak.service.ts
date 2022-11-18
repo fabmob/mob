@@ -1,5 +1,5 @@
 import {injectable, BindingScope} from '@loopback/core';
-import {repository} from '@loopback/repository';
+import {AnyObject, repository} from '@loopback/repository';
 
 import KcAdminClient from 'keycloak-admin';
 import {RequiredActionAlias} from 'keycloak-admin/lib/defs/requiredActionProviderRepresentation';
@@ -7,6 +7,8 @@ import UserRepresentation from 'keycloak-admin/lib/defs/userRepresentation';
 import {head, startCase} from 'lodash';
 
 import {KeycloakGroup, KeycloakGroupRelations} from '../models';
+import {PersonalInformation} from '../models/citizen/personalInformation.model';
+
 import {baseUrl, realmName, credentials} from '../constants';
 import {
   ResourceName,
@@ -61,6 +63,19 @@ export class KeycloakService {
             'identity.lastName': JSON.stringify(user?.identity?.lastName),
             'identity.firstName': JSON.stringify(user?.identity?.firstName),
             'identity.birthDate': JSON.stringify(user?.identity?.birthDate),
+            'personalInformation.email': JSON.stringify(user?.personalInformation?.email),
+            'personalInformation.primaryPhoneNumber': JSON.stringify(
+              user?.personalInformation?.primaryPhoneNumber,
+            ),
+            'personalInformation.secondaryPhoneNumber': JSON.stringify(
+              user?.personalInformation?.secondaryPhoneNumber,
+            ),
+            'personalInformation.primaryPostalAddress': JSON.stringify(
+              user?.personalInformation?.primaryPostalAddress,
+            ),
+            'personalInformation.secondaryPostalAddress': JSON.stringify(
+              user?.personalInformation?.secondaryPostalAddress,
+            ),
           },
           credentials: password
             ? [
@@ -81,7 +96,7 @@ export class KeycloakService {
           if (status === StatusCode.Conflict)
             throw new ValidationError(
               `email.error.unique`,
-              '/email',
+              '/personalInformation.email.value',
               StatusCode.Conflict,
               ResourceName.Account,
             );
@@ -244,19 +259,19 @@ export class KeycloakService {
       .catch(err => err);
   }
 
+  async getUser(id: string): Promise<IUser> {
+    return this.keycloakAdmin
+      .auth(credentials)
+      .then(() => this.keycloakAdmin.users.findOne({id}))
+      .catch(err => err);
+  }
+
   async listUserGroups(id: string): Promise<[{id: string}]> {
     return this.keycloakAdmin
       .auth(credentials)
 
       .then(() => this.keycloakAdmin.users.listGroups({id}))
 
-      .catch(err => err);
-  }
-
-  async getUser(id: string): Promise<IUser> {
-    return this.keycloakAdmin
-      .auth(credentials)
-      .then(() => this.keycloakAdmin.users.findOne({id}))
       .catch(err => err);
   }
 
@@ -286,7 +301,7 @@ export class KeycloakService {
       .catch(err => err);
   }
 
-  async updateCitizenAttributes(id: string, newCitizen: Identity): Promise<void> {
+  async updateCitizenAttributes(id: string, newCitizen: AnyObject): Promise<void> {
     const user: IUser = await this.getUser(id);
     return this.keycloakAdmin
       .auth(credentials)
@@ -302,6 +317,19 @@ export class KeycloakService {
               'identity.birthDate': JSON.stringify(newCitizen?.birthDate),
               'identity.birthPlace': JSON.stringify(newCitizen?.birthPlace),
               'identity.birthCountry': JSON.stringify(newCitizen?.birthCountry),
+              'personalInformation.email': JSON.stringify(newCitizen?.email),
+              'personalInformation.primaryPhoneNumber': JSON.stringify(
+                newCitizen?.primaryPhoneNumber,
+              ),
+              'personalInformation.secondaryPhoneNumber': JSON.stringify(
+                newCitizen?.secondaryPhoneNumber,
+              ),
+              'personalInformation.primaryPostalAddress': JSON.stringify(
+                newCitizen?.primaryPostalAddress,
+              ),
+              'personalInformation.secondaryPostalAddress': JSON.stringify(
+                newCitizen?.secondaryPostalAddress,
+              ),
             },
           },
         ),

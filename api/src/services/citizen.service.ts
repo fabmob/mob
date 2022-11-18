@@ -156,7 +156,7 @@ export class CitizenService {
           lastName: {$first: '$identity.lastName.value'},
           firstName: {$first: '$identity.firstName.value'},
           affiliation: {$first: '$affiliation'},
-          email: {$first: '$email'},
+          email: {$first: '$personalInformation.email.value'},
           birthdate: {$first: '$identity.birthDate.value'},
         },
       },
@@ -242,7 +242,7 @@ export class CitizenService {
   async sendDisaffiliationMail(mailService: MailService, citizen: Citizen) {
     const incentiveLink = `${WEBSITE_FQDN}/recherche`;
     await mailService.sendMailAsHtml(
-      citizen.email!,
+      citizen.personalInformation.email.value!,
       'Votre affiliation employeur vient d’être supprimée',
       'disaffiliation-citizen',
       {
@@ -259,7 +259,7 @@ export class CitizenService {
    */
   async sendRejectedAffiliation(citizen: Citizen, enterpriseName: string) {
     await this.mailService.sendMailAsHtml(
-      citizen.email!,
+      citizen.personalInformation.email.value!,
       "Votre demande d'affiliation a été refusée",
       'affiliation-rejection',
       {
@@ -277,7 +277,7 @@ export class CitizenService {
   async sendValidatedAffiliation(citizen: Citizen, enterpriseName: string) {
     const websiteLink = `${WEBSITE_FQDN}/recherche`;
     await this.mailService.sendMailAsHtml(
-      citizen.email!,
+      citizen.personalInformation.email.value!,
       "Votre demande d'affiliation a été acceptée !",
       'affiliation-validation',
       {
@@ -464,7 +464,7 @@ export class CitizenService {
       'Statut professionnel': citizen.status ? USER_STATUS[citizen.status] : '',
       "Entreprise d'affiliation": companyName || '',
       'Adresse email professionnelle': citizen?.affiliation?.enterpriseEmail || '',
-      'Adresse email personnelle': citizen.email,
+      'Adresse email personnelle': citizen.personalInformation?.email.value,
       'Liste des affiliations MaaS': listMaas?.length ? listMaas.join(', ') : '',
     };
 
@@ -676,7 +676,7 @@ export class CitizenService {
   ) {
     const incentiveLink = `${WEBSITE_FQDN}/recherche`;
     await mailService.sendMailAsHtml(
-      citizen.email!,
+      citizen.personalInformation.email.value!,
       'Votre compte a bien été supprimé',
       'deletion-account-citizen',
       {
@@ -774,6 +774,7 @@ export class CitizenService {
           await this.sendNonActivatedAccountDeletionMail(this.mailService, {
             ...citizen,
             firstName: citizen.identity.firstName.value,
+            email: citizen.personalInformation.email.value,
           });
         }
 
@@ -857,7 +858,7 @@ export class CitizenService {
 
     try {
       const citizen: AnyObject = pick(register, [
-        'email',
+        'personalInformation',
         'identity',
         'city',
         'postcode',
@@ -892,7 +893,10 @@ export class CitizenService {
 
       if (citizenId) {
         // Update the citizen attributes on KC
-        await this.kcService.updateCitizenAttributes(citizenId, {...citizen.identity});
+        await this.kcService.updateCitizenAttributes(citizenId, {
+          ...citizen.identity,
+          ...citizen.personalInformation,
+        });
 
         // Update the citizen role on KC
         await this.kcService.updateCitizenRole(citizenId, GROUPS.citizens);
@@ -905,6 +909,7 @@ export class CitizenService {
           lastName: register.identity.lastName.value,
           firstName: register.identity.firstName.value,
           birthdate: register.identity.birthDate.value,
+          email: register.personalInformation.email.value,
         };
 
         keycloakResult = await this.kcService.createUserKc(

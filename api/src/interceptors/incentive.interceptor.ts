@@ -70,7 +70,6 @@ export class IncentiveInterceptor implements Provider<Interceptor> {
     if (invocationCtx.methodName === 'updateById') {
       const incentiveId = invocationCtx.args[0];
       incentives = invocationCtx.args[1];
-
       const incentiveToUpdate = await this.incentiveRepository.findOne({
         where: {id: incentiveId},
       });
@@ -129,15 +128,6 @@ export class IncentiveInterceptor implements Provider<Interceptor> {
       );
     }
 
-    // If isMCMStaff === true , should not have a subscription link
-    if (incentives && incentives.isMCMStaff && incentives.subscriptionLink) {
-      throw new ValidationError(
-        `incentives.error.isMCMStaff.subscriptionLink`,
-        '/isMCMStaff',
-        StatusCode.PreconditionFailed,
-        ResourceName.Incentive,
-      );
-    }
     // If isMCMStaff === false , should not have a specific fields but subscription is required
     if (
       incentives &&

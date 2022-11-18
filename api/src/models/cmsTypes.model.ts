@@ -141,7 +141,7 @@ export class PostalAddressValue extends Model {
     required: true,
     description: 'Address - Line 1',
     jsonSchema: {
-      example: 'Rue 30 Boulevard la paix',
+      example: 'M Dr Jean Dupont',
       maxLength: 38,
     },
   })
@@ -151,7 +151,7 @@ export class PostalAddressValue extends Model {
     type: 'string',
     description: 'Address - Line 2',
     jsonSchema: {
-      example: '',
+      example: 'Etage 1',
       maxLength: 38,
     },
   })
@@ -161,7 +161,7 @@ export class PostalAddressValue extends Model {
     type: 'string',
     description: 'Address - Line 3',
     jsonSchema: {
-      example: '',
+      example: 'Bâtiment A',
       maxLength: 38,
     },
   })
@@ -171,7 +171,7 @@ export class PostalAddressValue extends Model {
     type: 'string',
     description: 'Address - Line 4',
     jsonSchema: {
-      example: '',
+      example: '7 Rue Claude Chappe',
       maxLength: 38,
     },
   })
@@ -181,7 +181,7 @@ export class PostalAddressValue extends Model {
     type: 'string',
     description: 'Address - Line 5',
     jsonSchema: {
-      example: '',
+      example: 'Rennes Atalante Champs Blancs CS 67746',
       maxLength: 38,
     },
   })
@@ -191,11 +191,21 @@ export class PostalAddressValue extends Model {
     type: 'string',
     description: 'Address - Line 6',
     jsonSchema: {
-      example: '',
+      example: '35510 Cesson-Sévigné',
       maxLength: 38,
     },
   })
   line6: string;
+
+  @property({
+    type: 'string',
+    description: 'Address - Line 7',
+    jsonSchema: {
+      example: 'FRANCE',
+      maxLength: 38,
+    },
+  })
+  line7: string;
 
   constructor(data: PostalAddressValue) {
     super(data);
@@ -223,7 +233,7 @@ export class PhoneNumber extends CommonFields {
     required: true,
     description: 'International Phone number',
     jsonSchema: {
-      example: '+33660909080',
+      example: '+33123456789',
       pattern: '^\\+[1-9]\\d{1,14}$',
     },
   })
@@ -231,10 +241,9 @@ export class PhoneNumber extends CommonFields {
 
   @property({
     type: 'boolean',
-    required: true,
     description: 'Is a mobile phone number',
     jsonSchema: {
-      example: true,
+      example: false,
     },
   })
   mobile: boolean;

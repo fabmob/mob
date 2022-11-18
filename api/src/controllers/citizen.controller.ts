@@ -776,7 +776,7 @@ export class CitizenController {
       const citizen: Citizen = await this.citizenRepository.findById(citizenId);
 
       const listMaas: string[] = await this.citizenService.getListMaasNames(
-        citizen?.email,
+        citizen?.personalInformation.email.value,
       );
 
       // get company name & company email from user affiliation

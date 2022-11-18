@@ -1102,7 +1102,6 @@ const currentUserMaas: IUser = {
 };
 const mockReturnCitizenNotAffiliated = new Citizen({
   id: 'citizenId',
-  email: 'kennyg@gmail.com',
   identity: Object.assign({
     firstName: Object.assign({
       value: 'Gerard',
@@ -1118,6 +1117,13 @@ const mockReturnCitizenNotAffiliated = new Citizen({
       value: '1994-02-18T00:00:00.000Z',
       source: 'moncomptemobilite.fr',
       certificationDate: new Date(),
+    }),
+  }),
+  personalInformation: Object.assign({
+    email: Object.assign({
+      value: 'kennyg@gmail.com',
+      certificationDate: new Date('2022-11-03'),
+      source: 'moncomptemobilite.fr',
     }),
   }),
   city: 'Mulhouse',
@@ -1173,7 +1179,6 @@ const newFunder = {
 
 const mockCitizen = new Citizen({
   id: 'citizenId',
-  email: 'kennyg@gmail.com',
   identity: Object.assign({
     firstName: Object.assign({
       value: 'Gerard',
@@ -1191,6 +1196,13 @@ const mockCitizen = new Citizen({
       certificationDate: new Date(),
     }),
   }),
+  personalInformation: Object.assign({
+    email: Object.assign({
+      value: 'kennyg@gmail.com',
+      certificationDate: new Date('2022-11-03'),
+      source: 'moncomptemobilite.fr',
+    }),
+  }),
   city: 'Mulhouse',
   postcode: '75000',
   status: CITIZEN_STATUS.EMPLOYEE,
@@ -1204,7 +1216,6 @@ const mockCitizen = new Citizen({
 });
 
 const mockCitizenNonSalarie = new Citizen({
-  email: 'samy-youssef@gmail.com',
   identity: Object.assign({
     firstName: Object.assign({
       value: 'youssef',
@@ -1220,6 +1231,13 @@ const mockCitizenNonSalarie = new Citizen({
       value: '1995-02-18T00:00:00.000Z',
       source: 'moncomptemobilite.fr',
       certificationDate: new Date(),
+    }),
+  }),
+  personalInformation: Object.assign({
+    email: Object.assign({
+      value: 'kennyg@gmail.com',
+      certificationDate: new Date('2022-11-03'),
+      source: 'moncomptemobilite.fr',
     }),
   }),
   city: 'Paris',

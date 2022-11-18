@@ -230,15 +230,6 @@ describe('IncentiveInterceptor', () => {
     }
   });
 
-  it('IncentiveInterceptor creates: error MCM true subscription', async () => {
-    try {
-      incentiveRepository.stubs.findOne.resolves(null);
-      await interceptor.intercept(invocationContextCreatesMCMStaffCases);
-    } catch (err) {
-      expect(err.message).to.equal(errorIsMCMStaffSubscription.message);
-    }
-  });
-
   it('IncentiveInterceptor creates: error MCM false no subscription', async () => {
     try {
       incentiveRepository.stubs.findOne.resolves(null);

@@ -578,7 +578,6 @@ const citizen = new Citizen({
 
 const mockCitizen = new Citizen({
   id: 'randomInputId',
-  email: 'kennyg@gmail.com',
   identity: Object.assign({
     firstName: Object.assign({
       value: 'Gerard',
@@ -594,6 +593,13 @@ const mockCitizen = new Citizen({
       value: '1994-02-18T00:00:00.000Z',
       source: 'moncomptemobilite.fr',
       certificationDate: new Date(),
+    }),
+  }),
+  personalInformation: Object.assign({
+    email: Object.assign({
+      value: 'test@test.com',
+      certificationDate: new Date('2022-11-03'),
+      source: 'moncomptemobilite.fr',
     }),
   }),
   city: 'Mulhouse',

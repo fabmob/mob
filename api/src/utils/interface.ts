@@ -1,6 +1,7 @@
 import {SUBSCRIPTION_STATUS, EVENT_MESSAGE, FUNDER_TYPE, GENDER} from '.';
 
 import {SubscriptionRejection, SubscriptionValidation} from '../models';
+import {PersonalInformation} from '../models/citizen/personalInformation.model';
 
 import {securityId, UserProfile} from '@loopback/security';
 import {Identity} from '../models/citizen/identity.model';
@@ -185,4 +186,5 @@ export interface User {
   birthdate?: string;
   gender?: GENDER;
   identity?: Identity;
+  personalInformation?: PersonalInformation;
 }

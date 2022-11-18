@@ -581,7 +581,13 @@ const mockCitizen = new Citizen({
       certificationDate: new Date('2022-10-24'),
     }),
   }),
-  email: 'email@gmail.com',
+  personalInformation: Object.assign({
+    email: Object.assign({
+      value: 'test@test.com',
+      certificationDate: new Date('2022-11-03'),
+      source: 'moncomptemobilite.fr',
+    }),
+  }),
 });
 
 const newSubscription = new Subscription({

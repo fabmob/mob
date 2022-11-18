@@ -494,7 +494,7 @@ describe('Citizen services', () => {
     expect(mailService.sendMailAsHtml.calledOnce).true();
     expect(
       mailService.sendMailAsHtml.calledWith(
-        mockCitizen.email,
+        mockCitizen.personalInformation.email.value,
         'Votre compte a bien été supprimé',
         'deletion-account-citizen',
         sinon.match.any,
@@ -561,12 +561,12 @@ describe('Citizen services', () => {
   });
 
   it('sendNonActivatedAccountDeletionMail: successfull', () => {
-    citizenService.sendNonActivatedAccountDeletionMail(mailService, mockCitizen);
+    citizenService.sendNonActivatedAccountDeletionMail(mailService, mockCitizen3);
     mailService.stubs.sendMailAsHtml.resolves('success');
     expect(mailService.sendMailAsHtml.calledOnce).true();
     expect(
       mailService.sendMailAsHtml.calledWith(
-        mockCitizen.email,
+        mockCitizen3.email,
         'Votre compte moB vient d’être supprimé',
         'nonActivated-account-deletion',
         sinon.match.any,
@@ -705,7 +705,13 @@ describe('Citizen services', () => {
     });
 
     const arg: any = {
-      email: 'email@gmail.com',
+      personalInformation: {
+        email: {
+          value: 'email@gmail.com',
+          certificationDate: new Date('2022-11-03'),
+          source: 'moncomptemobilite.fr',
+        },
+      },
       identity: {
         gender: {
           value: 1,
@@ -809,7 +815,6 @@ describe('Citizen services', () => {
     });
 
     const arg: any = {
-      email: 'email@gmail.com',
       identity: {
         firstName: {
           value: 'firstName',
@@ -825,6 +830,13 @@ describe('Citizen services', () => {
           value: '1991-11-17',
           source: 'moncomptemobilite.fr',
           certificationDate: new Date('2022-10-24'),
+        },
+      },
+      personalInformation: {
+        email: {
+          value: 'email@gmail.com',
+          certificationDate: new Date('2022-11-03'),
+          source: 'moncomptemobilite.fr',
         },
       },
       city: 'test',
@@ -949,7 +961,14 @@ const mockCitizen2 = new Citizen({
     toJSON: () => ({id: 'random'}),
     toObject: () => ({id: 'random'}),
   },
-  email: 'email@gmail.com',
+  personalInformation: Object.assign({
+    email: Object.assign({
+      value: 'email@gmail.com',
+      certificationDate: new Date('2022-11-03'),
+      source: 'moncomptemobilite.fr',
+    }),
+  }),
+  password: 'password123123!',
   city: 'test',
   status: CITIZEN_STATUS.EMPLOYEE,
   postcode: '31000',
@@ -965,6 +984,29 @@ const mockCitizen2 = new Citizen({
   toJSON: () => ({id: 'random'}),
   toObject: () => ({id: 'random'}),
 });
+
+const mockCitizen3 = {
+  id: 'randomInputId',
+  lastName: 'lastName',
+  firstName: 'firstName',
+  email: 'email@gmail.com',
+  password: 'password123123!',
+  city: 'test',
+  status: CITIZEN_STATUS.EMPLOYEE,
+  birthdate: '1991-11-17',
+  postcode: '31000',
+  tos1: true,
+  tos2: true,
+  affiliation: Object.assign({
+    enterpriseId: 'funderId',
+    enterpriseEmail: 'test@outlook.com',
+    affiliationStatus: AFFILIATION_STATUS.AFFILIATED,
+  }),
+  getId: () => {},
+  getIdObject: () => ({id: 'random'}),
+  toJSON: () => ({id: 'random'}),
+  toObject: () => ({id: 'random'}),
+};
 
 const mockCitizen = new Citizen({
   id: 'randomInputId',
@@ -1008,7 +1050,14 @@ const mockCitizen = new Citizen({
     toJSON: () => ({id: 'random'}),
     toObject: () => ({id: 'random'}),
   },
-  email: 'email@gmail.com',
+  personalInformation: Object.assign({
+    email: Object.assign({
+      value: 'email@gmail.com',
+      certificationDate: new Date('2022-11-03'),
+      source: 'moncomptemobilite.fr',
+    }),
+  }),
+  password: 'password123123!',
   city: 'test',
   status: CITIZEN_STATUS.EMPLOYEE,
   postcode: '31000',
@@ -1302,7 +1351,16 @@ const salarie = Object.assign(new Citizen(), {
     },
   },
   id: 'randomInputId',
-  email: 'email@gmail.com',
+  lastName: 'lastName',
+  firstName: 'firstName',
+  personalInformation: {
+    email: {
+      value: 'email@gmail.com',
+      certificationDate: new Date('2022-11-03'),
+      source: 'moncomptemobilite.fr',
+    },
+  },
+  password: 'password123123!',
   city: 'test',
 
   status: CITIZEN_STATUS.EMPLOYEE,
@@ -1326,7 +1384,6 @@ const enterprise: Enterprise = new Enterprise({
 
 const createdSalarie = Object.assign(new Citizen(), {
   id: 'randomInputId',
-  email: 'email@gmail.com',
   identity: {
     gender: {
       value: 1,
@@ -1349,6 +1406,13 @@ const createdSalarie = Object.assign(new Citizen(), {
       certificationDate: new Date('2022-10-24'),
     },
   },
+  personalInformation: {
+    email: {
+      value: 'email@gmail.com',
+      certificationDate: new Date('2022-11-03'),
+      source: 'moncomptemobilite.fr',
+    },
+  },
   city: 'test',
   postcode: '31000',
   status: CITIZEN_STATUS.EMPLOYEE,
@@ -1363,7 +1427,6 @@ const createdSalarie = Object.assign(new Citizen(), {
 
 const createdSalarieNoEnterprise = Object.assign(new Citizen(), {
   id: 'randomInputId',
-  email: 'email@gmail.com',
   identity: Object.assign({
     gender: Object.assign({
       value: 1,
@@ -1386,6 +1449,13 @@ const createdSalarieNoEnterprise = Object.assign(new Citizen(), {
       certificationDate: new Date('2022-10-24'),
     }),
   }),
+  personalInformation: {
+    email: {
+      value: 'email@gmail.com',
+      certificationDate: new Date('2022-11-03'),
+      source: 'moncomptemobilite.fr',
+    },
+  },
   city: 'test',
   postcode: '31000',
   status: CITIZEN_STATUS.EMPLOYEE,
@@ -1422,7 +1492,14 @@ const salarieNoEnterprise = Object.assign(new Citizen(), {
       certificationDate: new Date('2022-10-24'),
     }),
   }),
-  email: 'email@gmail.com',
+  personalInformation: {
+    email: {
+      value: 'email@gmail.com',
+      certificationDate: new Date('2022-11-03'),
+      source: 'moncomptemobilite.fr',
+    },
+  },
+  password: 'password123123!',
   city: 'test',
   status: CITIZEN_STATUS.EMPLOYEE,
   postcode: '31000',
@@ -1458,7 +1535,14 @@ const student = Object.assign(new Citizen(), {
       certificationDate: new Date('2022-10-24'),
     }),
   }),
-  email: 'email@gmail.com',
+  personalInformation: {
+    email: {
+      value: 'email@gmail.com',
+      certificationDate: new Date('2022-11-03'),
+      source: 'moncomptemobilite.fr',
+    },
+  },
+  password: 'password123123!',
   city: 'test',
   status: CITIZEN_STATUS.STUDENT,
   postcode: '31000',
@@ -1498,7 +1582,14 @@ const createdStudent = Object.assign(new Citizen(), {
       certificationDate: new Date('2022-10-24'),
     }),
   }),
-  email: 'email@gmail.com',
+  personalInformation: {
+    email: {
+      value: 'email@gmail.com',
+      certificationDate: new Date('2022-11-03'),
+      source: 'moncomptemobilite.fr',
+    },
+  },
+  password: 'password123123!',
   city: 'test',
   status: CITIZEN_STATUS.STUDENT,
   postcode: '31000',
@@ -1539,7 +1630,13 @@ const createdSalarieNoProEmail = new Citizen({
       certificationDate: new Date('2022-10-24'),
     }),
   }),
-  email: 'email@gmail.com',
+  personalInformation: Object.assign({
+    email: Object.assign({
+      value: 'email@gmail.com',
+      certificationDate: new Date('2022-11-03'),
+      source: 'moncomptemobilite.fr',
+    }),
+  }),
   city: 'test',
   status: CITIZEN_STATUS.EMPLOYEE,
   postcode: '31000',
@@ -1575,7 +1672,14 @@ const salarieNoProEmail = new Citizen({
       certificationDate: new Date('2022-10-24'),
     }),
   }),
-  email: 'email@gmail.com',
+  personalInformation: Object.assign({
+    email: Object.assign({
+      value: 'email@gmail.com',
+      certificationDate: new Date('2022-11-03'),
+      source: 'moncomptemobilite.fr',
+    }),
+  }),
+  password: 'password123123!',
   city: 'test',
   status: CITIZEN_STATUS.EMPLOYEE,
   postcode: '31000',
