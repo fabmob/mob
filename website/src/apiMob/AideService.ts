@@ -4,7 +4,7 @@ import { stringifyParams } from '@utils/helpers';
 export type AideCreation = {
   title: string;
   description: string;
-  territoryName: string;
+  territoryName: string; // TODO: REMOVING DEPRECATED territoryName.
   funderName: string;
   incentiveType: string;
   conditions: string;

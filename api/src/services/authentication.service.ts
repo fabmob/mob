@@ -145,7 +145,7 @@ export class AuthenticationService {
       [securityId]: user.sub!,
       id: user.sub!,
       emailVerified: user.email_verified,
-      clientName: user.maas_name || user.sirh_name,
+      clientName: user.maas_name || user.sirh_name || user.vault_name,
       funderType: funderType,
       funderName: funderName,
       incentiveType: incentiveType,

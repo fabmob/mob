@@ -33,7 +33,13 @@ const userMock = {
     },
   },
   birthdate: '1991-11-17',
-  email: 'roger@mail.fr',
+  personalInformation: {
+    email: {
+      value: 'kennyg@gmail.com',
+      certificationDate: new Date('2022-11-03'),
+      source: 'moncomptemobilite.fr',
+    },
+  },
   mdp: 'Nicolas32!',
   city: 'Paris',
   postcode: '75001',
@@ -71,7 +77,13 @@ const userMockAffiliation = {
       value: '1991-11-17',
     },
   },
-  email: 'roger@mail.fr',
+  personalInformation: {
+    email: {
+      value: 'kennyg@gmail.com',
+      certificationDate: new Date('2022-11-03'),
+      source: 'moncomptemobilite.fr',
+    },
+  },
   mdp: 'Nicolas32!',
   city: 'Paris',
   postcode: '75001',
@@ -109,7 +121,13 @@ const userMockNoAffiliation = {
       value: '1991-11-17',
     },
   },
-  email: 'roger@mail.fr',
+  personalInformation: {
+    email: {
+      value: 'kennyg@gmail.com',
+      certificationDate: new Date('2022-11-03'),
+      source: 'moncomptemobilite.fr',
+    },
+  },
   mdp: 'Nicolas32!',
   city: 'Paris',
   postcode: '75001',
@@ -479,7 +497,9 @@ describe('<Profile />', () => {
     expect(
       screen.getByText(format(new Date(userMock.birthdate), 'dd/MM/yyyy'))
     ).toBeInTheDocument();
-    expect(screen.getByText(userMock.email)).toBeInTheDocument();
+    expect(
+      screen.getByText(userMock.personalInformation.email.value)
+    ).toBeInTheDocument();
     expect(screen.getByText(userMock.city)).toBeInTheDocument();
     expect(screen.getByText(userMock.postcode)).toBeInTheDocument();
     expect(screen.getByText(userMock.statusPhrase)).toBeInTheDocument();

@@ -363,7 +363,6 @@ const ProcessSubscription: FC<Props> = ({ query, location }) => {
           .catch((err: any) => {
             setIsDisabled(false);
           });
-
       } else {
         setStep(2);
         setBtnLabel(Strings['subscription.next']);
@@ -475,6 +474,7 @@ const ProcessSubscription: FC<Props> = ({ query, location }) => {
                       firstName: citizen.identity.firstName.value,
                       lastName: citizen.identity.lastName.value,
                       birthdate: citizen.identity.birthDate.value,
+                      email: citizen.personalInformation.email.value,
                     }}
                     showSummary={false}
                   />

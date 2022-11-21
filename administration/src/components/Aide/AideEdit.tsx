@@ -36,10 +36,10 @@ const AideEdit: FC<EditProps> = (props) => {
   };
 
   const transform = (data): Record => {
-    if (data.isMCMStaff) {
-      return { ...data, subscriptionLink: undefined };
+    if (!data.isMCMStaff) {
+      return { ...data, specificFields: undefined };
     }
-    return { ...data, specificFields: undefined };
+    return { ...data, subscriptionLink: data.subscriptionLink };
   };
 
   return (

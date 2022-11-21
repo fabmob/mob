@@ -64,10 +64,14 @@ const schema = yup.object().shape({
         .nullable(),
     }),
   }),
-  email: yup
-    .string()
-    .required(defaultRequiredMessage)
-    .email(Strings['email.error.format']),
+  personalInformation: yup.object({
+    email: yup.object({
+      value: yup
+        .string()
+        .required(defaultRequiredMessage)
+        .email(Strings['email.error.format']),
+    }),
+  }),
   city: yup
     .string()
     .required(defaultRequiredMessage)

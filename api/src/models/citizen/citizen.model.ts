@@ -2,6 +2,7 @@ import {model, property, Entity} from '@loopback/repository';
 
 import {Affiliation} from './affiliation.model';
 import {Identity} from './identity.model';
+import {PersonalInformation} from './personalInformation.model';
 import {CITIZEN_STATUS, GENDER} from '../../utils';
 import {DgfipInformation} from './dgfipInformation.model';
 
@@ -9,17 +10,6 @@ import {emailRegexp} from '../../constants';
 
 @model()
 export class Citizen extends Entity {
-  @property({
-    type: 'string',
-    description: `Email`,
-    required: true,
-    jsonSchema: {
-      example: `bob.rasovsky@example.com`,
-      pattern: emailRegexp,
-    },
-  })
-  email: string;
-
   @property({
     type: 'string',
     description: `Identifiant du citoyen`,
@@ -101,6 +91,12 @@ export class Citizen extends Entity {
     description: `Objet d'affiliation du citoyen à une entreprise`,
   })
   affiliation: Affiliation;
+
+  @property({
+    description: `Objet Personal information`,
+    required: true,
+  })
+  personalInformation: PersonalInformation;
 
   @property({
     description: `Objet identité`,

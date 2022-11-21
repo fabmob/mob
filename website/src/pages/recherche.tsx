@@ -290,16 +290,15 @@ const RechercheComponent: FC<RechercheProps> = ({ pageContext }) => {
         </section>
         <section className="mcm-aides__body">
           <div className="page-container">
-            {!isLoaded && <h2>{Strings['loading.text']}</h2>}
+            <div className="mcm-filters">
+              <Tab
+                tabs={tabsArray}
+                setSelectedIndex={setSelectedTab}
+                defaultActiveTab={setDefaultActiveTab}
+              />
+            </div>
             {isLoaded && (
               <>
-                <div className="mcm-filters">
-                  <Tab
-                    tabs={tabsArray}
-                    setSelectedIndex={setSelectedTab}
-                    defaultActiveTab={setDefaultActiveTab}
-                  />
-                </div>
                 <SearchResultsTitle
                   nbResult={filteredIncentiveList.length}
                   termSearch={termSearch as string | undefined}

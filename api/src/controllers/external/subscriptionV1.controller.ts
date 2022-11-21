@@ -149,7 +149,7 @@ export class SubscriptionV1Controller {
         citizenId: citizen.id,
         lastName: citizen.identity.lastName.value,
         firstName: citizen.identity.firstName.value,
-        email: citizen.email,
+        email: citizen.personalInformation.email.value,
         city: citizen.city,
         postcode: citizen.postcode,
         birthdate: citizen.identity.birthDate.value,

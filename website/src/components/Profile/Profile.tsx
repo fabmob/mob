@@ -365,6 +365,8 @@ const Profile: FC<ProfileProps> = ({ crumbs }) => {
     );
     sanitizedCitizenData.birthdate =
       sanitizedCitizenData.identity.birthDate.value;
+    sanitizedCitizenData.email = saniCitizen.personalInformation.email.value;
+
     sanitizedCitizenData.statusPhrase =
       UserStatus[saniCitizen.status as keyof typeof UserStatus];
     sanitizedCitizenData.funderName = company?.name || '-';

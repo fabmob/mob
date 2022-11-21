@@ -50,6 +50,7 @@ export class Incentive extends Entity {
     description: `Territoire de l'aide`,
     jsonSchema: {
       example: `Mulhouse`,
+      deprecated: true,
     },
   })
   territoryName: string;

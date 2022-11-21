@@ -2354,7 +2354,7 @@
             "user.attribute": "personalInformation.secondaryPostalAddress",
             "id.token.claim": "false",
             "access.token.claim": "false",
-            "claim.name": "secondaryPostalAddress",
+            "claim.name": "cms.personalInformation.secondaryPostalAddress",
             "jsonType.label": "JSON"
           }
         },
@@ -2369,7 +2369,7 @@
             "user.attribute": "personalInformation.secondaryPhoneNumber",
             "id.token.claim": "false",
             "access.token.claim": "false",
-            "claim.name": "secondaryPhoneNumber",
+            "claim.name": "cms.personalInformation.secondaryPhoneNumber",
             "jsonType.label": "JSON"
           }
         },
@@ -2384,7 +2384,7 @@
             "user.attribute": "personalInformation.email",
             "id.token.claim": "false",
             "access.token.claim": "false",
-            "claim.name": "email",
+            "claim.name": "cms.personalInformation.email",
             "jsonType.label": "JSON"
           }
         },
@@ -2399,7 +2399,7 @@
             "user.attribute": "personalInformation.primaryPhoneNumber",
             "id.token.claim": "false",
             "access.token.claim": "false",
-            "claim.name": "primaryPhoneNumber",
+            "claim.name": "cms.personalInformation.primaryPhoneNumber",
             "jsonType.label": "JSON"
           }
         },
@@ -2414,7 +2414,7 @@
             "user.attribute": "personalInformation.primaryPostalAddress",
             "id.token.claim": "false",
             "access.token.claim": "false",
-            "claim.name": "primaryPostalAddress",
+            "claim.name": "cms.personalInformation.primaryPostalAddress",
             "jsonType.label": "JSON"
           }
         }

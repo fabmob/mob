@@ -62,6 +62,9 @@ interface CitizenForm extends Citizen {
     birthPlace?: CmsType;
     birthCountry?: CmsType;
   };
+  personalInformation: {
+    email: CmsType;
+  };
   affiliation: {
     enterpriseEmail: string | undefined;
     enterpriseId: string | undefined;
@@ -100,7 +103,6 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
   const defaultValue =
     completionMode && keycloak && keycloak.authenticated && keycloak.tokenParsed
       ? {
-          email: keycloak.tokenParsed?.email,
           identity: {
             gender: {
               ...cmsObject,
@@ -117,6 +119,12 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
             birthDate: {
               ...cmsObject,
               value: new Date(keycloak.tokenParsed?.birthdate),
+            },
+          },
+          personalInformation: {
+            email: {
+              ...cmsObject,
+              value: keycloak.tokenParsed?.email,
             },
           },
         }
@@ -208,6 +216,7 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
                 : '',
           },
         },
+        personalInformation: { email: { ...cmsObject } },
       };
 
       const userDataParsed: CitizenForm = {
@@ -228,6 +237,9 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
       // FirstName
       userDataParsed.identity.firstName.value =
         userData.identity.firstName.value;
+      // email
+      userDataParsed.personalInformation.email.value =
+        userData.personalInformation.email.value;
 
       // BirthDate
       const dateValue = formatDate(userData.identity.birthDate.value);
@@ -356,7 +368,7 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
           id="email"
           label={Strings['email.label']}
           type="text"
-          {...register('email')}
+          {...register('personalInformation.email.value')}
           errors={errors}
           placeholder="exemple@mail.com"
           readOnly={completionMode}
