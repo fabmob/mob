@@ -24,7 +24,7 @@ A noter que moB n’est pas un MaaS au sens où il ne permet pas d’opérer le 
 # Principe général de publication
 Pour permettre aux différentes communautés de développeurs et de spécialistes d’expertiser la façon dont cette plateforme est programmée, le code source est publié sur [https://github.com/fabmob/mob](https://github.com/fabmob/mob), géré par l'organisation de la Fabrique des Mobilités, co-porteur du programme. Le code source présenté est le résultat d’un processus de développement collaboratif impliquant de nombreuses personnes et organisations au sein de l’équipe projet Mon Compte Mobilité.
 Ce processus de développement collaboratif va s’ouvrir progressivement pour permettre de proposer des évolutions à la plateforme, de signaler des bugs, de proposer des changements pour la documentation et de suivre la prise en compte ou non de ces propositions. Pour ce faire, le choix de la plateforme GitHub a été retenu.
-Les contributions attendues par la communauté des développeurs permettront de faire évoluer des briques logicielles pour, au final, étendre les fonctionnalités et améliorer la qualité de l’application. Pour contribuer, merci de prendre connaissance du fichier [CONTRIBUTING.md](https://github.com/fabmob/mob). La plateforme GitHub n’a pas vocation à héberger les débats d’ordre plus général, politique ou sociétal. La politique de publication du code source développé dans le cadre du projet repose sur 2 catégories :
+Les contributions attendues par la communauté des développeurs permettront de faire évoluer des briques logicielles pour, au final, étendre les fonctionnalités et améliorer la qualité de l’application. Pour contribuer, merci de prendre connaissance du fichier [CONTRIBUTING.md](CONTRIBUTING.md). La plateforme GitHub n’a pas vocation à héberger les débats d’ordre plus général, politique ou sociétal. La politique de publication du code source développé dans le cadre du projet repose sur 2 catégories :
 - Une partie (restreinte) qui n’est pas publiée car correspondant à des tests ou à des parties critiques pour la sécurité de l’infrastructure ;
 - Une partie qui relève à strictement parler de l’open source, avec des appels à contribution qui sont attendus : cela concerne le cœur de l’application.
 
@@ -40,9 +40,9 @@ A ce stade, le travail de la communauté des développeurs, qu’ils soient inte
 # Description des sous-projets
 Le projet principal est découpé en plusieurs sous-projets dont l’articulation globale est détaillée dans le document [README.md](https://github.com/fabmob/mob#readme).
 # Contribution au projet
-Pour contribuer au projet, merci de prendre connaissance du fichier [CONTRIBUTING.md](https://github.com/fabmob/mob).
+Pour contribuer au projet, merci de prendre connaissance du fichier [CONTRIBUTING.md](CONTRIBUTING.md).
 # Licence
-Merci de vous référer au fichier dédié : [LICENSE.txt](https://github.com/fabmob/mob#license)
+Merci de vous référer au fichier dédié : [LICENSE.txt](LICENSE.txt)
 # Liens
 - Le site web avec la présentation du projet Mon Compte Mobilité : [https://moncomptemobilite.fr/](https://moncomptemobilite.fr/)
 - La page [LinkedIn](https://www.linkedin.com/showcase/mon-compte-mobilit%C3%A9/)
