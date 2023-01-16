@@ -25,20 +25,24 @@ import {
   PROOF_CHOICE,
   INPUT_FORMAT_CHOICE,
 } from '../../utils/constant';
+import { validateIncentiveForm } from '../../utils/helpers';
 import {
   startDateMin,
   dateMinValidation,
 } from '../../utils/Aide/validityDateRules';
-import { getDate } from '../../utils/convertDateToString';
+import { convertDateToString, getDate } from '../../utils/convertDateToString';
 import { validateUrl } from '../../utils/Aide/formHelper';
 import CustomAddButton from '../common/CustomAddButton';
 import '../styles/DynamicForm.css';
 import TerritoriesDropDown from '../common/TerritoriesDropDown';
+import SubscriptionModeForm from '../common/SubscriptionModeForm';
 
 const AideEditForm = (props: EditProps) => {
   const { save, record } = useEditContext();
   const recordContext = useRecordContext();
   const [isMobilityChecked, setIsMobilityChecked] = useState(false);
+  const [isCertifiedTimestampChecked, setIsCertifiedTimestampChecked] =
+    React.useState(false);
 
   // Check the isMobilityChecked at the willmount
   useEffect(() => {
@@ -48,6 +52,12 @@ const AideEditForm = (props: EditProps) => {
       setIsMobilityChecked(false);
     }
   }, []);
+
+  // format attribute validityDate useEffect
+  useEffect(() => {
+    recordContext.validityDate = getDate(recordContext.validityDate);
+  }, [recordContext.validityDate]);
+
   // verify if each label Proof exist in options (PROOF_CHOICE) in this aides, else add option in Proof choice
   if (recordContext?.attachments) {
     recordContext.attachments.map((value) => {
@@ -69,6 +79,7 @@ const AideEditForm = (props: EditProps) => {
       record={record}
       redirect="/aides"
       save={save}
+      validate={validateIncentiveForm}
       render={(formProps) => (
         <Box mt={2} display="flex">
           <Box flex="1">
@@ -203,6 +214,33 @@ const AideEditForm = (props: EditProps) => {
                         format={getDate}
                       />
                     </Box>
+                    <hr style={{ width: '695px', margin: '0px' }} />
+                    <h3>Horodatage</h3>
+                    <div style={{ marginTop: '10px', marginLeft: '10px' }}>
+                      <span>Description :</span>
+                      <p
+                        style={{
+                          fontSize: '12px',
+                          color: '#464cd0',
+                          top: '-20px',
+                        }}
+                      >
+                        Horodatage des souscriptions
+                      </p>
+                      <Box display="flex">
+                        <BooleanInput
+                          checked={isCertifiedTimestampChecked}
+                          onChange={() =>
+                            setIsCertifiedTimestampChecked(
+                              !isCertifiedTimestampChecked
+                            )
+                          }
+                          source="isCertifiedTimestampRequired"
+                          label="Actif"
+                        />
+                      </Box>
+                    </div>
+                    <hr style={{ width: '695px', margin: '0px' }} />
                     <BooleanInput
                       resource="aides"
                       source="isMCMStaff"
@@ -223,74 +261,90 @@ const AideEditForm = (props: EditProps) => {
                       />
                     </Box>
                     {isMobilityChecked && (
-                      <Box
-                        mt={2}
-                        display="flex"
-                        maxWidth={700}
-                        flexWrap="wrap"
-                        justifyContent="space-between"
-                      >
-                        <ArrayInput source="specificFields" label="">
-                          <SimpleFormIterator
-                            className="simpleForm1"
-                            addButton={
-                              <CustomAddButton
-                                label={'Ajouter un champ spécifique'}
-                              />
-                            }
-                          >
-                            <TextInput
-                              source="title"
-                              label="Champ libre"
-                              fullWidth
-                              validate={[required()]}
-                            />
-                            <SelectInput
-                              source="inputFormat"
-                              label="Format"
-                              fullWidth
-                              validate={[required()]}
-                              choices={INPUT_FORMAT_CHOICE}
-                            />
-                            <FormDataConsumer>
-                              {({
-                                formData, // The whole form data
-                                scopedFormData, // The data for this item of the ArrayInput
-                                getSource, // A function to get the valid source inside an ArrayInput
-                                ...rest
-                              }) =>
-                                scopedFormData?.inputFormat === 'listeChoix' ? (
-                                  <>
-                                    <NumberInput
-                                      source={getSource(
-                                        'choiceList.possibleChoicesNumber'
-                                      )}
-                                      label="Nombre de choix possible"
-                                      min={0}
-                                      validate={[required()]}
-                                    />
-                                    <ArrayInput
-                                      source={getSource(
-                                        'choiceList.inputChoiceList'
-                                      )}
-                                      label=""
-                                    >
-                                      <SimpleFormIterator className="simpleForm2">
-                                        <TextInput
-                                          source="inputChoice"
-                                          label="Nom du champ"
-                                          fullWidth
-                                          validate={[required()]}
-                                        />
-                                      </SimpleFormIterator>
-                                    </ArrayInput>
-                                  </>
-                                ) : null
+                      <>
+                        <Box
+                          mt={2}
+                          display="flex"
+                          maxWidth={700}
+                          flexWrap="wrap"
+                          justifyContent="space-between"
+                        >
+                          <ArrayInput source="specificFields" label="">
+                            <SimpleFormIterator
+                              className="simpleForm1"
+                              addButton={
+                                <CustomAddButton
+                                  label={'Ajouter un champ spécifique'}
+                                />
                               }
-                            </FormDataConsumer>
-                          </SimpleFormIterator>
-                        </ArrayInput>
-                      </Box>
+                            >
+                              <TextInput
+                                source="title"
+                                label="Champ libre"
+                                fullWidth
+                                validate={[required()]}
+                              />
+                              <SelectInput
+                                source="inputFormat"
+                                label="Format"
+                                fullWidth
+                                validate={[required()]}
+                                choices={INPUT_FORMAT_CHOICE}
+                              />
+                              <FormDataConsumer>
+                                {({
+                                  formData, // The whole form data
+                                  scopedFormData, // The data for this item of the ArrayInput
+                                  getSource, // A function to get the valid source inside an ArrayInput
+                                  ...rest
+                                }) =>
+                                  scopedFormData?.inputFormat ===
+                                  'listeChoix' ? (
+                                    <>
+                                      <NumberInput
+                                        source={getSource(
+                                          'choiceList.possibleChoicesNumber'
+                                        )}
+                                        label="Nombre de choix possible"
+                                        min={0}
+                                        validate={[required()]}
+                                      />
+                                      <ArrayInput
+                                        source={getSource(
+                                          'choiceList.inputChoiceList'
+                                        )}
+                                        label=""
+                                      >
+                                        <SimpleFormIterator className="simpleForm2">
+                                          <TextInput
+                                            source="inputChoice"
+                                            label="Nom du champ"
+                                            fullWidth
+                                            validate={[required()]}
+                                          />
+                                        </SimpleFormIterator>
+                                      </ArrayInput>
+                                    </>
+                                  ) : null
+                                }
+                              </FormDataConsumer>
+                              <BooleanInput
+                                source="isRequired"
+                                label="Champ obligatoire"
+                              />
+                            </SimpleFormIterator>
+                          </ArrayInput>
+                        </Box>
+                        <SubscriptionModeForm />
+                        <Box display="flex">
+                          <BooleanInput
+                            checked={false}
+                            source="isCitizenNotificationsDisabled"
+                            label="Désactiver l'envoi des notifications au citoyen"
+                            initialValue={false}
+                          />
+                        </Box>
+                      </>
                     )}
                   </Box>
                 </Box>

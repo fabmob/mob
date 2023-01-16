@@ -21,8 +21,8 @@ export const getDate = (value: string | Date) => {
   if (value == null || value === '') {
     return undefined;
   }
-
-  if (value instanceof Date) {
+  
+  if (value instanceof Date) {    
     return convertDateToString(value);
   }
 

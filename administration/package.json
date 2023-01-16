@@ -1,6 +1,6 @@
 {
   "name": "administration",
-  "version": "1.11.0",
+  "version": "1.16.0",
   "author": "Mon Compte Mobilité",
   "private": true,
   "dependencies": {
@@ -28,6 +28,8 @@
   },
   "resolutions": {
     "@types/react": "17.0.2",
+    "json5": "2.2.2",
+    "decode-uri-component": "0.2.1",
     "@types/react-dom": "17.0.2"
   },
   "scripts": {

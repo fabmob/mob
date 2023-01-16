@@ -6,6 +6,11 @@ $laptop-breakpoint: 1024px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: white;
+  z-index: 100000;
+  left: 0;
+  position: fixed;
+  right: 0;
 
   &__left {
     @media screen and (min-width: $laptop-breakpoint) {

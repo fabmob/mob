@@ -8,12 +8,8 @@ import {securityId} from '@loopback/security';
 
 import {AffiliationInterceptor} from '../../interceptors';
 import {ValidationError} from '../../validationError';
-import {
-  IncentiveRepository,
-  CitizenRepository,
-  SubscriptionRepository,
-} from '../../repositories';
-import {FunderService} from '../../services';
+import {IncentiveRepository, SubscriptionRepository} from '../../repositories';
+import {CitizenService, FunderService} from '../../services';
 import {Affiliation, Incentive, Citizen, Subscription, Territory} from '../../models';
 import {
   AFFILIATION_STATUS,
@@ -26,19 +22,19 @@ import {
 
 describe('affiliation Interceptor', () => {
   let interceptor: any = null;
-  let citizenRepository: StubbedInstanceWithSinonAccessor<CitizenRepository>,
-    incentiveRepository: StubbedInstanceWithSinonAccessor<IncentiveRepository>,
+  let incentiveRepository: StubbedInstanceWithSinonAccessor<IncentiveRepository>,
     funderService: StubbedInstanceWithSinonAccessor<FunderService>,
     currentUserProfile: IUser,
+    citizenService: StubbedInstanceWithSinonAccessor<CitizenService>,
     subscriptionRepository: StubbedInstanceWithSinonAccessor<SubscriptionRepository>;
 
   beforeEach(() => {
     givenStubbedRepository();
     interceptor = new AffiliationInterceptor(
-      citizenRepository,
       incentiveRepository,
       subscriptionRepository,
       funderService,
+      citizenService,
       currentUserProfile,
     );
   });
@@ -62,7 +58,7 @@ describe('affiliation Interceptor', () => {
         {funderType: FUNDER_TYPE.collectivity, name: 'maasName'},
       ]);
 
-      citizenRepository.stubs.findOne.resolves(null);
+      citizenService.stubs.getCitizenWithAffiliationById.resolves(undefined);
 
       await interceptor.intercept(invocationCtx, () => {});
     } catch (err) {
@@ -70,7 +66,7 @@ describe('affiliation Interceptor', () => {
     }
 
     funderService.stubs.getFunders.restore();
-    citizenRepository.stubs.findOne.restore();
+    citizenService.stubs.getCitizenWithAffiliationById.restore();
   });
 
   it('AffiliationInterceptor Create Subscription: error"', async () => {
@@ -82,7 +78,7 @@ describe('affiliation Interceptor', () => {
 
       incentiveRepository.stubs.findOne.resolves(incentive);
 
-      citizenRepository.stubs.findOne.resolves(null);
+      citizenService.stubs.getCitizenWithAffiliationById.resolves(undefined);
 
       await interceptor.intercept(invocationCtxCreateSubscription, () => {});
     } catch (err) {
@@ -90,7 +86,7 @@ describe('affiliation Interceptor', () => {
     }
 
     funderService.stubs.getFunders.restore();
-    citizenRepository.stubs.findOne.restore();
+    citizenService.stubs.getCitizenWithAffiliationById.restore();
     incentiveRepository.stubs.findOne.restore();
   });
 
@@ -102,7 +98,7 @@ describe('affiliation Interceptor', () => {
 
       incentiveRepository.stubs.findOne.resolves(null);
 
-      citizenRepository.stubs.findOne.resolves(null);
+      citizenService.stubs.getCitizenWithAffiliationById.resolves(undefined);
 
       await interceptor.intercept(invocationCtxCreateSubscription2, () => {});
     } catch (err) {
@@ -110,7 +106,7 @@ describe('affiliation Interceptor', () => {
     }
 
     funderService.stubs.getFunders.restore();
-    citizenRepository.stubs.findOne.restore();
+    citizenService.stubs.getCitizenWithAffiliationById.restore();
     incentiveRepository.stubs.findOne.restore();
   });
 
@@ -126,7 +122,7 @@ describe('affiliation Interceptor', () => {
       incentiveRepository.stubs.findOne.resolves(incentive);
       subscriptionRepository.stubs.findOne.resolves(subscription);
 
-      citizenRepository.stubs.findOne.resolves(null);
+      citizenService.stubs.getCitizenWithAffiliationById.resolves(undefined);
 
       await interceptor.intercept(invocationCtxAddFiles, () => {});
     } catch (err) {
@@ -134,7 +130,7 @@ describe('affiliation Interceptor', () => {
     }
 
     funderService.stubs.getFunders.restore();
-    citizenRepository.stubs.findOne.restore();
+    citizenService.stubs.getCitizenWithAffiliationById.restore();
     incentiveRepository.stubs.findOne.restore();
     subscriptionRepository.stubs.findOne.restore();
   });
@@ -151,7 +147,7 @@ describe('affiliation Interceptor', () => {
       incentiveRepository.stubs.findOne.resolves(incentive);
       subscriptionRepository.stubs.findOne.resolves(subscription);
 
-      citizenRepository.stubs.findOne.resolves(null);
+      citizenService.stubs.getCitizenWithAffiliationById.resolves(undefined);
 
       await interceptor.intercept(invocationCtxAddFiles, () => {});
     } catch (err) {
@@ -159,7 +155,7 @@ describe('affiliation Interceptor', () => {
     }
 
     funderService.stubs.getFunders.restore();
-    citizenRepository.stubs.findOne.restore();
+    citizenService.stubs.getCitizenWithAffiliationById.restore();
     subscriptionRepository.stubs.findOne.restore();
     incentiveRepository.stubs.findOne.restore();
   });
@@ -171,18 +167,18 @@ describe('affiliation Interceptor', () => {
     const affiliation = new Affiliation(
       Object.assign({enterpriseId: 'funderId', enterpriseEmail: 'test@test.com'}),
     );
-    affiliation.affiliationStatus = AFFILIATION_STATUS.AFFILIATED;
+    affiliation.status = AFFILIATION_STATUS.AFFILIATED;
 
     const citizen = new Citizen({
       affiliation,
     });
-    citizenRepository.stubs.findOne.resolves(citizen);
+    citizenService.stubs.getCitizenWithAffiliationById.resolves(citizen);
 
     const result = await interceptor.intercept(invocationCtx, () => {});
     expect(result).to.Null;
 
     funderService.stubs.getFunders.restore();
-    citizenRepository.stubs.findOne.restore();
+    citizenService.stubs.getCitizenWithAffiliationById.restore();
   });
 
   it('AffiliationInterceptor find id incentive territory"', async () => {
@@ -200,7 +196,7 @@ describe('affiliation Interceptor', () => {
 
       incentiveRepository.stubs.findOne.resolves(mockPublicIncentive);
 
-      citizenRepository.stubs.findOne.resolves(citizen);
+      citizenService.stubs.getCitizenWithAffiliationById.resolves(citizen);
 
       await interceptor.intercept(invocationCtxFindId, () => {});
     } catch (err) {
@@ -208,7 +204,7 @@ describe('affiliation Interceptor', () => {
     }
 
     funderService.stubs.getFunders.restore();
-    citizenRepository.stubs.findOne.restore();
+    citizenService.stubs.getCitizenWithAffiliationById.restore();
     incentiveRepository.stubs.findOne.restore();
   });
 
@@ -227,7 +223,7 @@ describe('affiliation Interceptor', () => {
 
       incentiveRepository.stubs.findOne.resolves(mockPrivateIncentive);
 
-      citizenRepository.stubs.findOne.resolves(citizen);
+      citizenService.stubs.getCitizenWithAffiliationById.resolves(citizen);
 
       await interceptor.intercept(invocationCtxFindId, () => {});
     } catch (err) {
@@ -235,7 +231,7 @@ describe('affiliation Interceptor', () => {
     }
 
     funderService.stubs.getFunders.restore();
-    citizenRepository.stubs.findOne.restore();
+    citizenService.stubs.getCitizenWithAffiliationById.restore();
     incentiveRepository.stubs.findOne.restore();
   });
 
@@ -273,7 +269,7 @@ describe('affiliation Interceptor', () => {
   });
 
   function givenStubbedRepository() {
-    citizenRepository = createStubInstance(CitizenRepository);
+    citizenService = createStubInstance(CitizenService);
     incentiveRepository = createStubInstance(IncentiveRepository);
     subscriptionRepository = createStubInstance(SubscriptionRepository);
     funderService = createStubInstance(FunderService);

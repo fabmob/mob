@@ -3,6 +3,7 @@ import {
   DefaultCrudRepository,
   repository,
   HasManyThroughRepositoryFactory,
+  HasManyRepositoryFactory,
 } from '@loopback/repository';
 
 import {uniq} from 'lodash';
@@ -14,9 +15,14 @@ import {
   KeycloakGroupRelations,
   KeycloakRole,
   GroupRoleMapping,
+  GroupAttribute,
 } from '../../models';
 import {GROUPS} from '../../utils';
-import {GroupRoleMappingRepository, KeycloakRoleRepository} from './index';
+import {
+  GroupRoleMappingRepository,
+  KeycloakRoleRepository,
+  GroupAttributeRepository,
+} from './index';
 
 export class KeycloakGroupRepository extends DefaultCrudRepository<
   KeycloakGroup,
@@ -30,12 +36,19 @@ export class KeycloakGroupRepository extends DefaultCrudRepository<
     typeof KeycloakGroup.prototype.id
   >;
 
+  public readonly groupAttributes: HasManyRepositoryFactory<
+    GroupAttribute,
+    typeof KeycloakGroup.prototype.id
+  >;
+
   constructor(
     @inject('datasources.idpdbDS') dataSource: IdpDbDataSource,
     @repository.getter('GroupRoleMappingRepository')
     protected groupRoleMappingRepositoryGetter: Getter<GroupRoleMappingRepository>,
     @repository.getter('KeycloakRoleRepository')
     protected keycloakRoleRepositoryGetter: Getter<KeycloakRoleRepository>,
+    @repository.getter('GroupAttributeRepository')
+    groupAttributeRepository: Getter<GroupAttributeRepository>,
   ) {
     super(KeycloakGroup, dataSource);
     this.keycloakRoles = this.createHasManyThroughRepositoryFactoryFor(
@@ -44,6 +57,11 @@ export class KeycloakGroupRepository extends DefaultCrudRepository<
       groupRoleMappingRepositoryGetter,
     );
     this.registerInclusionResolver('keycloakRoles', this.keycloakRoles.inclusionResolver);
+
+    this.groupAttributes = this.createHasManyRepositoryFactoryFor(
+      'groupAttributes',
+      groupAttributeRepository,
+    );
   }
 
   async getSubGroupFunder(): Promise<{id: string; name: string | undefined}[]> {
@@ -92,6 +110,15 @@ export class KeycloakGroupRepository extends DefaultCrudRepository<
     const group: (KeycloakGroup & KeycloakGroupRelations) | null = await this.findOne({
       where: {and: [{realmId: realmName}, {name: groupName}]},
     });
+    return group;
+  }
+
+  /**
+   * Get group By Id
+   * @returns KeycloakGroup
+   */
+  async getGroupById(groupId: string): Promise<KeycloakGroup | null> {
+    const group: KeycloakGroup | null = await this.findById(groupId);
     return group;
   }
 }

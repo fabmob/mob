@@ -133,6 +133,8 @@ ingressRoutes:
           match: Host(`${MATOMO_FQDN}`)
           middlewares:
             - name: analytics-headers
+            - name: custom-error-middleware
+              namespace: traefik-int
           services:
             - kind: Service
               name: analytics

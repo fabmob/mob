@@ -23,10 +23,6 @@ const InscriptionPageForm: FC = () => {
     'connexion-inscription--confirmation': !inscriptionMode,
   });
 
-  const completionMode = window.location.pathname.includes(
-    'completer-formulaire'
-  );
-
   const openFranceConnect = () => {
     const query = {
       redirect_uri: `${config.ORIGIN_PATH}${config.REDIRECT_PATH}`,
@@ -45,7 +41,7 @@ const InscriptionPageForm: FC = () => {
       pageTitle={`${Strings['creation.line1.create']} ${Strings['creation.line2.account']}`}
     >
       {/* FRANCE CONNECT PART START */}
-      {!completionMode && inscriptionMode && (
+      {inscriptionMode && (
         <>
           <h1 className="connexion-inscription__title">{`${Strings['creation.line1.create']} ${Strings['creation.line2.account']}`}</h1>
           <div className={CSSClass}>
@@ -85,17 +81,16 @@ const InscriptionPageForm: FC = () => {
         <div className="connexion-inscription__first">
           {inscriptionMode ? (
             <>
-              <CreationCompteMessage completionMode={completionMode} />
-              {!completionMode && <PatternCompositionMessage />}
+              <CreationCompteMessage />
+              {<PatternCompositionMessage />}
             </>
           ) : (
-            <CreationCompteSuccesMessage completionMode={completionMode} />
+            <CreationCompteSuccesMessage />
           )}
         </div>
         <div className="connexion-inscription__second">
           {inscriptionMode && (
             <SignUpForm
-              completionMode={completionMode}
               handleSwitchMode={() => setInscriptionMode(false)}
             />
           )}

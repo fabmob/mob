@@ -116,6 +116,9 @@ ingressRoutes:
       routes:
         - kind: Rule
           match: Host(`${SIMULATION_MAAS_FQDN}`)
+          middlewares:
+            - name: custom-error-middleware
+              namespace: traefik-int
           services:
             - name: simulation-maas
               port: 8888

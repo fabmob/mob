@@ -87,6 +87,13 @@ describe('SubscriptionV1 Interceptor', () => {
     repository.stubs.findById.restore();
   });
 
+  it('SubscriptionV1Interceptor create: successful with optional spec', async () => {
+    repository.stubs.findById.resolves(mockIncentiveWithOptionalSpecField);
+    const result = await interceptor.intercept(invocationContextCreates2, () => {});
+    expect(result).to.Null;
+    repository.stubs.findById.restore();
+  });
+
   it('SubscriptionV1Interceptor value', async () => {
     const res = 'successful binding';
     sinon.stub(interceptor.intercept, 'bind').resolves(res);
@@ -115,6 +122,21 @@ const invocationContextCreates = {
       incentiveId: 'incentiveId',
       newField1: 'field1',
       newField2: 'field2',
+      consent: true,
+    },
+  ],
+};
+
+const invocationContextCreates2 = {
+  target: {},
+  methodName: 'createSubscription',
+  args: [
+    {
+      incentiveId: 'incentiveId2',
+      newField1: ['newField1'],
+      newField2: 'field2',
+      newField3: null,
+      newField4: undefined,
       consent: true,
     },
   ],
@@ -153,6 +175,7 @@ const mockIncentive = new Incentive({
     {
       title: 'newField1',
       inputFormat: 'listeChoix',
+      isRequired: true,
       choiceList: {
         possibleChoicesNumber: 2,
         inputChoiceList: [
@@ -168,6 +191,7 @@ const mockIncentive = new Incentive({
     {
       title: 'newField2',
       inputFormat: 'Texte',
+      isRequired: true,
     },
   ],
   jsonSchema: {
@@ -189,6 +213,96 @@ const mockIncentive = new Incentive({
     title: 'test',
     type: 'object',
     required: ['newField1', 'newField2'],
+    additionalProperties: false,
+  },
+  updatedAt: new Date('2021-04-06T09:01:30.778Z'),
+  isMCMStaff: true,
+});
+
+const mockIncentiveWithOptionalSpecField = new Incentive({
+  territory: {name: 'IDF', id: 'randomTerritoryId'} as Territory,
+  additionalInfos: 'test',
+  funderName: 'Mairie',
+  allocatedAmount: '200 €',
+  description: 'test',
+  title: 'incentiveTitle',
+  incentiveType: 'AideTerritoire',
+  createdAt: new Date('2021-04-06T09:01:30.747Z'),
+  transportList: ['velo'],
+  validityDate: '2022-04-06T09:01:30.778Z',
+  minAmount: 'A partir de 100 €',
+  contact: 'Mr le Maire',
+  validityDuration: '1 an',
+  paymentMethod: 'En une seule fois',
+  attachments: ['RIB'],
+  id: 'incentiveId',
+  conditions: 'Vivre à Toulouse',
+  specificFields: [
+    {
+      title: 'newField1',
+      inputFormat: 'listeChoix',
+      isRequired: false,
+      choiceList: {
+        possibleChoicesNumber: 2,
+        inputChoiceList: [
+          {
+            inputChoice: 'newField1',
+          },
+          {
+            inputChoice: 'newField11',
+          },
+        ],
+      },
+    },
+    {
+      title: 'newField2',
+      inputFormat: 'Texte',
+      isRequired: false,
+    },
+    {
+      title: 'newField3',
+      inputFormat: 'Numerique',
+      isRequired: false,
+    },
+    {
+      title: 'newField4',
+      inputFormat: 'Date',
+      isRequired: false,
+    },
+  ],
+  jsonSchema: {
+    properties: {
+      newField1: {
+        type: 'array',
+        minItems: 1,
+        maxItems: 2,
+        items: [
+          {
+            enum: ['newField1', 'newField11'],
+          },
+        ],
+      },
+      newField2: {
+        type: ['string', 'null'],
+      },
+      newField3: {
+        type: ['number', 'null'],
+      },
+      newField4: {
+        oneOf: [
+          {
+            type: 'string',
+            format: 'date',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+    },
+    title: 'test',
+    type: 'object',
+    required: ['newField1'],
     additionalProperties: false,
   },
   updatedAt: new Date('2021-04-06T09:01:30.778Z'),
@@ -218,6 +332,7 @@ const mockIncentiveFunderId = new Incentive({
     {
       title: 'newField1',
       inputFormat: 'listeChoix',
+      isRequired: true,
       choiceList: {
         possibleChoicesNumber: 2,
         inputChoiceList: [
@@ -233,6 +348,7 @@ const mockIncentiveFunderId = new Incentive({
     {
       title: 'newField2',
       inputFormat: 'Texte',
+      isRequired: true,
     },
   ],
   jsonSchema: {

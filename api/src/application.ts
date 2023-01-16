@@ -26,7 +26,7 @@ import {SubscriptionCronJob} from './cronjob/subscriptionCronJob';
 import {NonActivatedAccountDeletionCronJob} from './cronjob/nonActivatedAccountDeletionCronJob';
 import {ParentProcessService} from './services';
 import {MongoDsDataSource} from './datasources';
-import {MigrationScript111} from './migrations/1.11.0.migration';
+import {MigrationScript1160} from './migrations/1.16.0.migration';
 
 export class App extends BootMixin(ServiceMixin(RepositoryMixin(RestApplication))) {
   constructor(options: ApplicationConfig = {}) {
@@ -58,12 +58,12 @@ export class App extends BootMixin(ServiceMixin(RepositoryMixin(RestApplication)
 
     // Set up default home page
     this.static('/', path.join(__dirname, '../public'));
-    // Configure migration component
+    // Configure migration componentcd
     this.bind(MigrationBindings.CONFIG).to({
-      appVersion: '1.11.0',
+      appVersion: '1.16.0',
       dataSourceName: MongoDsDataSource.dataSourceName,
       modelName: 'Migration',
-      migrationScripts: [MigrationScript111],
+      migrationScripts: [MigrationScript1160],
     });
     // Bind migration component related elements
     this.component(MigrationComponent);

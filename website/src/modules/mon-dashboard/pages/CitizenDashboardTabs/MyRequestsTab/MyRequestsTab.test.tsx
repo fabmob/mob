@@ -326,7 +326,7 @@ const userMock = {
   affiliation: {
     enterpriseId: '12345',
     enterpriseEmail: 'roger@capgemini.com',
-    affiliationStatus: 'A_AFFILIER',
+    status: 'A_AFFILIER',
   },
 };
 
@@ -344,7 +344,7 @@ const context = {
     affiliation: {
       enterpriseId: '12345',
       enterpriseEmail: 'roger@capgemini.com',
-      affiliationStatus: 'A_AFFILIER',
+      status: 'A_AFFILIER',
     },
   },
   authenticated: true,

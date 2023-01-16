@@ -88,6 +88,14 @@
       sleep 10
     done
   }
+  function delete_pod {
+    if [ -n "$(pod_namespace $1)" ]
+    then
+      echo "### $1 pod is already up so we delete it before recreating it ! ###"
+      KUBE_NAMESPACE=$(pod_namespace $1)
+      kubectl delete pod $1 -n $KUBE_NAMESPACE
+    fi
+  }
 
 .verify-job:
   extends:

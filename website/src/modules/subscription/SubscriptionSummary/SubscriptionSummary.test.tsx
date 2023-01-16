@@ -12,6 +12,10 @@ const mockSpecificFields = jest.fn().mockImplementation(() => {
     prix: '230',
     date2: '23/09/2022',
     consent: true,
+    champstextoptionnel: '',
+    champsnumberoptionnel: '',
+    dateoptionnel: undefined,
+    multichoixoptionnel: [],
   };
   return Fields;
 });
@@ -20,8 +24,36 @@ const mockEmptyFields = {};
 
 const mockIncentiveFields = jest.fn().mockImplementation(() => {
   const incentiveFields = [
-    { title: 'prix', inputFormat: 'Texte', name: 'prix' },
-    { title: 'date 2', inputFormat: 'Date', name: 'date2' },
+    {
+      title: 'prix',
+      inputFormat: 'Texte',
+      name: 'prix',
+      isRequired: true,
+    },
+    {
+      title: 'Champs text optionnel',
+      inputFormat: 'Texte',
+      isRequired: false,
+      name: 'champstextoptionnel',
+    },
+    {
+      title: 'date 2',
+      inputFormat: 'Date',
+      name: 'date2',
+      isRequired: true,
+    },
+    {
+      title: 'Champs Number optionnel',
+      inputFormat: 'Numerique',
+      isRequired: false,
+      name: 'champsnumberoptionnel',
+    },
+    {
+      title: 'Date optionnel',
+      inputFormat: 'Date',
+      isRequired: false,
+      name: 'dateoptionnel',
+    },
     {
       title: 'choix multiple',
       inputFormat: 'listeChoix',
@@ -33,6 +65,27 @@ const mockIncentiveFields = jest.fn().mockImplementation(() => {
         possibleChoicesNumber: 1,
       },
       name: 'choixmultiple',
+      isRequired: true,
+    },
+    {
+      title: 'multichoix optionnel',
+      inputFormat: 'listeChoix',
+      isRequired: false,
+      choiceList: {
+        possibleChoicesNumber: 1,
+        inputChoiceList: [
+          {
+            inputChoice: 'choix 1',
+          },
+          {
+            inputChoice: 'choix 2',
+          },
+          {
+            inputChoice: 'choix 3',
+          },
+        ],
+      },
+      name: 'multichoixoptionnel',
     },
   ];
   return incentiveFields;

@@ -58,7 +58,6 @@ const IndexPage: FC = () => {
           ? CmmImages.AT_PREPROD
           : CmmImages.AT_PREVIEW,
     },
-    8,
   ];
 
   /**

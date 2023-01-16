@@ -69,7 +69,6 @@ api_build:
       - openapi-maas.json
     expire_in: 5 days
 
-
 # Static Application Security Testing for known vulnerabilities
 api_sast:
   extends:

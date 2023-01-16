@@ -19,3 +19,12 @@ export const encryptFileHybrid = (file: Buffer, key: Buffer, iv: Buffer) => {
   const encryptedFile: Buffer = Buffer.concat([cipher.update(file), cipher.final()]);
   return encryptedFile;
 };
+
+/**
+ * hash data with sha256
+ * @param data data to hash
+ * @returns hashed data
+ */
+export const sha256 = (data: object) => {
+  return crypto.createHash('sha256').update(`${data}`).digest('hex');
+};

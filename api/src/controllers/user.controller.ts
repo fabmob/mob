@@ -210,8 +210,8 @@ export class UserController {
       },
     })
     user: User,
-  ): Promise<ICreate> {
-    let keycloakResult: ICreate = {id: ''};
+  ): Promise<{id: string} | undefined> {
+    let keycloakResult: {id: string} = {id: ''};
     try {
       const funders = await this.funderService.getFunders();
       const fundersFiltered = head(funders.filter(({id}) => id === user.funderId));
@@ -267,18 +267,15 @@ export class UserController {
                 RequiredActionAlias.UPDATE_PASSWORD,
               ];
               keycloakResult = await this.kcService.createUserKc(
-                {
-                  ...user,
-                  funderName: name,
-                  group: [
-                    `/${
-                      funderType === FUNDER_TYPE.collectivity
-                        ? GROUPS.collectivities
-                        : GROUPS.enterprises
-                    }/${name}`,
-                    ...user.roles.map(role => `${GROUPS.funders}/${role}`),
-                  ],
-                },
+                new User(user),
+                [
+                  `/${
+                    funderType === FUNDER_TYPE.collectivity
+                      ? GROUPS.collectivities
+                      : GROUPS.enterprises
+                  }/${name}`,
+                  ...user.roles.map(role => `${GROUPS.funders}/${role}`),
+                ],
                 actions,
               );
               if (keycloakResult && keycloakResult.id) {
@@ -298,10 +295,7 @@ export class UserController {
 
                 // returning id because of react-admin specifications
                 return {
-                  id: userRepo.id,
-                  email: userRepo.email,
-                  lastName: userRepo.lastName,
-                  firstName: userRepo.firstName,
+                  id: userRepo.id!,
                 };
               }
               return keycloakResult;
@@ -421,7 +415,55 @@ export class UserController {
     security: SECURITY_SPEC_KC_PASSWORD,
     responses: {
       [StatusCode.Success]: {
-        description: 'Utilisateur patch success',
+        description: "Modification de l'utilisateur financeur reussie",
+      },
+      [StatusCode.Unauthorized]: {
+        description: "L'utilisateur est non connecté",
+        content: {
+          'application/json': {
+            schema: getModelSchemaRef(Error),
+            example: {
+              error: {
+                statusCode: StatusCode.Unauthorized,
+                name: 'Error',
+                message: 'Authorization header not found',
+                path: '/authorization',
+              },
+            },
+          },
+        },
+      },
+      [StatusCode.Forbidden]: {
+        description: "L'utilisateur n'a pas les droits pour modifier cet utilisateur",
+        content: {
+          'application/json': {
+            schema: getModelSchemaRef(Error),
+            example: {
+              error: {
+                statusCode: StatusCode.Forbidden,
+                name: 'Error',
+                message: 'Access denied',
+              },
+            },
+          },
+        },
+      },
+      [StatusCode.NotFound]: {
+        description: "L'utilisateur n'a pas les droits pour modifier cet utilisateur",
+        content: {
+          'application/json': {
+            schema: getModelSchemaRef(Error),
+            example: {
+              error: {
+                statusCode: StatusCode.NotFound,
+                name: 'Error',
+                message: 'users.not.found',
+                path: '/users',
+                resource: ResourceName.User,
+              },
+            },
+          },
+        },
       },
       [StatusCode.PreconditionFailed]: {
         description: `Votre entreprise n'accepte pas l'affiliation manuelle`,
@@ -430,10 +472,11 @@ export class UserController {
             schema: getModelSchemaRef(Error),
             example: {
               error: {
-                statusCode: 412,
+                statusCode: StatusCode.PreconditionFailed,
                 name: 'Error',
                 message: 'users.funder.manualAffiliation.refuse',
                 path: '/users',
+                resource: ResourceName.User,
               },
             },
           },
@@ -454,7 +497,7 @@ export class UserController {
       },
     })
     user: User,
-  ): Promise<{id: string}> {
+  ): Promise<void> {
     /**
      * Check if this user's company accepts manual affiliation
      */
@@ -475,18 +518,22 @@ export class UserController {
     const userRepo: User = await this.userRepository.findById(userId);
     if (userRepo) {
       const {roles} = user;
-      const propertiesToOmit = ['roles'];
 
       if (user.communityIds) {
         user.communityIds = roles.includes(Roles.MANAGERS) ? user.communityIds : [];
       }
 
-      const userOmit = omit(user, propertiesToOmit);
       await this.kcService.updateUserGroupsKc(userId, roles);
-      await this.kcService.updateUser(userId, userOmit);
-      await this.userRepository.updateById(userId, userOmit);
+      await this.kcService.updateUserKC(userId, Object.assign(userRepo, user));
+      await this.userRepository.updateById(userId, user);
+    } else {
+      throw new ValidationError(
+        `users.not.found`,
+        `/users`,
+        StatusCode.NotFound,
+        ResourceName.User,
+      );
     }
-    return {id: userId};
   }
 
   @authenticate(AUTH_STRATEGY.KEYCLOAK)

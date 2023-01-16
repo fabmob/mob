@@ -116,23 +116,21 @@ export class Subscription extends Entity {
   @property({
     type: 'string',
     description: `Ville du citoyen`,
-    required: true,
     jsonSchema: {
       example: `Toulouse`,
     },
   })
-  city: string;
+  city?: string;
 
   @property({
     type: 'string',
     description: `Code postal du citoyen`,
-    required: true,
     jsonSchema: {
       example: `31000`,
       pattern: '[0-9]{5}',
     },
   })
-  postcode: string;
+  postcode?: string;
 
   @property({
     type: 'date',

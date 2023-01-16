@@ -42,10 +42,12 @@ const schema = yup.object().shape({
     .test(
       'check-is-correct-date',
       (object: MessageParams) => checkIsCorrectDate(object.value).errorMessage,
-      (value: string | undefined) => (value ? checkIsCorrectDate(value).isCorrectDate : true)
+      (value: string | undefined) =>
+        value ? checkIsCorrectDate(value).isCorrectDate : true
     )
     .nullable(),
   isMCMStaff: yup.boolean(),
+  isCertifiedTimestampRequired: yup.boolean(),
 });
 
 function checkIsCorrectDate(value: any) {

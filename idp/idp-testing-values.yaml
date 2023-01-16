@@ -6,7 +6,7 @@ configMaps:
         kubernetes.io/ingress.class: traefik
       name: master-realm-config
     data:
-      master-realm.json: "idp/realms/master-realm.json"
+      master-realm.json: "idp/overlays/realms/master-realm.json"
 
 services:
   - metadata:
@@ -19,19 +19,123 @@ services:
       creationTimestamp: null
       labels:
         io.kompose.service: idp
-      name: idp
+      name: idp-http
     spec:
       ports:
-        - name: "8080"
+        - name: http
           port: 8080
-          targetPort: 8080
+        - name: https
+          port: 8443
+        - name: http-management
+          port: 9990
+        - name: management
+          port: 9090
+        - name: jgroups-tcp
+          port: 7600
+        - name: jgroups-tcp-fd
+          port: 57600
+        - name: jgroups-udp
+          port: 55200
+          protocol: UDP
+        - name: jgroups-udp-mc
+          port: 45688
+          protocol: UDP
+        - name: jgroups-udp-fd
+          port: 54200
+          protocol: UDP
+        - name: modcluster
+          port: 23364
+        - name: modcluster-udp
+          port: 23364
+          protocol: UDP
+        - name: txn-recovery-ev
+          port: 4712
+        - name: txn-status-mgr
+          port: 4713
       selector:
         io.kompose.service: idp
       type: ClusterIP
+      publishNotReadyAddresses: false
     status:
       loadBalancer: {}
 
-deployments:
+headlessService:
+  - metadata:
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+        kompose.service.type: clusterip
+        kubernetes.io/ingress.class: traefik
+      creationTimestamp: null
+      labels:
+        io.kompose.service: idp
+      name: idp-headless
+    spec:
+      type: ClusterIP
+      clusterIP: None
+      ports:
+        - name: http
+          port: 8080
+      publishNotReadyAddresses: false
+      selector:
+        io.kompose.service: idp
+      sessionAffinity: None
+
+autoscaling:
+  metadata:
+    annotations:
+      app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+      app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+      kompose.service.type: clusterip
+      kubernetes.io/ingress.class: traefik
+    enabled: true
+    name: idp
+  spec:
+    scaleTargetRef:
+      kind: StatefulSet
+      name: idp
+      apiVersion: apps/v1
+    minReplicas: 2
+    maxReplicas: 8
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 70
+      - type: Resource
+        resource:
+          name: memory
+          target:
+            type: Utilization
+            averageUtilization: 70
+    behavior:
+      scaleDown:
+        stabilizationWindowSeconds: 300
+        policies:
+          - type: Pods
+            value: 1
+            periodSeconds: 300
+
+rbac:
+  - metadata:
+      labels:
+        io.kompose.service: idp
+      name: idp-service-account
+      namespace: ${MODULE_NAME}-${LANDSCAPE}
+    serviceAccountName: idp-service-account
+    create: true
+    rules:
+      - apiGroups:
+          - ""
+        resources:
+          - pods
+        verbs:
+          - get
+          - list
+
+statefulSet:
   - metadata:
       annotations:
         app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
@@ -47,7 +151,10 @@ deployments:
       selector:
         matchLabels:
           io.kompose.service: idp
-      strategy: {}
+      podManagementPolicy: Parallel
+      updateStrategy:
+        type: RollingUpdate
+      serviceName: idp-headless
       template:
         metadata:
           annotations:
@@ -61,14 +168,19 @@ deployments:
             io.kompose.service: idp
         spec:
           containers:
+            securityContext:
+              runAsUser: 1000
+              runAsNonRoot: true
             args:
               - -b
               - 0.0.0.0
-              - -Djboss.modules.system.pkgs=org.jboss.logmanager
               - -Dkeycloak.migration.action=import
               - -Dkeycloak.migration.provider=singleFile
               - -Dkeycloak.migration.file=/tmp/master-realm.json
               - -Dkeycloak.migration.strategy=IGNORE_EXISTING
+              - -Dkeycloak.profile.feature.scripts=enabled
+              - -Djboss.node.name=$(MY_POD_NAME)
+              - -Djgroups.bind_addr=$(HOST_IP)
             env:
               KEYCLOAK_USER: ${TESTING_PGSQL_ADMIN_USER}
               KEYCLOAK_PASSWORD: ${TESTING_PGSQL_ADMIN_PASSWORD}
@@ -82,41 +194,95 @@ deployments:
               DB_DATABASE: ${TESTING_PGSQL_NAME}
               DB_USER: ${TESTING_PGSQL_DEV_USER}
               DB_PASSWORD: ${TESTING_PGSQL_DEV_PASSWORD}
+              LANDSCAPE: ${LANDSCAPE}
+              BASE_DOMAIN: ${BASE_DOMAIN}
+              MATOMO_FQDN: ${MATOMO_FQDN}
+              JGROUPS_DISCOVERY_PROTOCOL: kubernetes.KUBE_PING
+              JGROUPS_TRANSPORT_STACK: tcp
+              KC_CACHE_STACK: kubernetes
+              KUBERNETES_NAMESPACE: ${MODULE_NAME}-${LANDSCAPE}
+              CACHE_OWNERS: "2"
+              CACHE_OWNERS_COUNT: "2"
+              CACHE_OWNERS_AUTH_SESSIONS_COUNT: "2"
             image: ${KEYCLOAK_IMAGE_NAME}
             name: idp
+            pullPolicy: IfNotPresent
             ports:
-              - containerPort: 8080
-            resources: {}
+              - name: http
+                protocol: TCP
+                containerPort: 8080
+              - name: https
+                protocol: TCP
+                containerPort: 8443
+              - name: http-management
+                containerPort: 9990
+                protocol: TCP
+              - name: management
+                containerPort: 9090
+              - name: jgroups-tcp
+                containerPort: 7600
+              - name: jgroups-tcp-fd
+                containerPort: 57600
+              - name: jgroups-udp
+                containerPort: 55200
+                protocol: UDP
+              - name: jgroups-udp-mc
+                containerPort: 45688
+                protocol: UDP
+              - name: jgroups-udp-fd
+                containerPort: 54200
+                protocol: UDP
+              - name: modcluster
+                containerPort: 23364
+              - name: modcluster-udp
+                containerPort: 23364
+                protocol: UDP
+              - name: txn-recovery-ev
+                containerPort: 4712
+              - name: txn-status-mgr
+                containerPort: 4713
+            livenessProbe:
+              httpGet:
+                path: /auth/
+                port: http
+              initialDelaySeconds: 0
+              timeoutSeconds: 5
+            readinessProbe:
+              httpGet:
+                path: /auth/realms/master
+                port: http
+              initialDelaySeconds: 30
+              timeoutSeconds: 1
+            startupProbe:
+              httpGet:
+                path: /auth/
+                port: http
+              initialDelaySeconds: 30
+              timeoutSeconds: 1
+              failureThreshold: 60
+              periodSeconds: 5
+            resources:
+              requests:
+                cpu: "500m"
+                memory: "1Gi"
+              limits:
+                cpu: "500m"
+                memory: "16Gi"
             volumeMounts:
-              - mountPath: /tmp
-                name: realm-config
+              - name: realm-config
+                mountPath: /tmp
           imagePullSecrets:
             - name: ${GITLAB_IMAGE_PULL_SECRET_NAME}
+          serviceAccountName: default
+          enableServiceLinks: true
           restartPolicy: Always
+          terminationGracePeriodSeconds: 60
           securityContext:
             fsGroup: 1000
           volumes:
             - configMap:
                 name: master-realm-config
               name: realm-config
-    status: {}
-
-networkPolicies:
-  - metadata:
-      annotations:
-        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
-        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
-        kubernetes.io/ingress.class: traefik
-      name: web-nw
-    spec:
-      ingress:
-        - from:
-            - namespaceSelector:
-                matchLabels:
-                  com.capgemini.mcm.ingress: "true"
-      podSelector:
-        matchLabels:
-          io.kompose.network/web-nw: "true"
 
 ingressRoutes:
   - metadata:
@@ -133,10 +299,11 @@ ingressRoutes:
           match: Host(`${IDP_FQDN}`)
           middlewares:
             - name: idp-headers-middleware
-            # - name: idp-ratelimit-middleware
             - name: idp-inflightreq-middleware
+            - name: custom-error-middleware
+              namespace: traefik-int
           services:
-            - name: idp
+            - name: idp-http
               port: 8080
 
 middlewares:
@@ -161,18 +328,3 @@ middlewares:
     spec:
       inFlightReq:
         amount: 100
-
-  # - metadata:
-  #     annotations:
-  #       app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
-  #       app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
-  #       kubernetes.io/ingress.class: traefik
-  #     name: idp-ratelimit-middleware
-  #   spec:
-  #     rateLimit:
-  #       average: 30
-  #       burst: 50
-  #       period: 1s
-  #       sourceCriterion:
-  #         ipStrategy:
-  #           depth: 3

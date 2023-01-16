@@ -37,6 +37,9 @@ $laptop-breakpoint: 1024px;
   .mcm-nav__connect {
     cursor: pointer;
   }
+  #nav-login:hover {
+    color: var(--color-green-leaf);
+  }
   .nav-sub-name-text {
     color: var(--color-grey-mid);
     margin-top: 8px;
@@ -56,6 +59,9 @@ $laptop-breakpoint: 1024px;
 
     &--accent {
       font-weight: 600;
+      color: var(--color-green-leaf);
+    }
+    a:hover {
       color: var(--color-green-leaf);
     }
   }
@@ -136,6 +142,10 @@ $laptop-breakpoint: 1024px;
     font-size: 26px;
     font-weight: 600;
     padding-bottom: 40px;
+  }
+
+  .mcm-nav__item a:hover {
+    color: var(--color-green-leaf);
   }
 
   .mcm-mobile-sub-nav {

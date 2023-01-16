@@ -24,6 +24,7 @@ interface CompanyOption {
  */
 const schema = yup.object().shape({
   city: yup.string().required(defaultRequiredMessage),
+  status: yup.string().required(defaultRequiredMessage),
   postcode: yup
     .string()
     .required(defaultRequiredMessage)

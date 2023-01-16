@@ -1,6 +1,6 @@
 import {Model, model, property} from '@loopback/repository';
 
-import {REJECTION_REASON} from '../../utils';
+import {AdditionalProps, REJECTION_REASON} from '../../utils';
 
 @model({settings: {idInjection: false}})
 export class CommonRejection extends Model {
@@ -22,6 +22,11 @@ export class CommonRejection extends Model {
     },
   })
   comments?: string;
+
+  @property({
+    type: 'object',
+  })
+  additionalProperties: AdditionalProps;
 
   constructor(data?: CommonRejection) {
     super(data);

@@ -1,0 +1,25 @@
+{
+  "authenticators": [
+    {
+      "name": "FC Create User If Unique",
+      "fileName": "authenticator-FC-create.js",
+      "description": "Custom authenticator to create citizen FC"
+    },
+    {
+      "name": "FC Authenticator Mappers",
+      "fileName": "authenticator-FC-mappers.js",
+      "description": "Custom authenticator to add citizen mappers to be CMS compliant"
+    },
+    {
+      "name": "FC Authenticator Group",
+      "fileName": "authenticator-FC-group.js",
+      "description": "Custom authenticator to add citizen to citizen group"
+    },
+
+    {
+      "name": "FC Authenticator Required Action",
+      "fileName": "authenticator-FC-action.js",
+      "description": "Custom authenticator to add required action to citizen"
+    }
+  ]
+}

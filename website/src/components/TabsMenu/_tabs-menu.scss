@@ -52,8 +52,11 @@
     }
 
     .page-container {
+      @media screen and (max-width:576px) {
+        flex-direction: column;
+      }
       > .content-list {
-        text-align: justify;
+        text-align: justify;  
         @media screen and (min-width: 1024px) {
           width: 50%;
           margin-right: 60px;

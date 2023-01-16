@@ -33,7 +33,7 @@ describe('IdentitySection', () => {
   const affiliation = {
     enterpriseId: 'string',
     enterpriseEmail: 'string',
-    affiliationStatus: 'string',
+    status: 'string',
   };
 
   test('IdentitySection: all fields are present', () => {

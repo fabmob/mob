@@ -1,27 +1,31 @@
 import {injectable, BindingScope} from '@loopback/core';
-import {AnyObject, repository} from '@loopback/repository';
+import {repository} from '@loopback/repository';
 
 import KcAdminClient from 'keycloak-admin';
 import {RequiredActionAlias} from 'keycloak-admin/lib/defs/requiredActionProviderRepresentation';
 import UserRepresentation from 'keycloak-admin/lib/defs/userRepresentation';
 import {head, startCase} from 'lodash';
 
-import {KeycloakGroup, KeycloakGroupRelations} from '../models';
-import {PersonalInformation} from '../models/citizen/personalInformation.model';
+import {
+  Citizen,
+  GroupAttribute,
+  KeycloakGroup,
+  KeycloakGroupRelations,
+  User,
+} from '../models';
 
 import {baseUrl, realmName, credentials} from '../constants';
 import {
   ResourceName,
   StatusCode,
   GROUPS,
-  IDP_EMAIL_TEMPLATE,
   Consent,
-  User,
   IUser,
+  IDP_EMAIL_TEMPLATE,
+  logger,
 } from '../utils';
 import {ValidationError} from '../validationError';
-import {KeycloakGroupRepository} from '../repositories';
-import {Identity} from '../models/citizen/identity.model';
+import {KeycloakGroupRepository, UserEntityRepository} from '../repositories';
 
 @injectable({scope: BindingScope.TRANSIENT})
 export class KeycloakService {
@@ -30,6 +34,8 @@ export class KeycloakService {
   constructor(
     @repository(KeycloakGroupRepository)
     public keycloakGroupRepository: KeycloakGroupRepository,
+    @repository(UserEntityRepository)
+    public userEntityRepository: UserEntityRepository,
   ) {
     this.keycloakAdmin = new KcAdminClient({
       baseUrl,
@@ -37,59 +43,57 @@ export class KeycloakService {
     });
   }
 
-  createUserKc(user: User, actions: RequiredActionAlias[]): Promise<{id: string}> {
-    const {email, firstName, lastName, password, group, funderName, birthdate, gender} =
-      user;
+  /**
+   * Create KC User (citizen or funder user)
+   * @param user Citizen | User
+   * @param groupList string[]
+   * @param actionList RequiredActionAlias[]
+   */
+  createUserKc(
+    user: Citizen | User,
+    groupList: string[],
+    actionList: RequiredActionAlias[],
+  ): Promise<{id: string}> {
+    let userToCreate: UserRepresentation = {};
 
+    if (user instanceof Citizen) {
+      userToCreate = {
+        ...user.toUserRepresentation(),
+        groups: groupList,
+        emailVerified: false,
+        enabled: true,
+        credentials: [
+          {
+            temporary: false,
+            type: 'password',
+            value: user.password,
+          },
+        ],
+        requiredActions: actionList,
+      };
+    }
+
+    if (user instanceof User) {
+      userToCreate = {
+        username: user.email,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        groups: groupList,
+        emailVerified: false,
+        enabled: true,
+        attributes: {
+          emailTemplate: IDP_EMAIL_TEMPLATE.FUNDER,
+          funderName: startCase(groupList[0].split('/')[2]),
+        },
+        requiredActions: actionList,
+      };
+    }
     return this.keycloakAdmin
       .auth(credentials)
-      .then(() =>
-        this.keycloakAdmin.users.create({
-          username: email,
-          email,
-          firstName,
-          lastName,
-          emailVerified: false,
-          enabled: true,
-          groups: group,
-          attributes: {
-            emailTemplate: group.some(group => group.includes(GROUPS.citizens))
-              ? IDP_EMAIL_TEMPLATE.CITIZEN
-              : IDP_EMAIL_TEMPLATE.FUNDER,
-            funderName: startCase(funderName),
-            birthdate: birthdate,
-            gender: gender,
-            'identity.gender': JSON.stringify(user?.identity?.gender),
-            'identity.lastName': JSON.stringify(user?.identity?.lastName),
-            'identity.firstName': JSON.stringify(user?.identity?.firstName),
-            'identity.birthDate': JSON.stringify(user?.identity?.birthDate),
-            'personalInformation.email': JSON.stringify(user?.personalInformation?.email),
-            'personalInformation.primaryPhoneNumber': JSON.stringify(
-              user?.personalInformation?.primaryPhoneNumber,
-            ),
-            'personalInformation.secondaryPhoneNumber': JSON.stringify(
-              user?.personalInformation?.secondaryPhoneNumber,
-            ),
-            'personalInformation.primaryPostalAddress': JSON.stringify(
-              user?.personalInformation?.primaryPostalAddress,
-            ),
-            'personalInformation.secondaryPostalAddress': JSON.stringify(
-              user?.personalInformation?.secondaryPostalAddress,
-            ),
-          },
-          credentials: password
-            ? [
-                {
-                  temporary: false,
-                  type: 'password',
-                  value: password,
-                },
-              ]
-            : undefined,
-          requiredActions: actions,
-        }),
-      )
+      .then(() => this.keycloakAdmin.users.create(userToCreate))
       .catch(err => {
+        logger.error(`${KeycloakService.name}: ${err}`);
         if (err && err.response) {
           const {status, data} = err.response;
 
@@ -154,18 +158,31 @@ export class KeycloakService {
       .catch(err => err);
   }
 
-  updateUser(id: string, newUser: UserRepresentation): Promise<void> {
+  /**
+   * Update user in Keycloak
+   * @param id string
+   * @param user Citizen | User
+   * @returns void
+   */
+  updateUserKC(id: string, user: Citizen | User): Promise<void> {
+    let userToUpdate: UserRepresentation = {};
+    if (user instanceof Citizen) {
+      // ⚠ You cannot update only one attributes with this KC API call.
+      // If you do so, it will remove all other attributes
+      userToUpdate = {
+        attributes: {...user.toUserRepresentation().attributes},
+      };
+    }
+
+    if (user instanceof User) {
+      userToUpdate = {
+        firstName: user.firstName,
+        lastName: user.lastName,
+      };
+    }
     return this.keycloakAdmin
       .auth(credentials)
-      .then(() =>
-        this.keycloakAdmin.users.update(
-          {id},
-          {
-            firstName: newUser.firstName,
-            lastName: newUser.lastName,
-          },
-        ),
-      )
+      .then(() => this.keycloakAdmin.users.update({id: id}, userToUpdate))
       .catch(err => err);
   }
 
@@ -225,13 +242,6 @@ export class KeycloakService {
       .catch(err => err);
   }
 
-  async disableUserKc(id: string): Promise<object> {
-    return this.keycloakAdmin
-      .auth(credentials)
-      .then(() => this.keycloakAdmin.users.update({id}, {enabled: false}))
-      .catch(err => err);
-  }
-
   async listConsents(id: string): Promise<Consent[]> {
     return this.keycloakAdmin
       .auth(credentials)
@@ -276,64 +286,40 @@ export class KeycloakService {
   }
 
   /**
-   * Update Citizen Role
-   * @param id Citizen Id
-   * @param actionDelete Action for delete
+   * Get attributes from keycloak group
+   * @param attributeNames: List of attributes to return. Example : ["attribute1", "attribute2"]
+   * @param funderName
+   * @param funderId
+   * @returns Object of attributes with their values
    */
-  async updateCitizenRole(
-    id: string,
-    groupName: string,
-    actionDelete?: boolean,
-  ): Promise<string> {
-    const group: (KeycloakGroup & KeycloakGroupRelations) | null =
-      await this.keycloakGroupRepository.getGroupByName(groupName);
-    return this.keycloakAdmin
-      .auth(credentials)
-      .then(async () => {
-        if (group && group.id) {
-          if (actionDelete) {
-            await this.keycloakAdmin.users.delFromGroup({id, groupId: group.id});
-          } else {
-            await this.keycloakAdmin.users.addToGroup({id, groupId: group.id});
-          }
-        }
-      })
-      .catch(err => err);
-  }
+  async getAttributesFromGroup(
+    attributeNames: string[],
+    funderName: string,
+    funderId?: string,
+  ): Promise<{[key: string]: string | undefined}> {
+    const group: (KeycloakGroup & KeycloakGroupRelations) | null = funderId
+      ? await this.keycloakGroupRepository.getGroupById(funderId)
+      : await this.keycloakGroupRepository.getGroupByName(funderName);
 
-  async updateCitizenAttributes(id: string, newCitizen: AnyObject): Promise<void> {
-    const user: IUser = await this.getUser(id);
-    return this.keycloakAdmin
-      .auth(credentials)
-      .then(() =>
-        this.keycloakAdmin.users.update(
-          {id},
-          {
-            attributes: {
-              ...user.attributes,
-              'identity.gender': JSON.stringify(newCitizen?.gender),
-              'identity.lastName': JSON.stringify(newCitizen?.lastName),
-              'identity.firstName': JSON.stringify(newCitizen?.firstName),
-              'identity.birthDate': JSON.stringify(newCitizen?.birthDate),
-              'identity.birthPlace': JSON.stringify(newCitizen?.birthPlace),
-              'identity.birthCountry': JSON.stringify(newCitizen?.birthCountry),
-              'personalInformation.email': JSON.stringify(newCitizen?.email),
-              'personalInformation.primaryPhoneNumber': JSON.stringify(
-                newCitizen?.primaryPhoneNumber,
-              ),
-              'personalInformation.secondaryPhoneNumber': JSON.stringify(
-                newCitizen?.secondaryPhoneNumber,
-              ),
-              'personalInformation.primaryPostalAddress': JSON.stringify(
-                newCitizen?.primaryPostalAddress,
-              ),
-              'personalInformation.secondaryPostalAddress': JSON.stringify(
-                newCitizen?.secondaryPostalAddress,
-              ),
-            },
+    if (group) {
+      const attributes: GroupAttribute[] = await this.keycloakGroupRepository
+        .groupAttributes(group?.id)
+        .find({
+          where: {
+            name: {inq: attributeNames},
           },
-        ),
-      )
-      .catch(err => err);
+        });
+
+      return attributes.reduce(
+        (obj: {[key: string]: string | undefined}, attribute: GroupAttribute) => {
+          if (attribute.name) {
+            obj[attribute.name] = attribute.value;
+          }
+          return obj;
+        },
+        {},
+      );
+    }
+    return {};
   }
 }

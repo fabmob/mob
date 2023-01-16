@@ -30,11 +30,14 @@
                 <input type="hidden" name="code" value="${oauth.code}">
                 <div class="${properties.kcFormGroupClass!}">
                     <div id="kc-oauth-data-protection">
-                        ${msg("privateDataProtectionText")}
                         <div id="kc-oauth-data-protection-consultation">
                             ${msg("privateDataProtectionConsultation")}
                             <a class="link-to-chart" href="https://${properties.websiteFQDN!}/charte-protection-donnees-personnelles" alt="CGV">
                             ${msg("privateDataProtectionLinkText")}
+                            </a>
+                            ${msg("and")}
+                            <a class="link-to-chart" href="https://${properties.websiteFQDN!}/mentions-legales-cgu" alt="CGU">
+                            ${msg("privateLegalNoticeLinkText")}
                             </a>.
                         </div>
                     </div>

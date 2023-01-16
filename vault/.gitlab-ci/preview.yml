@@ -1,4 +1,3 @@
-
 # Build of testing environement image and creation of the cache
 vault_build:
   extends:
@@ -22,7 +21,7 @@ vault_image_build:
     - .preview-image-job
     - .only-master
     - .vault-base
-  needs: ['vault_build']
+  needs: ["vault_build"]
 
 vault_preview_deploy:
   extends:
@@ -32,19 +31,14 @@ vault_preview_deploy:
     - .manual
   script:
     - |
-      if [ -n "$(pod_namespace vault-init)" ]
-      then
-        echo "### Vault-init pod is already up so we delete it before recreating it ! ###"
-        KUBE_NAMESPACE_VAULT_INIT=$(pod_namespace vault-init)
-        kubectl delete pod vault-init -n $KUBE_NAMESPACE_VAULT_INIT
-      fi
+      delete_pod vault-init
       deploy
       config_volume vault-data
       config_volume vault-init-data
       config_volume vault-cron-data
-  needs: ['vault_image_build']
+  needs: ["vault_image_build"]
   environment:
-      on_stop: vault_preview_cleanup
+    on_stop: vault_preview_cleanup
 
 vault_preview_cleanup:
   extends:

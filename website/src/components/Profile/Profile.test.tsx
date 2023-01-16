@@ -58,7 +58,7 @@ const userMock = {
   affiliation: {
     enterpriseId: '12345',
     enterpriseEmail: 'roger@capgemini.com',
-    affiliationStatus: 'A_AFFILIER',
+    status: 'A_AFFILIER',
   },
 };
 
@@ -102,7 +102,7 @@ const userMockAffiliation = {
   affiliation: {
     enterpriseId: '12345',
     enterpriseEmail: 'roger@capgemini.com',
-    affiliationStatus: 'AFFILIE',
+    status: 'AFFILIE',
   },
 };
 
@@ -146,7 +146,7 @@ const userMockNoAffiliation = {
   affiliation: {
     enterpriseId: null,
     enterpriseEmail: null,
-    affiliationStatus: 'UNKNOWN',
+    status: 'UNKNOWN',
   },
 };
 

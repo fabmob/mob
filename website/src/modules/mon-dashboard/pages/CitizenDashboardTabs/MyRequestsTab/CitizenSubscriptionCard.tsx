@@ -44,7 +44,7 @@ const CitizenSubscriptionCard: FC<CitizenSubscriptionCardProps> = ({
     if (
       incentiveType === INCENTIVE_TYPE.EMPLOYER_INCENTIVE &&
       (funderId !== citizen.affiliation?.enterpriseId ||
-        citizen.affiliation?.affiliationStatus !==
+        citizen.affiliation?.status !==
           AFFILIATION_STATUS.AFFILIATED)
     ) {
       toast.error(Strings['dashboard.citizen.subscriptions.renew.not.allowed']);

@@ -48,7 +48,7 @@ interface GestionSalarierProps {
 interface affiliationSalarier {
   entrepriseId?: string;
   enterpriseEmail?: string;
-  affiliationStatus?: string;
+  status?: string;
 }
 
 /**
@@ -199,14 +199,14 @@ const GererSalaries: FC<GestionSalarierProps> = ({ location, pageContext }) => {
   const renderSalaries = (): ReactNode => {
     if (salaries && salaries.length) {
       return salaries.map(
-        ({ id, firstName, lastName, email, birthdate, affiliation }) => {
+        ({id, identity, personalInformation, affiliation}) => {
           return (
             <CardLine key={id} classnames="salaries-card">
               <CardLineContent classnames="salaries-card__name span">
                 <CardLineColumn>
                   <span>{`${firstCharUpper(
-                    firstName
-                  )} ${lastName.toUpperCase()}`}</span>
+                    identity.firstName.value
+                  )} ${identity.lastName.value.toUpperCase()}`}</span>
                 </CardLineColumn>
                 {(isSupervisor || isManager) &&
                 selectedTab === AFFILIATION_STATUS.TO_AFFILIATE &&
@@ -219,10 +219,10 @@ const GererSalaries: FC<GestionSalarierProps> = ({ location, pageContext }) => {
                         onClick={() => {
                           openModal(
                             id,
-                            lastName,
-                            firstName,
-                            email,
-                            birthdate,
+                            identity.lastName.value,
+                            identity.firstName.value,
+                            personalInformation.email.value,
+                            identity.birthDate.value,
                             affiliation
                           );
                         }}
@@ -255,7 +255,7 @@ const GererSalaries: FC<GestionSalarierProps> = ({ location, pageContext }) => {
                     <div className="supression-superviseur">
                       <Button
                         onClick={() => {
-                          openModal(id, lastName, firstName);
+                          openModal(id, identity.lastName.value, identity.firstName.value);
                         }}
                         secondary
                       >
@@ -292,7 +292,7 @@ const GererSalaries: FC<GestionSalarierProps> = ({ location, pageContext }) => {
                           <Button
                             secondary
                             onClick={() => {
-                              openModal(id, lastName, firstName);
+                              openModal(id, identity.lastName.value, identity.firstName.value);
                             }}
                           >
                             {

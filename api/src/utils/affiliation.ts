@@ -28,7 +28,7 @@ const isEnterpriseAffilitation = ({
     !!inputFunderId &&
     citizen.affiliation &&
     citizen.affiliation.enterpriseId === inputFunderId &&
-    citizen.affiliation.affiliationStatus === AFFILIATION_STATUS.AFFILIATED &&
+    citizen.affiliation.status === AFFILIATION_STATUS.AFFILIATED &&
     funderMatch.funderType === FUNDER_TYPE.enterprise
   );
 };

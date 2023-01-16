@@ -1,5 +1,4 @@
 import {
-  /* inject, */
   injectable,
   Interceptor,
   InvocationContext,
@@ -8,10 +7,21 @@ import {
   ValueOrPromise,
 } from '@loopback/core';
 import {repository} from '@loopback/repository';
+import {Collectivity, Enterprise} from '../models';
 
 import {Incentive} from '../models/incentive/incentive.model';
-import {IncentiveRepository} from '../repositories';
-import {ResourceName, StatusCode} from '../utils';
+import {
+  IncentiveRepository,
+  IncentiveEligibilityChecksRepository,
+  CollectivityRepository,
+  EnterpriseRepository,
+} from '../repositories';
+import {
+  INCENTIVE_TYPE,
+  ResourceName,
+  StatusCode,
+  SUBSCRIPTION_CHECK_MODE,
+} from '../utils';
 import {ValidationError} from '../validationError';
 import {isValidityDateValid} from './utils';
 
@@ -26,6 +36,12 @@ export class IncentiveInterceptor implements Provider<Interceptor> {
   constructor(
     @repository(IncentiveRepository)
     public incentiveRepository: IncentiveRepository,
+    @repository(IncentiveEligibilityChecksRepository)
+    public incentiveEligibilityChecksRepository: IncentiveEligibilityChecksRepository,
+    @repository(CollectivityRepository)
+    public collectivityRepository: CollectivityRepository,
+    @repository(EnterpriseRepository)
+    public enterpriseRepository: EnterpriseRepository,
   ) {}
 
   /**
@@ -140,6 +156,56 @@ export class IncentiveInterceptor implements Provider<Interceptor> {
         StatusCode.PreconditionFailed,
         ResourceName.Incentive,
       );
+    }
+
+    if (incentives && incentives.isMCMStaff) {
+      let collectivity: Collectivity | null = null;
+      let enterprise: Enterprise | null = null;
+      collectivity = await this.collectivityRepository.findOne({
+        where: {name: incentives.funderName},
+      });
+      enterprise = await this.enterpriseRepository.findOne({
+        where: {name: incentives.funderName},
+      });
+      if (!collectivity && !enterprise) {
+        throw new ValidationError(
+          `incentives.error.isMCMStaff.funderIdMissing`,
+          '/isMCMStaff',
+          StatusCode.NotFound,
+          ResourceName.Funder,
+        );
+      }
+    }
+
+    if (
+      incentives &&
+      incentives.eligibilityChecks &&
+      incentives.eligibilityChecks.length > 0
+    ) {
+      const incentiveEligibilityChecks =
+        await this.incentiveEligibilityChecksRepository.find();
+
+      incentives.eligibilityChecks.forEach(check => {
+        const checkControl = incentiveEligibilityChecks.find(control => {
+          return control.id === check.id;
+        });
+        if (!checkControl) {
+          throw new ValidationError(
+            `EligibilityCheck ${check.id} not found`,
+            '/eligibilityChecks',
+            StatusCode.NotFound,
+            ResourceName.Incentive,
+          );
+        }
+        if (checkControl.type === 'array' && check.value.length === 0) {
+          throw new ValidationError(
+            `incentives.error.eligibilityChecks.array.empty`,
+            '/eligibilityChecks',
+            StatusCode.PreconditionFailed,
+            ResourceName.Incentive,
+          );
+        }
+      });
     }
 
     const result = await next();

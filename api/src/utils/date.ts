@@ -1,5 +1,6 @@
-import {formatInTimeZone, format} from 'date-fns-tz';
+import {formatInTimeZone} from 'date-fns-tz';
 import {differenceInMinutes, add} from 'date-fns';
+import {datePattern} from '../constants';
 
 export const TIMEZONE = 'Europe/Paris';
 
@@ -30,4 +31,43 @@ export const isExpired = (dateToVerify: Date, referenceDate: Date) => {
   const dateToVerifyTime = dateToVerify.getTime();
   const referenceDateTime = referenceDate.getTime();
   return dateToVerifyTime < referenceDateTime;
+};
+
+/**
+ * Format Date as Day/Month/Year
+ */
+export const formatDateInFrenchNotation = (date: Date) => {
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const yyyy = date.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+};
+
+/**
+ * Validate date like dd/mm/yyyy Or dd-mm-yyyy
+ * @param dateString : string date
+ */
+export const isValidDate = (dateString: string) => {
+  return datePattern.test(dateString);
+};
+
+/**
+ * Converts date like dd/mm/yyyy Or dd-mm-yyyy to ISO Date
+ * @param dateString : string date
+ * @returns an ISO 8601 string Or undefined id date not valid
+ */
+export const convertToISODate = (dateString: string): string | undefined => {
+  if (isValidDate(dateString)) {
+    // Split the date string into day,year and month
+    const dateParts = dateString.split(/[\/-]/);
+    const ISODate =
+      dateParts[2] +
+      '-' +
+      dateParts[1].padStart(2, '0') +
+      '-' +
+      dateParts[0].padStart(2, '0');
+
+    // Returns an ISO 8601 formatted string
+    return new Date(ISODate).toISOString();
+  }
 };

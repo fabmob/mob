@@ -1,9 +1,29 @@
-import {Model, model, property} from '@loopback/repository';
+import {Entity, model, property} from '@loopback/repository';
 
 import {AFFILIATION_STATUS} from '../../utils';
 
-@model({settings: {idInjection: false}})
-export class Affiliation extends Model {
+@model()
+export class Affiliation extends Entity {
+  @property({
+    type: 'string',
+    description: `Identifiant de l'affiliation`,
+    id: true,
+    generated: true,
+    jsonSchema: {
+      example: ``,
+    },
+  })
+  id: string;
+
+  @property({
+    description: `Identifiant du citoyen affilié`,
+    required: true,
+    jsonSchema: {
+      example: ``,
+    },
+  })
+  citizenId: string;
+
   @property({
     type: 'string',
     description: `Identifiant de l'entreprise professionnelle du citoyen`,
@@ -29,10 +49,9 @@ export class Affiliation extends Model {
       example: AFFILIATION_STATUS.TO_AFFILIATE,
     },
   })
-  affiliationStatus: AFFILIATION_STATUS;
+  status: AFFILIATION_STATUS;
 
   constructor(affiliation: Affiliation) {
     super(affiliation);
-    this.affiliationStatus = AFFILIATION_STATUS.TO_AFFILIATE;
   }
 }

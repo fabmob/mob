@@ -16,3 +16,15 @@ getLink = function(imgName) {
     }
 }
 %>
+
+<%
+const webSiteFQDN = process.env.WEBSITE_FQDN
+
+getWebsiteLink = function(cgu) {
+        if (webSiteFQDN) {
+            return `https://${webSiteFQDN}/${cgu}`
+        } else {
+            return `http://localhost:8000/${cgu}`
+        }
+}
+%>

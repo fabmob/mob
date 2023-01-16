@@ -1,9 +1,10 @@
 import {Entity, model, property} from '@loopback/repository';
 
 import {SpecificField} from '../subscription/specificField.model';
-import {INCENTIVE_TYPE, TRANSPORTS} from '../../utils';
+import {INCENTIVE_TYPE, SUBSCRIPTION_CHECK_MODE, TRANSPORTS} from '../../utils';
 import {Link} from '../links.model';
 import {Territory} from '../territory';
+import {EligibilityCheck} from './eligibilityCheck.model';
 
 @model({
   settings: {
@@ -188,6 +189,16 @@ export class Incentive extends Entity {
   })
   isMCMStaff: boolean;
 
+  @property({
+    type: 'boolean',
+    description: 'Horodatage des souscriptions',
+    default: false,
+    jsonSchema: {
+      example: false,
+    },
+  })
+  isCertifiedTimestampRequired: boolean;
+
   @property.array(SpecificField)
   specificFields?: SpecificField[];
 
@@ -257,6 +268,28 @@ export class Incentive extends Entity {
 
   @property.array(Link)
   links?: Link[];
+
+  @property({
+    type: 'string',
+    description: `Mode de vérification de la souscription`,
+    jsonSchema: {
+      example: SUBSCRIPTION_CHECK_MODE.AUTOMATIC,
+      enum: Object.values(SUBSCRIPTION_CHECK_MODE),
+    },
+  })
+  subscriptionCheckMode: SUBSCRIPTION_CHECK_MODE;
+
+  @property({
+    type: 'boolean',
+    description: `Désactive l'envoi de notifications à l'utilisateur sur le suivi de ses demandes`,
+    jsonSchema: {
+      example: false,
+    },
+  })
+  isCitizenNotificationsDisabled: boolean;
+
+  @property.array(EligibilityCheck)
+  eligibilityChecks?: EligibilityCheck[];
 
   constructor(data?: Partial<Incentive>) {
     super(data);

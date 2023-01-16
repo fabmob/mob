@@ -9,3 +9,5 @@ export * from './offline-client-session.repository';
 export * from './offline-user-session.repository';
 export * from './client-scope-client.repository';
 export * from './client-scope.repository';
+export * from './group-attribute.repository';
+export * from './user-attribute.repository';

@@ -365,7 +365,7 @@ export class FunderController {
   @authorize({voters: [canAccessHisOwnData]})
   @get('/v1/funders/{funderId}', {
     'x-controller-name': 'Funders',
-    summary: 'Retourne la clé privée du financeur',
+    summary: 'Retourne les informations du financeur',
     security: SECURITY_SPEC_KC_CREDENTIALS_KC_PASSWORD,
     responses: {
       [StatusCode.Success]: {

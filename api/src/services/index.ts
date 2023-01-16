@@ -1,3 +1,4 @@
+export * from './affiliation.service';
 export * from './keycloak.service';
 export * from './contact.service';
 export * from './incentive.service';
@@ -14,3 +15,5 @@ export * from './clamav.service';
 export * from './rabbitmq.service';
 export * from './parentProcess.service';
 export * from './cronJob.service';
+export * from './territory.service';
+export * from './affiliation.service';

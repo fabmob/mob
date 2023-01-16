@@ -71,3 +71,8 @@ export const ROLES = {
   gestionnaires: 'gestionnaires',
   superviseurs: 'superviseurs',
 };
+
+export const SUBSCRIPTION_CHECK_MODE = [
+  { id: 'MANUEL', name: 'Manuel' },
+  { id: 'AUTOMATIQUE', name: 'Automatique' },
+];

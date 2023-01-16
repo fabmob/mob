@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 
 services:
   postgres-keycloak:
@@ -18,10 +18,10 @@ services:
     volumes:
       - postgres_keycloak_data:/var/lib/postgresql/data
     ports:
-      - '5432'
+      - "5432"
     labels:
-      - 'kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}'
-      - 'kompose.service.type=clusterip'
+      - "kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}"
+      - "kompose.service.type=clusterip"
 
   idp:
     image: ${KEYCLOAK_IMAGE_NAME}
@@ -39,6 +39,7 @@ services:
         '-Dkeycloak.migration.provider=singleFile',
         '-Dkeycloak.migration.file=/tmp/all-realm.json',
         '-Dkeycloak.migration.strategy=${MIGRATION_STRATEGY_REALM}',
+        '-Dkeycloak.profile.feature.scripts=enabled',
       ]
     depends_on:
       - postgres-keycloak
@@ -63,10 +64,10 @@ services:
       - BASE_DOMAIN
       - MATOMO_FQDN
     ports:
-      - '8080'
+      - "8080"
     labels:
-      - 'kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}'
-      - 'kompose.service.type=clusterip'
+      - "kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}"
+      - "kompose.service.type=clusterip"
 
   idp-maas:
     image: ${KEYCLOAK_MAAS_IMAGE_NAME}
@@ -77,13 +78,13 @@ services:
         BASE_IMAGE_KEYCLOAK: ${NEXUS_IMAGE_KEYCLOAK}
     command:
       [
-        '-b',
-        '0.0.0.0',
-        '-Djboss.modules.system.pkgs=org.jboss.logmanager',
-        '-Dkeycloak.migration.action=import',
-        '-Dkeycloak.migration.provider=singleFile',
-        '-Dkeycloak.migration.file=/tmp/maas-realm.json',
-        '-Dkeycloak.migration.strategy=${MIGRATION_STRATEGY_REALM}',
+        "-b",
+        "0.0.0.0",
+        "-Djboss.modules.system.pkgs=org.jboss.logmanager",
+        "-Dkeycloak.migration.action=import",
+        "-Dkeycloak.migration.provider=singleFile",
+        "-Dkeycloak.migration.file=/tmp/maas-realm.json",
+        "-Dkeycloak.migration.strategy=${MIGRATION_STRATEGY_REALM}",
       ]
     networks:
       - web-nw
@@ -94,10 +95,24 @@ services:
       - KEYCLOAK_IMPORT=/tmp/maas-realm.json
       - IMAGE_PULL_SECRET_NAME
     ports:
-      - '8087:8080'
+      - "8087:8080"
     labels:
-      - 'kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}'
-      - 'kompose.service.type=clusterip'
+      - "kompose.image-pull-secret=${GITLAB_IMAGE_PULL_SECRET_NAME}"
+      - "kompose.service.type=clusterip"
+
+  alter-table:
+    image: ${BASE_POSTGRES_IMAGE_NAME}
+    environment:
+      - POSTGRES_USER=${IDP_DATABASE_USER_NAME}
+      - POSTGRES_PASSWORD=${IDP_DATABASE_USER_PWD}
+      - POSTGRES_DB=${PGSQL_NAME}
+    command: /bin/sh -c "PGPASSWORD=${IDP_DATABASE_USER_PWD} psql -h postgres-keycloak -p 5432 -U  ${IDP_DATABASE_USER_NAME} --dbname=${PGSQL_NAME} -c \"ALTER TABLE idp_db.user_attribute ALTER COLUMN value TYPE TEXT; ALTER TABLE idp_db.group_attribute ALTER COLUMN value TYPE TEXT;\""
+    restart: on-failure
+    depends_on:
+      - idp
+    labels:
+      - "kompose.image-pull-secret=${PROXY_IMAGE_PULL_SECRET_NAME}"
+      - "kompose.service.type=clusterip"
 
 volumes:
   postgres_keycloak_data:

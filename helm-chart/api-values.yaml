@@ -37,6 +37,43 @@ networkPolicies:
         matchLabels:
           io.kompose.network/web-nw: "true"
 
+autoscaling:
+  metadata:
+    annotations:
+      app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+      app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+      kompose.service.type: clusterip
+      kubernetes.io/ingress.class: traefik
+    enabled: true
+    name: api
+  spec:
+    scaleTargetRef:
+      kind: Deployment
+      name: api
+      apiVersion: apps/v1
+    minReplicas: 2
+    maxReplicas: 8
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 80
+      - type: Resource
+        resource:
+          name: memory
+          target:
+            type: Utilization
+            averageUtilization: 80
+    behavior:
+      scaleDown:
+        stabilizationWindowSeconds: 300
+        policies:
+          - type: Pods
+            value: 1
+            periodSeconds: 300
+
 deployments:
   - metadata:
       annotations:
@@ -107,11 +144,27 @@ deployments:
               SENDGRID_USER: ${CLOUD_SENDGRID_USER}
               WEBSITE_FQDN: ${WEBSITE_FQDN}
               PGSQL_FLEX_SSL_CERT: ${CLOUD_PGSQL_FLEX_SSL_CERT}
+              RPC_CEE_URL: ${CLOUD_RPC_CEE_URL}
+              TIMESTAMP_PASSWORD: ${CLOUD_TIMESTAMP_PASSWORD}
+              TIMESTAMP_USERNAME: ${CLOUD_TIMESTAMP_USERNAME}
+              TIMESTAMP_URL: ${CLOUD_TIMESTAMP_URL}
             image: ${API_IMAGE_NAME}
             name: api
             ports:
               - containerPort: 3000
-            resources: {}
+            readinessProbe:
+              httpGet:
+                path: /explorer
+                port: 3000
+              initialDelaySeconds: 15
+              timeoutSeconds: 1
+            resources:
+              requests:
+                cpu: "500m"
+                memory: "1Gi"
+              limits:
+                cpu: "500m"
+                memory: "16Gi"
           imagePullSecrets:
             - name: ${PROXY_HANDOVER_IMAGE_PULL_SECRET_NAME}
           restartPolicy: Always
@@ -140,21 +193,6 @@ middlewares:
       inFlightReq:
         amount: 100
 
-  # - metadata:
-  #     annotations:
-  #       app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
-  #       app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
-  #       kubernetes.io/ingress.class: traefik
-  #     name: api-ratelimit-middleware
-  #   spec:
-  #     rateLimit:
-  #       average: 30
-  #       burst: 50
-  #       period: 1s
-  #       sourceCriterion:
-  #         ipStrategy:
-  #           depth: 2
-
 ingressRoutes:
   - metadata:
       annotations:
@@ -170,8 +208,9 @@ ingressRoutes:
           match: Host(`${API_FQDN}`)
           middlewares:
             - name: api-headers-middleware
-            # - name: api-ratelimit-middleware
             - name: api-inflightreq-middleware
+            - name: custom-error-middleware
+              namespace: traefik-int
           services:
             - kind: Service
               name: api

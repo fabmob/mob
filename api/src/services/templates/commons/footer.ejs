@@ -1,22 +1,22 @@
-<%- include('utils'); %>
-
-<% const webSiteFQDN = process.env.WEBSITE_FQDN %>
-  <% const websiteLink = webSiteFQDN ? `https://${webSiteFQDN}/mentions-legales-cgu`
-    : 'http://localhost:8000/mentions-legales-cgu' %>
-
+<%- include('utils'); %> 
+<% const websiteLink = getWebsiteLink("mentions-legales-cgu") %>
 <% const footerLink = getLink("mob-footer.png") %>
-    <table style="height: 150px;width: 100%;text-align: center;color: white;margin-top: 40px;max-width: 640px;background-color: #464CD0;width:640px;">
-      <tr>
-        <td>
-          <p>
-            &copy; Mon Compte Mobilité - Tous droits réservés -
-            <a
-              style="color: white;"
-              href="<%= websiteLink %>"
-              >Mentions légales
-            </a>
-          </p>
-          <img style="padding-top: 15px;width: auto;height: 50px;object-fit: contain;" src="<%=footerLink %>" alt="mob footer" />
-        </td>
-      </tr>
-    </table>
+<table
+  style="height: fit-content;width: 100%;text-align: center;color: white;max-width: 640px;background-color: #464CD0;width:640px;"
+>
+  <tr>
+    <td>
+      <p style="margin-top: 15px">
+        &copy; Mon Compte Mobilité - Tous droits réservés -
+        <a style="color: white;" href="<%= websiteLink %>">Mentions légales </a>
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <div style="width: auto; margin: 15px 0px;">
+        <img src="<%=footerLink %>" alt="mob footer" height="50"/>
+      </div>
+    </td>
+  </tr>
+</table>

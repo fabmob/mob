@@ -73,6 +73,10 @@ services:
       - BUS_MCM_HEADERS
       - BUS_MCM_MESSAGE_TYPE
       - API_KEY
+      - RPC_CEE_URL
+      - TIMESTAMP_URL
+      - TIMESTAMP_USERNAME
+      - TIMESTAMP_PASSWORD
     networks:
       - web-nw
       - storage-nw

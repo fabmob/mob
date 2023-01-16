@@ -48,15 +48,26 @@ const SubscriptionSummary: FC<SubscriptionSummaryProps> = ({
           /**
            * Check if an element is an Array "ListChoice" to render its values properly
            */
-          if (Array.isArray(value) && value.length) {
-            const values = value.map((el) => el.value);
-            specificFields[key] = values;
-            identityList.push({
-              label: firstCharUpper(element.title),
-              json: key,
-              type: 'arrayBullets',
-            });
+          if (Array.isArray(value)) {
+            if (value.length > 0) {
+              const values = value.map((el) => el.value);
+              specificFields[key] = values;
+              identityList.push({
+                label: firstCharUpper(element.title),
+                json: key,
+                type: 'arrayBullets',
+              });
+            } else {
+              specificFields[key] = '-';
+              identityList.push({
+                label: firstCharUpper(element.title),
+                json: key,
+              });
+            }
           } else {
+            if (!value) {
+              specificFields[key] = '-';
+            }
             identityList.push({
               label: firstCharUpper(element.title),
               json: key,

@@ -1,11 +1,11 @@
 include:
-  - local: 'idp/.gitlab-ci/preview.yml'
+  - local: "idp/.gitlab-ci/preview.yml"
     rules:
       - if: $CI_COMMIT_BRANCH !~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger" && $CI_PIPELINE_SOURCE != "schedule"
-  - local: 'idp/.gitlab-ci/testing.yml'
+  - local: "idp/.gitlab-ci/testing.yml"
     rules:
       - if: $CI_COMMIT_BRANCH =~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger"
-  - local: 'idp/.gitlab-ci/helm.yml'
+  - local: "idp/.gitlab-ci/helm.yml"
     rules:
       - if: $CI_PIPELINE_SOURCE == "trigger"
 
@@ -30,7 +30,6 @@ include:
     POSTGRES_IMAGE_NAME: ${REGISTRY_BASE_NAME}/postgres:${IMAGE_TAG_NAME}
   only:
     changes:
-      - '*'
-      - 'commons/**/*'
-      - 'idp/**/*'
-
+      - "*"
+      - "commons/**/*"
+      - "idp/**/*"

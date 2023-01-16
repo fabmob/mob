@@ -1,6 +1,6 @@
 import * as Excel from 'exceljs';
 import {inject, intercept, service} from '@loopback/core';
-import {FilterExcludingWhere, repository, AnyObject} from '@loopback/repository';
+import {repository, AnyObject} from '@loopback/repository';
 import {
   post,
   param,
@@ -16,13 +16,14 @@ import {
 import {SecurityBindings} from '@loopback/security';
 import {authenticate} from '@loopback/authentication';
 import {authorize} from '@loopback/authorization';
+
 import {
-  CitizenRepository,
   EnterpriseRepository,
   CommunityRepository,
   UserRepository,
   SubscriptionRepository,
   IncentiveRepository,
+  AffiliationRepository,
 } from '../repositories';
 import {
   CitizenService,
@@ -31,6 +32,7 @@ import {
   JwtService,
   FunderService,
   SubscriptionService,
+  AffiliationService,
 } from '../services';
 import {CitizenInterceptor} from '../interceptors';
 import {
@@ -41,6 +43,8 @@ import {
   Subscription,
   Enterprise,
   Error,
+  CitizenCreate,
+  User,
 } from '../models';
 import {ValidationError} from '../validationError';
 import {
@@ -52,29 +56,23 @@ import {
   SECURITY_SPEC_API_KEY,
   SECURITY_SPEC_KC_PASSWORD,
   SECURITY_SPEC_JWT_KC_PASSWORD,
-  SECURITY_SPEC_JWT,
   AUTH_STRATEGY,
   Consent,
   ClientOfConsent,
-  CITIZEN_STATUS,
   IUser,
-  GENDER,
 } from '../utils';
-import {emailRegexp} from '../constants';
-
 import {canAccessHisOwnData} from '../services/user.authorizor';
 import {formatDateInTimezone} from '../utils/date';
+
 @intercept(CitizenInterceptor.BINDING_KEY)
 export class CitizenController {
   constructor(
     @inject('services.MailService')
     public mailService: MailService,
-    @repository(CitizenRepository)
-    public citizenRepository: CitizenRepository,
     @repository(CommunityRepository)
     public communityRepository: CommunityRepository,
     @inject('services.KeycloakService')
-    public kcService: KeycloakService,
+    public keycloakService: KeycloakService,
     @inject('services.FunderService')
     public funderService: FunderService,
     @repository(EnterpriseRepository)
@@ -93,6 +91,10 @@ export class CitizenController {
     public subscriptionRepository: SubscriptionRepository,
     @repository(IncentiveRepository)
     public incentiveRepository: IncentiveRepository,
+    @repository(AffiliationRepository)
+    public affiliationRepository: AffiliationRepository,
+    @service(AffiliationService)
+    public affiliationService: AffiliationService,
   ) {}
 
   /**
@@ -142,14 +144,14 @@ export class CitizenController {
     @requestBody({
       content: {
         'application/json': {
-          schema: getModelSchemaRef(Citizen),
+          schema: getModelSchemaRef(CitizenCreate),
         },
       },
     })
-    register: Omit<Citizen, 'id'>,
+    rawCitizen: CitizenCreate,
   ): Promise<{id: string} | undefined> {
     const result: {id: string} | undefined = await this.citizenService.createCitizen(
-      register,
+      rawCitizen,
     );
     return result;
   }
@@ -286,10 +288,8 @@ export class CitizenController {
       description: `L'identifiant du citoyen`,
     })
     citizenId: string,
-    @param.filter(Citizen, {exclude: 'where'})
-    filter?: FilterExcludingWhere<Citizen>,
   ): Promise<Citizen> {
-    return this.citizenRepository.findById(citizenId, filter);
+    return this.citizenService.getCitizenWithAffiliationById(citizenId);
   }
 
   /**
@@ -337,12 +337,14 @@ export class CitizenController {
     })
     citizenId: string,
   ): Promise<Record<string, string>> {
-    const user = await this.userRepository.findById(this.currentUser?.id);
-    const citizenData = await this.citizenRepository.findById(citizenId);
+    const user: User = await this.userRepository.findById(this.currentUser?.id);
+    const citizenData: Citizen = await this.citizenService.getCitizenWithAffiliationById(
+      citizenId,
+    );
     if (
       user &&
       this.currentUser?.roles?.includes('gestionnaires') &&
-      user.funderId === citizenData?.affiliation?.enterpriseId
+      user.funderId === citizenData.affiliation?.enterpriseId
     ) {
       return {
         lastName: citizenData?.identity?.lastName?.value,
@@ -406,23 +408,21 @@ export class CitizenController {
   ): Promise<void> {
     const user = this.currentUser;
 
-    let citizen: Citizen | null;
+    let citizen: Citizen | null = await this.citizenService.getCitizenWithAffiliationById(
+      citizenId,
+    );
 
-    if (user.id) {
-      citizen = await this.citizenRepository.findOne({
-        where: {id: citizenId},
-      });
-      citizen!.affiliation!.affiliationStatus = AFFILIATION_STATUS.AFFILIATED;
-    } else {
-      citizen = await this.citizenService.checkAffiliation(data.token);
-      citizen.affiliation!.affiliationStatus = AFFILIATION_STATUS.AFFILIATED;
+    if (!user.id || user.roles?.includes(Roles.CITIZENS)) {
+      citizen = await this.affiliationService.checkAffiliation(citizen, data.token);
     }
+    citizen.affiliation!.status = AFFILIATION_STATUS.AFFILIATED;
 
-    await this.citizenRepository.updateById(citizenId, {
-      affiliation: {...citizen!.affiliation},
+    await this.affiliationRepository.updateById(citizen.affiliation.id, {
+      status: AFFILIATION_STATUS.AFFILIATED,
     });
+
     if (user.id && user.funderName && citizen) {
-      await this.citizenService.sendValidatedAffiliation(citizen, user.funderName);
+      await this.affiliationService.sendValidatedAffiliation(citizen, user.funderName);
     }
   }
 
@@ -474,55 +474,69 @@ export class CitizenController {
     citizenId: string,
   ): Promise<void> {
     const user = this.currentUser;
-    const citizen: Citizen = await this.citizenRepository.findById(citizenId);
-    const citizenInitialStatus: string = citizen.affiliation!.affiliationStatus;
-    citizen.affiliation!.affiliationStatus = AFFILIATION_STATUS.DISAFFILIATED;
-
-    await this.citizenRepository.updateById(citizen.id, {
-      affiliation: {...citizen.affiliation},
+    const citizen: Citizen = await this.citizenService.getCitizenWithAffiliationById(
+      citizenId,
+    );
+    await this.affiliationRepository.updateById(citizen.affiliation!.id, {
+      status: AFFILIATION_STATUS.DISAFFILIATED,
     });
 
     if (
       user &&
       user?.funderName &&
-      citizenInitialStatus === AFFILIATION_STATUS.TO_AFFILIATE
+      citizen.affiliation!.status === AFFILIATION_STATUS.TO_AFFILIATE
     ) {
-      await this.citizenService.sendRejectedAffiliation(citizen, user?.funderName);
+      await this.affiliationService.sendRejectedAffiliation(citizen, user?.funderName);
     } else {
-      await this.citizenService.sendDisaffiliationMail(this.mailService, citizen);
+      await this.affiliationService.sendDisaffiliationMail(this.mailService, citizen);
     }
   }
 
   /**
    * Update citizen by id
    * @param citizenId id of citizen
-   * @param citizen schema
+   * @param rawCitizen CitizenUpdate
    */
   @authenticate(AUTH_STRATEGY.KEYCLOAK)
   @authorize({voters: [canAccessHisOwnData]})
   @patch('/v1/citizens/{citizenId}', {
     'x-controller-name': 'Citizens',
-    summary: "Modifie des informations d'un citoyen",
+    summary: 'Modifie un citoyen',
     security: SECURITY_SPEC_KC_PASSWORD,
     responses: {
-      [StatusCode.Success]: {
-        description: 'Citizen PATCH success',
+      [StatusCode.NoContent]: {
+        description: 'Modification du citoyen réussie',
+      },
+      [StatusCode.Unauthorized]: {
+        description: "L'utilisateur est non connecté",
         content: {
           'application/json': {
-            schema: {
-              type: 'object',
-              properties: {
-                id: {
-                  type: 'string',
-                  example: '',
-                },
+            schema: getModelSchemaRef(Error),
+            example: {
+              error: {
+                statusCode: StatusCode.Unauthorized,
+                name: 'Error',
+                message: 'Authorization header not found',
+                path: '/authorization',
               },
             },
           },
         },
       },
-      [StatusCode.UnprocessableEntity]: {
-        description: "L'email professionnel du salarié existe déjà",
+      [StatusCode.Forbidden]: {
+        description: "L'utilisateur n'a pas les droits pour modifier ce citoyen",
+        content: {
+          'application/json': {
+            schema: getModelSchemaRef(Error),
+            example: {
+              error: {
+                statusCode: StatusCode.Forbidden,
+                name: 'Error',
+                message: 'Access denied',
+              },
+            },
+          },
+        },
       },
     },
   })
@@ -538,214 +552,102 @@ export class CitizenController {
         },
       },
     })
-    citizen: CitizenUpdate,
-  ): Promise<{id: string}> {
+    rawCitizen: CitizenUpdate,
+  ): Promise<void> {
     /**
      * init a new citizen data for handling
      */
     let affiliationEnterprise = new Enterprise();
-    const newCitizen: {
-      id?: string;
-      city: string;
-      postcode: string;
-      status: CITIZEN_STATUS;
-      affiliation: Affiliation;
-    } = {
-      ...citizen,
-    };
 
-    // Enterprise Verification
-    if (citizen.affiliation?.enterpriseId) {
-      affiliationEnterprise = await this.enterpriseRepository.findById(
-        citizen.affiliation.enterpriseId,
-      );
-    }
-    /**
-     * set a new affiliation object state depending on enterpriseId and enterpriseEmail existence and not empty strings
-     */
-    if (
-      newCitizen?.affiliation?.enterpriseId &&
-      newCitizen?.affiliation?.enterpriseEmail
-    ) {
-      newCitizen.affiliation.affiliationStatus = AFFILIATION_STATUS.TO_AFFILIATE;
-    }
-
-    /**
-     * set or not the new affiliation object state depending on what the form returns
-     */
-    if (
-      (newCitizen?.affiliation &&
-        !newCitizen?.affiliation?.enterpriseId &&
-        newCitizen?.affiliation?.enterpriseEmail) ||
-      (newCitizen?.affiliation &&
-        newCitizen?.affiliation?.enterpriseId &&
-        !newCitizen?.affiliation?.enterpriseEmail &&
-        !affiliationEnterprise?.hasManualAffiliation) ||
-      (newCitizen?.affiliation &&
-        !newCitizen?.affiliation?.enterpriseId &&
-        !newCitizen?.affiliation?.enterpriseEmail)
-    ) {
-      newCitizen.affiliation.enterpriseId || null;
-      newCitizen.affiliation.enterpriseEmail || null;
-      newCitizen.affiliation.affiliationStatus = AFFILIATION_STATUS.UNKNOWN;
-    }
-
-    if (
-      (newCitizen?.affiliation &&
-        newCitizen?.affiliation?.enterpriseId &&
-        newCitizen?.affiliation?.enterpriseEmail) ||
-      (newCitizen?.affiliation &&
-        newCitizen?.affiliation?.enterpriseId &&
-        !newCitizen?.affiliation?.enterpriseEmail &&
-        affiliationEnterprise?.hasManualAffiliation)
-    ) {
-      newCitizen.affiliation.affiliationStatus = AFFILIATION_STATUS.TO_AFFILIATE;
-    }
-    let enterprise: Enterprise;
+    const newCitizen = new Citizen(rawCitizen);
 
     /**
      * get citizen data
      */
-    const oldCitizen: Citizen = await this.citizenRepository.findById(citizenId);
+    const currentCitizen: Citizen =
+      await this.citizenService.getCitizenWithAffiliationById(citizenId);
 
-    if (newCitizen?.affiliation?.enterpriseId) {
-      /**
-       * get the related company by id
-       */
-      enterprise = await this.enterpriseRepository.findById(
+    newCitizen.affiliation?.enterpriseId &&
+      (affiliationEnterprise = await this.enterpriseRepository.findById(
         newCitizen.affiliation.enterpriseId,
-      );
+      ));
 
-      /**
-       * pre-check and validation of the enterprise data
-       */
-      if (newCitizen?.affiliation?.enterpriseEmail) {
-        /**
-         * Check if the professional email is unique
-         */
+    // Update affiliation if modified
+    if (
+      currentCitizen.affiliation?.enterpriseEmail !==
+        newCitizen.affiliation.enterpriseEmail ||
+      currentCitizen.affiliation?.enterpriseId !== newCitizen.affiliation.enterpriseId
+    ) {
+      // Update Affiliation
+      if (currentCitizen.affiliation) {
         if (
-          newCitizen?.affiliation?.enterpriseEmail !==
-          oldCitizen?.affiliation?.enterpriseEmail
+          (newCitizen?.affiliation?.enterpriseId &&
+            newCitizen?.affiliation?.enterpriseEmail) ||
+          (affiliationEnterprise.hasManualAffiliation &&
+            newCitizen.affiliation.enterpriseId)
         ) {
-          await this.citizenService.checkProEmailExistence(
-            newCitizen?.affiliation?.enterpriseEmail,
-          );
+          currentCitizen.affiliation.status = AFFILIATION_STATUS.TO_AFFILIATE;
+        } else {
+          currentCitizen.affiliation.status = AFFILIATION_STATUS.UNKNOWN;
         }
 
-        /**
-         * validate the professional email pattern
-         */
-        const companyEmail = newCitizen.affiliation.enterpriseEmail;
-        this.citizenService.validateEmailPattern(companyEmail, enterprise?.emailFormat);
+        currentCitizen.affiliation.enterpriseEmail =
+          newCitizen.affiliation.enterpriseEmail;
+        currentCitizen.affiliation.enterpriseId = newCitizen.affiliation.enterpriseId;
+        newCitizen.affiliation = currentCitizen.affiliation;
+
+        // update affiliation repository
+        currentCitizen.affiliation.id &&
+          (await this.affiliationRepository.updateById(
+            currentCitizen.affiliation.id,
+            currentCitizen.affiliation,
+          ));
+      } else {
+        currentCitizen.affiliation = newCitizen.affiliation;
+        // Create affiliation
+        const affiliation: Affiliation =
+          await this.affiliationRepository.createAffiliation(
+            currentCitizen,
+            affiliationEnterprise.hasManualAffiliation,
+          );
+        newCitizen.affiliation = affiliation;
       }
 
-      /**
-       *  Send a manual affiliaton mail to the company's funders accepting the manual affiliation
-       */
-      if (!newCitizen?.affiliation.enterpriseEmail && enterprise.hasManualAffiliation) {
-        await this.citizenService.sendManualAffiliationMail(oldCitizen, enterprise);
+      // send mail manual affiliation
+      if (
+        !newCitizen?.affiliation.enterpriseEmail &&
+        affiliationEnterprise.hasManualAffiliation
+      ) {
+        await this.affiliationService.sendManualAffiliationMail(
+          currentCitizen,
+          affiliationEnterprise,
+        );
       }
     }
 
-    /**
-     * update the citizen data
-     */
-    await this.citizenRepository.updateById(citizenId, newCitizen);
-
-    /**
-     * proceed to send the affiliation email to the citizen's professional email
-     */
+    // send affiliation mail
     if (
-      newCitizen?.affiliation?.affiliationStatus === AFFILIATION_STATUS.TO_AFFILIATE &&
+      newCitizen?.affiliation?.status === AFFILIATION_STATUS.TO_AFFILIATE &&
       newCitizen?.affiliation.enterpriseEmail
     ) {
-      /**
-       * init the affiliation email payload
-       */
       const affiliationEmailData: any = {
         ...newCitizen,
         id: citizenId,
-        identity: {...oldCitizen.identity},
+        identity: {...currentCitizen.identity},
       };
 
-      /**
-       * send the affiliation email
-       */
-      await this.citizenService.sendAffiliationMail(
+      await this.affiliationService.sendAffiliationMail(
         this.mailService,
         affiliationEmailData,
-        enterprise!.name,
+        affiliationEnterprise!.name,
       );
     }
 
-    return {id: citizenId};
-  }
-
-  /**
-   * Update citizen linked to FC by id
-   * @param citizenId id of citizen
-   * @param citizen schema
-   */
-  @authenticate(AUTH_STRATEGY.KEYCLOAK)
-  @authorize({allowedRoles: [Roles.CITIZENS_FC], voters: [canAccessHisOwnData]})
-  @post('/v1/citizens/{citizenId}/complete', {
-    'x-controller-name': 'Citizens',
-    summary: "Complète le profil d'un citoyen lié à France Connect",
-    security: SECURITY_SPEC_JWT,
-    responses: {
-      [StatusCode.Success]: {
-        description: 'Citizen POST success',
-        content: {
-          'application/json': {
-            schema: {
-              type: 'object',
-              properties: {
-                id: {
-                  type: 'string',
-                  example: '',
-                },
-              },
-            },
-          },
-        },
-      },
-      [StatusCode.NotFound]: {
-        description: "L'entreprise du salarié est inconnue",
-      },
-      [StatusCode.PreconditionFailed]: {
-        description:
-          "L'email professionnel du salarié n'est pas du domaine de son entreprise",
-      },
-      [StatusCode.Conflict]: {
-        description: "L'email personnel du salarié existe déjà",
-      },
-      [StatusCode.UnprocessableEntity]: {
-        description: "L'email professionnel du salarié existe déjà",
-      },
-    },
-  })
-  async createCitizenFc(
-    @param.path.string('citizenId', {
-      description: `L'identifiant du citoyen`,
-    })
-    citizenId: string,
-    @requestBody({
-      content: {
-        'application/json': {
-          schema: getModelSchemaRef(Citizen, {
-            title: 'CompleteProfile',
-            exclude: ['password', 'id'],
-          }),
-        },
-      },
-    })
-    register: Omit<Citizen, 'id' | 'password'>,
-  ): Promise<{id: string} | undefined> {
-    const result: {id: string} | undefined = await this.citizenService.createCitizen(
-      register,
-      citizenId,
+    // update citizen in KC
+    await this.keycloakService.updateUserKC(
+      currentCitizen.id,
+      Object.assign(currentCitizen, newCitizen),
     );
-    return result;
   }
 
   @authenticate(AUTH_STRATEGY.KEYCLOAK)
@@ -773,7 +675,9 @@ export class CitizenController {
     @inject(RestBindings.Http.RESPONSE) resp: Response,
   ): Promise<Response<Excel.Buffer>> {
     try {
-      const citizen: Citizen = await this.citizenRepository.findById(citizenId);
+      const citizen: Citizen = await this.citizenService.getCitizenWithAffiliationById(
+        citizenId,
+      );
 
       const listMaas: string[] = await this.citizenService.getListMaasNames(
         citizen?.personalInformation.email.value,
@@ -781,9 +685,9 @@ export class CitizenController {
 
       // get company name & company email from user affiliation
       let companyName: string = '';
-      if (citizen?.affiliation?.enterpriseId) {
+      if (citizen.affiliation?.enterpriseId) {
         const enterprise: Enterprise = await this.enterpriseRepository.findById(
-          citizen?.affiliation?.enterpriseId,
+          citizen.affiliation!.enterpriseId,
         );
         companyName = enterprise.name;
       }
@@ -800,7 +704,7 @@ export class CitizenController {
       });
 
       // generate Excel RGPD file that contains all user private data
-      const excelBufferRGPD: Excel.Buffer = await this.citizenService.generateExcelRGPD(
+      const excelBufferRGPD: Excel.Buffer = await this.citizenService.generateExcelGDPR(
         citizen,
         companyName,
         subscriptions,
@@ -878,13 +782,17 @@ export class CitizenController {
     })
     citizenId: string,
   ): Promise<void> {
-    const citizen: Citizen = await this.citizenRepository.findById(citizenId);
+    const citizen: Citizen = await this.citizenService.getCitizenWithAffiliationById(
+      citizenId,
+    );
 
-    // Delete citizen from MongoDB
-    await this.citizenRepository.deleteById(citizen.id);
+    if (citizen.affiliation) {
+      // Delete affiliation from MongoDB
+      await this.affiliationRepository.deleteById(citizen.affiliation.id);
+    }
 
     // Delete citizen from Keycloak
-    await this.kcService.deleteUserKc(citizen.id);
+    await this.keycloakService.deleteUserKc(citizen.id);
 
     // ADD Flag "Compte Supprimé" to citizen Subscription
     const citizenSubscriptions = await this.subscriptionRepository.find({
@@ -951,7 +859,7 @@ export class CitizenController {
     })
     citizenId: string,
   ): Promise<(ClientOfConsent | undefined)[]> {
-    const citizenConsentsList = await this.kcService.listConsents(citizenId);
+    const citizenConsentsList = await this.keycloakService.listConsents(citizenId);
     const clientsList = await this.citizenService.getClientList();
 
     const consentListData = citizenConsentsList.map((element: Consent) =>
@@ -1020,6 +928,6 @@ export class CitizenController {
     })
     clientId: string,
   ): Promise<void> {
-    await this.kcService.deleteConsent(citizenId, clientId);
+    await this.keycloakService.deleteConsent(citizenId, clientId);
   }
 }

@@ -2,6 +2,7 @@ import {Entity, model, property, hasMany} from '@loopback/repository';
 
 import {KeycloakRole} from './keycloak-role.model';
 import {GroupRoleMapping} from './group-role-mapping.model';
+import {GroupAttribute} from './group-attribute.model';
 
 @model({
   settings: {
@@ -73,6 +74,9 @@ export class KeycloakGroup extends Entity {
     through: {model: () => GroupRoleMapping, keyFrom: 'groupId', keyTo: 'roleId'},
   })
   keycloakRoles: KeycloakRole[];
+
+  @hasMany(() => GroupAttribute, {keyTo: 'groupId'})
+  groupAttributes: GroupAttribute[];
 
   constructor(data?: Partial<KeycloakGroup>) {
     super(data);

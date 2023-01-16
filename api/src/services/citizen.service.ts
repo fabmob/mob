@@ -1,12 +1,6 @@
 import * as Excel from 'exceljs';
 import {injectable, BindingScope, service, inject} from '@loopback/core';
-import {repository, AnyObject} from '@loopback/repository';
-import {pick} from 'lodash';
-import axios from 'axios';
-
-import {MailService} from './mail.service';
-import {KeycloakService} from './keycloak.service';
-import {ValidationError} from '../validationError';
+import {repository, AnyObject, Filter, Where, Count} from '@loopback/repository';
 import {
   UserEntity,
   OfflineUserSession,
@@ -19,37 +13,36 @@ import {
   AttachmentType,
   User,
   Affiliation,
+  CitizenCreate,
+  UserEntityRelations,
 } from '../models';
-import {formatDateInFrenchNotation} from '../interceptors/utils';
 import {
-  CitizenRepository,
   EnterpriseRepository,
-  EmployeesFind,
   UserRepository,
   SubscriptionRepository,
   UserEntityRepository,
   ClientRepository,
   OfflineClientSessionRepository,
   OfflineUserSessionRepository,
+  AffiliationRepository,
 } from '../repositories';
-import {AffiliationAccessTokenPayload, JwtService} from './jwt.service';
 import {SecurityBindings, UserProfile} from '@loopback/security';
 import {
-  StatusCode,
-  ResourceName,
   AFFILIATION_STATUS,
-  SUBSCRIPTION_STATUS,
   USER_STATUS,
   ClientOfConsent,
   GROUPS,
   Roles,
-  GENDER,
-  User as UserInterface,
+  formatDateInFrenchNotation,
 } from '../utils';
 import {WEBSITE_FQDN} from '../constants';
 import {capitalize} from 'lodash';
 import {differenceInMonths} from 'date-fns';
 import {RequiredActionAlias} from 'keycloak-admin/lib/defs/requiredActionProviderRepresentation';
+import {JwtService} from './jwt.service';
+import {AffiliationService} from './affiliation.service';
+import {KeycloakService} from './keycloak.service';
+import {MailService} from './mail.service';
 
 // We specify queryParams for our employees search
 type EmployeesQueryParams = {
@@ -67,8 +60,8 @@ export type Tab = {
 
 const SubscriptionStatus: Record<string, string> = {
   A_TRAITER: 'à traiter',
-  VALIDER: 'accepté',
-  REJETER: 'refusée',
+  VALIDEE: 'validée',
+  REJETEE: 'refusée',
 };
 
 // used to add style to sheet header cells
@@ -88,18 +81,12 @@ function styleHeaderCell(cell: Excel.Cell) {
 @injectable({scope: BindingScope.TRANSIENT})
 export class CitizenService {
   constructor(
-    @repository(CitizenRepository)
-    public citizenRepository: CitizenRepository,
     @repository(EnterpriseRepository)
     public enterpriseRepository: EnterpriseRepository,
     @repository(UserRepository)
     public userRepository: UserRepository,
     @repository(SubscriptionRepository)
     public subscriptionRepository: SubscriptionRepository,
-    @service(JwtService)
-    public jwtService: JwtService,
-    @inject(SecurityBindings.USER, {optional: true})
-    private currentUser: UserProfile,
     @repository(UserEntityRepository)
     public userEntityRepository: UserEntityRepository,
     @repository(ClientRepository)
@@ -108,10 +95,18 @@ export class CitizenService {
     public offlineClientSessionRepository: OfflineClientSessionRepository,
     @repository(OfflineUserSessionRepository)
     public offlineUserSessionRepository: OfflineUserSessionRepository,
+    @service(JwtService)
+    public jwtService: JwtService,
+    @service(AffiliationService)
+    public affiliationService: AffiliationService,
+    @inject(SecurityBindings.USER, {optional: true})
+    private currentUser: UserProfile,
     @inject('services.KeycloakService')
     public kcService: KeycloakService,
     @inject('services.MailService')
     public mailService: MailService,
+    @repository(AffiliationRepository)
+    public affiliationRepository: AffiliationRepository,
   ) {}
 
   /**
@@ -126,285 +121,50 @@ export class CitizenService {
     limit,
   }: EmployeesQueryParams): Promise<{employees: Citizen[]; employeesCount: number}> {
     const {id} = this.currentUser;
-    const user = await this.userRepository.findById(id);
+    const user: User = await this.userRepository.findById(id);
 
-    const match: object[] = [
-      {
-        'affiliation.enterpriseId': user.funderId,
-      },
-    ];
+    const filter: Filter<UserEntity> = {order: ['lastName ASC']};
 
-    if (status) {
-      match.push({'affiliation.affiliationStatus': status});
+    const where: Where<UserEntity> = {};
+
+    const affiliationFilter: Filter<Affiliation> = {where: {enterpriseId: user.funderId}};
+
+    let count: Count;
+
+    if (skip) {
+      Object.assign(filter, {skip: skip});
+    }
+
+    if (limit) {
+      Object.assign(filter, {limit: limit});
     }
 
     if (lastName) {
-      match.push({
-        'identity.lastName.value': new RegExp('.*' + lastName + '.*', 'i'),
-      });
+      Object.assign(where, {lastName: new RegExp('.*' + lastName + '.*', 'i')});
     }
 
-    const employeesFacet: object[] = [
-      {
-        $group: {
-          _id: {
-            id: '$_id',
-            lastName: {$toLower: '$identity.lastName.value'},
-            firstName: {$toLower: '$identity.firstName.value'},
-          },
-          id: {$first: '$_id'},
-          lastName: {$first: '$identity.lastName.value'},
-          firstName: {$first: '$identity.firstName.value'},
-          affiliation: {$first: '$affiliation'},
-          email: {$first: '$personalInformation.email.value'},
-          birthdate: {$first: '$identity.birthDate.value'},
-        },
-      },
-      {$sort: {'_id.lastName': 1, '_id.firstName': 1, _id: 1}},
-      {
-        $project: {
-          _id: 0,
-        },
-      },
-      {$skip: skip ?? 0},
-    ];
-
-    if (limit) {
-      employeesFacet.push({$limit: limit});
+    if (status) {
+      Object.assign(affiliationFilter.where!, {status: status});
     }
 
-    const queryEmployees = await this.citizenRepository
-      .execute('Citizen', 'aggregate', [
-        {
-          $match: {
-            $and: match,
-          },
-        },
-        {
-          $facet: {
-            salariesCount: [
-              {
-                $group: {
-                  _id: '$_id',
-                },
-              },
-              {$count: 'count'},
-            ],
-            employees: employeesFacet,
-          },
-        },
-        {
-          $project: {
-            employeesCount: {$ifNull: [{$arrayElemAt: ['$salariesCount.count', 0]}, 0]},
-            employees: 1,
-          },
-        },
-      ])
-      .then((res: AnyObject) => res.get())
-      .catch(err => err);
-
-    return queryEmployees?.[0];
-  }
-
-  /**
-   * Send affiliation mail for salarie citizen
-   *
-   * @param mailService
-   * @param citizen
-   * @param funderNames
-   */
-  async sendAffiliationMail(
-    mailService: MailService,
-    citizen: Citizen,
-    funderName: string,
-  ) {
-    const token = this.jwtService.generateAffiliationAccessToken(citizen);
-    const affiliationLink = `${WEBSITE_FQDN}/inscription/association?token=${token}`;
-
-    await mailService.sendMailAsHtml(
-      citizen.affiliation!.enterpriseEmail!,
-      `Bienvenue dans votre communauté moB ${funderName}`,
-      'citizen-affiliation',
-      {
-        funderName: funderName,
-        affiliationLink: affiliationLink,
-        username: capitalize(citizen.identity.firstName.value),
-      },
-    );
-  }
-
-  /**
-   * Send disaffiliation mail for salarie citizen
-   * @param mailService
-   * @param citizen
-   *
-   */
-  async sendDisaffiliationMail(mailService: MailService, citizen: Citizen) {
-    const incentiveLink = `${WEBSITE_FQDN}/recherche`;
-    await mailService.sendMailAsHtml(
-      citizen.personalInformation.email.value!,
-      'Votre affiliation employeur vient d’être supprimée',
-      'disaffiliation-citizen',
-      {
-        username: capitalize(citizen.identity.firstName.value),
-        incentiveLink: incentiveLink,
-      },
-    );
-  }
-
-  /**
-   * send reject affiliation email
-   * @param citizen citizen data
-   * @param enterpriseName entreprise to be affiliated to
-   */
-  async sendRejectedAffiliation(citizen: Citizen, enterpriseName: string) {
-    await this.mailService.sendMailAsHtml(
-      citizen.personalInformation.email.value!,
-      "Votre demande d'affiliation a été refusée",
-      'affiliation-rejection',
-      {
-        username: capitalize(citizen.identity.firstName.value),
-        enterpriseName: capitalize(enterpriseName),
-      },
-    );
-  }
-
-  /**
-   * send validated affiliation email
-   * @param citizen citizen data
-   * @param enterpriseName entreprise to be affiliated to
-   */
-  async sendValidatedAffiliation(citizen: Citizen, enterpriseName: string) {
-    const websiteLink = `${WEBSITE_FQDN}/recherche`;
-    await this.mailService.sendMailAsHtml(
-      citizen.personalInformation.email.value!,
-      "Votre demande d'affiliation a été acceptée !",
-      'affiliation-validation',
-      {
-        username: capitalize(citizen.identity.firstName.value),
-        enterpriseName: capitalize(enterpriseName),
-        websiteLink,
-      },
-    );
-  }
-
-  /**
-   * Check that the citizen profesionnel email is aligned with the
-   * domains of the enterprise citizen want to be member
-   * @returns true/false
-   * @param emailCitizen string - citizen profesionnel email
-   * @param enterpriseEmails[]: string[] - email patterns of the enterprise citizen want to be member
-   */
-  validateEmailPattern(emailCitizen: string, enterpriseEmails: string[]) {
-    const formatEmail: string = emailCitizen.replace(/^.+@/, '@');
-    if (!enterpriseEmails.includes(formatEmail)) {
-      throw new ValidationError(
-        'citizen.email.professional.error.format',
-        '/professionnalEmailBadFormat',
-        StatusCode.PreconditionFailed,
-        ResourceName.ProfessionalEmail,
+    // Get citizen for these affiliations with minimal info ?
+    const affiliatedCitizenList: Citizen[] | [] =
+      await this.searchCitizenWithAffiliationListByFilter(
+        Object.assign(filter, {where: where}),
+        affiliationFilter,
       );
-    }
-  }
 
-  /**
-   * Check Affiliation and return citizen if all checks are ok
-   * CheckList :
-   * verify token /
-   * verify citizen and enterprise in mongo /
-   * verify match between token and mongo
-   * verify affiliation status
-   */
-  async checkAffiliation(token: string): Promise<Citizen> {
-    let citizen: Citizen, enterprise: Enterprise;
-
-    // Verify token
-    if (!this.jwtService.verifyAffiliationAccessToken(token)) {
-      throw new ValidationError(
-        'citizens.affiliation.not.valid',
-        '/citizensAffiliationNotValid',
-        StatusCode.UnprocessableEntity,
-        ResourceName.Affiliation,
-      );
+    if (lastName) {
+      count = {count: affiliatedCitizenList.length};
+    } else {
+      // Count affiliated citizens
+      count = await this.affiliationRepository.count(affiliationFilter.where);
     }
 
-    const decodedToken: AffiliationAccessTokenPayload =
-      this.jwtService.decodeAffiliationAccessToken(token);
-
-    try {
-      // Get from db
-      citizen = await this.citizenRepository.findById(decodedToken.id);
-      enterprise = await this.enterpriseRepository.findById(decodedToken.enterpriseId);
-    } catch (err) {
-      throw new ValidationError(
-        'citizens.affiliation.not.valid',
-        '/citizensAffiliationNotValid',
-        StatusCode.UnprocessableEntity,
-        ResourceName.Affiliation,
-      );
-    }
-
-    // Check if citizen and enterprise exists
-    // Check if affiliation enterpriseId matches the token one
-    if (
-      !citizen ||
-      !citizen?.affiliation ||
-      citizen.affiliation.enterpriseId !== decodedToken.enterpriseId ||
-      !enterprise
-    ) {
-      throw new ValidationError(
-        'citizens.affiliation.not.valid',
-        '/citizensAffiliationNotValid',
-        StatusCode.UnprocessableEntity,
-        ResourceName.Affiliation,
-      );
-    }
-
-    // Check Affiliation status
-    if (citizen.affiliation.affiliationStatus !== AFFILIATION_STATUS.TO_AFFILIATE) {
-      throw new ValidationError(
-        'citizens.affiliation.bad.status',
-        '/citizensAffiliationBadStatus',
-        StatusCode.PreconditionFailed,
-        ResourceName.AffiliationBadStatus,
-      );
-    }
-
-    return citizen;
-  }
-
-  /**
-   * Check Disaffiliation and return boolean if all checks are ok
-   * CheckList :
-   * verify citizen subscription
-   */
-  async checkDisaffiliation(citizenId: string): Promise<boolean> {
-    // Check Citizen demands
-    const withParams: AnyObject[] = [
-      {funderName: this.currentUser.funderName},
-      {incentiveType: this.currentUser.incentiveType},
-      {status: SUBSCRIPTION_STATUS.TO_PROCESS},
-      {citizenId: citizenId},
-    ];
-
-    const userId = this.currentUser.id;
-
-    let communityIds: '' | string[] | null | undefined = null;
-
-    communityIds =
-      userId && (await this.userRepository.findOne({where: {id: userId}}))?.communityIds;
-
-    if (communityIds && communityIds?.length > 0) {
-      withParams.push({communityId: {inq: communityIds}});
-    }
-
-    const subscriptions = await this.subscriptionRepository.find({
-      where: {
-        and: withParams,
-      },
-    });
-
-    return subscriptions?.length === 0;
+    return {
+      employees: affiliatedCitizenList,
+      employeesCount: count.count,
+    };
   }
 
   /**
@@ -416,7 +176,7 @@ export class CitizenService {
    * @param listMaas - list of MAAS services names
    * @returns Excel Buffer
    */
-  async generateExcelRGPD(
+  async generateExcelGDPR(
     citizen: Citizen,
     companyName: string,
     subscriptions: Subscription[],
@@ -687,28 +447,6 @@ export class CitizenService {
     );
   }
 
-  /**
-   * Check if the professional email is unique
-   * @param professionalEmail
-   *
-   */
-  async checkProEmailExistence(professionalEmail: string): Promise<void> {
-    const withParams: AnyObject = {
-      'affiliation.enterpriseEmail': professionalEmail,
-    };
-    const result = await this.citizenRepository.findOne({
-      where: withParams,
-    });
-    if (result) {
-      throw new ValidationError(
-        'citizen.email.error.unique',
-        '/affiliation.enterpriseEmail',
-        StatusCode.UnprocessableEntity,
-        ResourceName.UniqueProfessionalEmail,
-      );
-    }
-  }
-
   async getClientList(): Promise<ClientOfConsent[]> {
     const clients = await this.clientRepository.find({
       fields: {clientId: true, name: true},
@@ -768,8 +506,10 @@ export class CitizenService {
 
         // citizen account deletion + sending mail
         if (citizenGroup.length !== 0) {
-          const citizen: Citizen = await this.citizenRepository.findById(account.id);
-          await this.citizenRepository.deleteById(account.id);
+          const citizen: Citizen = await this.getCitizenWithAffiliationById(account.id);
+
+          citizen.affiliation &&
+            (await this.affiliationRepository.deleteById(account.id));
           await this.kcService.deleteUserKc(account.id);
           await this.sendNonActivatedAccountDeletionMail(this.mailService, {
             ...citizen,
@@ -790,226 +530,136 @@ export class CitizenService {
   }
 
   /**
-   * If the company accepts a manual affiliation, send an affiliation mail to that company's funders.
-   * @param citizen
-   * @param enterprise
-   *
-   */
-  async sendManualAffiliationMail(
-    citizen: AnyObject,
-    enterprise: Enterprise,
-  ): Promise<void> {
-    //  Get list of the enterprise funders
-    const enterpriseFunders = await this.userRepository.find({
-      where: {
-        funderId: enterprise.id,
-        canReceiveAffiliationMail: true,
-      },
-    });
-
-    // List of funders who accept manual affiliation and who have an activated account
-    const verifiedFunders: User[] = [];
-
-    const creationDate = formatDateInFrenchNotation(new Date());
-    const manualAffiliationLink = `${WEBSITE_FQDN}/gerer-salaries?tab=A_AFFILIER`;
-
-    await Promise.all(
-      //  Loop through the existing funders in MongoDb and get the ones that have verified emails from keycloak.
-      enterpriseFunders.map(async (el: User) => {
-        const user = await this.kcService.getUser(el.id);
-        if (user.emailVerified) {
-          verifiedFunders.push(el);
-        }
-      }),
-    );
-
-    await Promise.all(
-      //  Send an affiliation mail to each funder whose email address has been verified and who accept manual affiliation.
-      verifiedFunders.map(async singleFunder =>
-        this.mailService.sendMailAsHtml(
-          singleFunder.email,
-          `Vous avez une nouvelle demande d'affiliation !`,
-          'funder-manual-affiliation-notification',
-          {
-            funderName: capitalize(enterprise.name),
-            funderFirstName: capitalize(singleFunder.firstName),
-            firstName: capitalize(citizen.identity.firstName.value),
-            lastName: capitalize(citizen.identity.lastName.value),
-            creationDate: creationDate,
-            manualAffiliationLink: manualAffiliationLink,
-          },
-        ),
-      ),
-    );
-  }
-
-  /**
-   * Create Citizen
-   * @param register
-   * @param citizenId
-   * @returns
+   * Create Citizen in KC
+   * @param rawCitizen
+   * @returns id
    */
   async createCitizen(
-    register: Omit<Citizen, 'id' | 'password'>,
-    citizenId?: string,
+    rawCitizen: Omit<CitizenCreate, 'password'>,
   ): Promise<{id: string} | undefined> {
     let keycloakResult;
     let enterprise = new Enterprise();
 
     try {
-      const citizen: AnyObject = pick(register, [
-        'personalInformation',
-        'identity',
-        'city',
-        'postcode',
-        'status',
-        'tos1',
-        'tos2',
-        'affiliation',
-        'dgfipInformation',
-      ]);
-
-      // Enterprise Verification
-      if (citizen.affiliation?.enterpriseId) {
-        enterprise = await this.enterpriseRepository.findById(
-          citizen.affiliation.enterpriseId,
-        );
-      }
-
-      // Check if the professional email is unique
-      if (citizen.affiliation?.enterpriseId && citizen.affiliation?.enterpriseEmail) {
-        await this.checkProEmailExistence(citizen?.affiliation?.enterpriseEmail);
-      }
-
-      // Verification the employee's professional email format
-      if (citizen.affiliation?.enterpriseId && citizen.affiliation?.enterpriseEmail) {
-        this.validateEmailPattern(
-          citizen?.affiliation?.enterpriseEmail,
-          enterprise?.emailFormat,
-        );
-      }
+      const citizen: Citizen = new Citizen(rawCitizen as Citizen);
 
       const actions: RequiredActionAlias[] = [RequiredActionAlias.VERIFY_EMAIL];
 
-      if (citizenId) {
-        // Update the citizen attributes on KC
-        await this.kcService.updateCitizenAttributes(citizenId, {
-          ...citizen.identity,
-          ...citizen.personalInformation,
-        });
+      // Initialize user creation in KC
+      keycloakResult = await this.kcService.createUserKc(
+        citizen,
+        [GROUPS.citizens],
+        actions,
+      );
 
-        // Update the citizen role on KC
-        await this.kcService.updateCitizenRole(citizenId, GROUPS.citizens);
-      } else {
-        // Initialize user creation in KC
-        const newRegister: UserInterface = {
-          ...register,
-          group: [GROUPS.citizens],
-          gender: register.identity.gender.value === 1 ? GENDER.MALE : GENDER.FEMALE,
-          lastName: register.identity.lastName.value,
-          firstName: register.identity.firstName.value,
-          birthdate: register.identity.birthDate.value,
-          email: register.personalInformation.email.value,
-        };
+      if (keycloakResult && keycloakResult.id) {
+        citizen.id = keycloakResult.id;
 
-        keycloakResult = await this.kcService.createUserKc(
-          {
-            ...newRegister,
-          },
-          actions,
-        );
-      }
-
-      if ((keycloakResult && keycloakResult.id) || citizenId) {
-        if (citizenId) {
-          // Set Citizen Id
-          citizen.id = citizenId;
-        } else if (keycloakResult) {
-          citizen.id = keycloakResult.id;
+        if (citizen.affiliation?.enterpriseId) {
+          enterprise = await this.enterpriseRepository.findById(
+            citizen.affiliation.enterpriseId,
+          );
         }
 
-        // Create object : affiliation
-        const affiliation: Affiliation = new Affiliation(citizen.affiliation);
-
-        // Check if one of the enterpriseId or/and enterpriseEmail are provided
-        if (
-          (!affiliation.enterpriseId && affiliation.enterpriseEmail) ||
-          (affiliation.enterpriseId &&
-            !affiliation.enterpriseEmail &&
-            !enterprise?.hasManualAffiliation) ||
-          (!affiliation.enterpriseId && !affiliation.enterpriseEmail)
-        ) {
-          affiliation.enterpriseId = !affiliation.enterpriseId
-            ? null
-            : affiliation.enterpriseId;
-          affiliation.enterpriseEmail = !affiliation.enterpriseEmail
-            ? null
-            : affiliation.enterpriseEmail;
-          affiliation.affiliationStatus = AFFILIATION_STATUS.UNKNOWN;
-        }
-
-        if (
-          (affiliation.enterpriseId && affiliation.enterpriseEmail) ||
-          (affiliation.enterpriseId &&
-            !affiliation.enterpriseEmail &&
-            enterprise?.hasManualAffiliation)
-        ) {
-          affiliation.affiliationStatus = AFFILIATION_STATUS.TO_AFFILIATE;
-        }
+        // Create Affiliation
+        const affiliation: Affiliation =
+          await this.affiliationRepository.createAffiliation(
+            citizen,
+            enterprise.hasManualAffiliation || false,
+          );
 
         citizen.affiliation = affiliation;
 
-        let result;
+        // Send verification mail
+        await this.kcService.sendExecuteActionsEmailUserKc(citizen.id, actions);
 
-        if (!citizenId) {
-          result = await this.citizenRepository.create({
-            ...citizen,
-            ...keycloakResult,
-          });
-          // Send verification mail
-          await this.kcService.sendExecuteActionsEmailUserKc(result.id, actions);
-        } else {
-          // Completion Mode
-          result = await this.citizenRepository.create({
-            ...citizen,
-          });
-        }
-
-        // Send a manual affiliaton mail to the company's funders accepting the manual affiliation
-        if (
-          citizen.affiliation?.enterpriseId &&
-          !citizen.affiliation?.enterpriseEmail &&
-          enterprise.hasManualAffiliation
-        ) {
-          await this.sendManualAffiliationMail(citizen, enterprise);
-        }
-
-        // Send the affiliation mail to citizens with a professional email
-        if (
-          (result?.affiliation?.affiliationStatus !== AFFILIATION_STATUS.UNKNOWN &&
-            !enterprise?.hasManualAffiliation) ||
-          (result?.affiliation?.affiliationStatus === AFFILIATION_STATUS.TO_AFFILIATE &&
-            enterprise?.hasManualAffiliation &&
-            result?.affiliation?.enterpriseEmail)
-        ) {
-          await this.sendAffiliationMail(this.mailService, result, enterprise!.name);
+        // Send a manual affiliation mail to the company's funders accepting the manual affiliation or to citizen
+        if (affiliation.status === AFFILIATION_STATUS.TO_AFFILIATE) {
+          if (enterprise.hasManualAffiliation) {
+            await this.affiliationService.sendManualAffiliationMail(citizen, enterprise);
+          } else {
+            await this.affiliationService.sendAffiliationMail(
+              this.mailService,
+              citizen,
+              enterprise!.name,
+            );
+          }
         }
 
         return {
-          id: result.id,
+          id: citizen.id,
         };
       }
 
       return keycloakResult;
     } catch (error) {
       if (keycloakResult && keycloakResult.id) {
-        await this.citizenRepository.deleteById(keycloakResult.id);
+        const affiliationToDelete = await this.affiliationRepository.findOne({
+          where: {citizenId: keycloakResult.id},
+        });
+        affiliationToDelete &&
+          (await this.affiliationRepository.deleteById(affiliationToDelete.id));
         await this.kcService.deleteUserKc(keycloakResult.id);
-      } else if (citizenId) {
-        await this.kcService.updateCitizenRole(citizenId, GROUPS.citizens, true);
-        await this.citizenRepository.deleteById(citizenId);
       }
       throw error;
     }
+  }
+
+  /**
+   * Get citizen by Id from PGSQL DB
+   * @param citizenId string
+   */
+  async getCitizenWithAffiliationById(citizenId: string): Promise<Citizen> {
+    const citizen: Citizen = (await this.userEntityRepository.getUserWithAttributes(
+      citizenId,
+      GROUPS.citizens,
+    ))!.toCitizen();
+    const affiliation: Affiliation | null = await this.affiliationRepository.findOne({
+      where: {citizenId: citizen.id},
+    });
+    citizen.affiliation = affiliation!;
+    return citizen;
+  }
+
+  /**
+   * Get citizen according to given filter from PGSQL DB
+   * @param userEntityFilter Filter<UserEntity>
+   * @param affiliationFilter <Affiliation>
+   * @returns Promise<Citizen[] | []>
+   */
+  async searchCitizenWithAffiliationListByFilter(
+    userEntityFilter: Filter<UserEntity>,
+    affiliationFilter: Filter<Affiliation>,
+  ): Promise<Citizen[] | []> {
+    // Get all affiliation for funder
+    const affiliationList: string[] | [] = (
+      await this.affiliationRepository.find(affiliationFilter)
+    ).map((affiliation: Affiliation) => affiliation.citizenId);
+
+    // Add citizen id list to userEntityFilter
+    userEntityFilter.where &&
+      Object.assign(userEntityFilter.where, {id: {inq: affiliationList}});
+
+    const userWithAttributesList: (UserEntity & UserEntityRelations)[] =
+      await this.userEntityRepository.searchUserWithAttributesByFilter(
+        userEntityFilter,
+        GROUPS.citizens,
+      );
+
+    return (
+      await Promise.all(
+        userWithAttributesList.map(
+          async (userWithAttributes: UserEntity & UserEntityRelations) => {
+            const citizen: Citizen = userWithAttributes.toCitizen();
+            affiliationFilter.where &&
+              Object.assign({...affiliationFilter.where}, {citizenId: citizen.id});
+            const affiliation: Affiliation | null =
+              await this.affiliationRepository.findOne(affiliationFilter);
+            affiliation && (citizen.affiliation = affiliation);
+            return citizen;
+          },
+        ),
+      )
+    ).filter((citizen: Citizen) => citizen.affiliation);
   }
 }

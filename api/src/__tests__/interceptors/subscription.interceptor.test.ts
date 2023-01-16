@@ -7,8 +7,12 @@ import {
 import {securityId} from '@loopback/security';
 
 import {SubscriptionInterceptor} from '../../interceptors';
-import {SubscriptionRepository, UserRepository} from '../../repositories';
-import {User, Subscription} from '../../models';
+import {
+  IncentiveRepository,
+  SubscriptionRepository,
+  UserRepository,
+} from '../../repositories';
+import {User, Subscription, Incentive} from '../../models';
 import {ValidationError} from '../../validationError';
 import {IUser, ResourceName, StatusCode, SUBSCRIPTION_STATUS} from '../../utils';
 
@@ -16,7 +20,8 @@ describe('SubscriptionInterceptor', () => {
   let interceptor: any = null;
 
   let subscriptionRepository: StubbedInstanceWithSinonAccessor<SubscriptionRepository>,
-    user: StubbedInstanceWithSinonAccessor<UserRepository>,
+    userRepository: StubbedInstanceWithSinonAccessor<UserRepository>,
+    incentiveRepository: StubbedInstanceWithSinonAccessor<IncentiveRepository>,
     currentUserProfile: IUser;
 
   const error = new ValidationError(
@@ -32,11 +37,40 @@ describe('SubscriptionInterceptor', () => {
     ResourceName.Subscription,
   );
 
+  const errorBadStatus = new ValidationError(
+    `subscriptions.error.bad.status`,
+    '/subscriptionBadStatus',
+    StatusCode.PreconditionFailed,
+    ResourceName.Subscription,
+  );
+
+  const errorAtLeastOneSpecificField = new ValidationError(
+    `At least one specific field must be provided`,
+    '/subscriptionWithoutData',
+    StatusCode.PreconditionFailed,
+    ResourceName.Subscription,
+  );
+
+  const errorIncentiveNotFound = new ValidationError(
+    `Incentive not found`,
+    '/incentiveNotFound',
+    StatusCode.NotFound,
+    ResourceName.Subscription,
+  );
+
+  const errorIncentiveNoJsonSchema = new ValidationError(
+    `Incentive without specific fields`,
+    '/incentiveWithoutSpecificFields',
+    StatusCode.UnprocessableEntity,
+    ResourceName.Subscription,
+  );
+
   beforeEach(() => {
     givenStubbedRepository();
     interceptor = new SubscriptionInterceptor(
-      user,
+      userRepository,
       subscriptionRepository,
+      incentiveRepository,
       currentUserProfile,
     );
   });
@@ -51,7 +85,7 @@ describe('SubscriptionInterceptor', () => {
   });
   it('SubscriptionInterceptor user without community', async () => {
     try {
-      user.stubs.findOne.resolves(mockUserWithoutCom);
+      userRepository.stubs.findOne.resolves(mockUserWithoutCom);
       subscriptionRepository.stubs.findById.resolves(mockSubscription);
 
       await interceptor.intercept(invocationContextFindById, () => {});
@@ -62,7 +96,7 @@ describe('SubscriptionInterceptor', () => {
 
   it('SubscriptionInterceptor findById : subscription not found', async () => {
     try {
-      user.stubs.findOne.resolves(mockUserWithoutCom);
+      userRepository.stubs.findOne.resolves(mockUserWithoutCom);
       subscriptionRepository.stubs.findOne.resolves(null);
 
       await interceptor.intercept(invocationContextFindById, () => {});
@@ -72,7 +106,7 @@ describe('SubscriptionInterceptor', () => {
   });
   it('SubscriptionInterceptor user with all perimeter', async () => {
     try {
-      user.stubs.findOne.resolves(mockUserWithAllCom);
+      userRepository.stubs.findOne.resolves(mockUserWithAllCom);
       subscriptionRepository.stubs.findById.resolves(mockSubscription);
 
       await interceptor.intercept(invocationContextFindById, () => {});
@@ -82,7 +116,7 @@ describe('SubscriptionInterceptor', () => {
   });
   it('SubscriptionInterceptor user with community, findById', async () => {
     try {
-      user.stubs.findOne.resolves(mockUserWithCom);
+      userRepository.stubs.findOne.resolves(mockUserWithCom);
       subscriptionRepository.stubs.findById.resolves(mockSubscription);
 
       await interceptor.intercept(invocationContextFindById, () => {});
@@ -92,7 +126,7 @@ describe('SubscriptionInterceptor', () => {
   });
   it('SubscriptionInterceptor user with community, validate', async () => {
     try {
-      user.stubs.findOne.resolves(mockUserWithCom);
+      userRepository.stubs.findOne.resolves(mockUserWithCom);
       subscriptionRepository.stubs.findById.resolves(mockSubscription);
 
       await interceptor.intercept(invocationContextValidate, () => {});
@@ -103,7 +137,7 @@ describe('SubscriptionInterceptor', () => {
 
   it('SubscriptionInterceptor validate : subsciption not found', async () => {
     try {
-      user.stubs.findOne.resolves(mockUserWithCom);
+      userRepository.stubs.findOne.resolves(mockUserWithCom);
       subscriptionRepository.stubs.findOne.resolves(null);
 
       await interceptor.intercept(invocationContextValidate, () => {});
@@ -114,7 +148,7 @@ describe('SubscriptionInterceptor', () => {
 
   it('SubscriptionInterceptor user with community, reject', async () => {
     try {
-      user.stubs.findOne.resolves(mockUserWithCom);
+      userRepository.stubs.findOne.resolves(mockUserWithCom);
       subscriptionRepository.stubs.findById.resolves(mockSubscription);
 
       await interceptor.intercept(invocationContextReject, () => {});
@@ -125,7 +159,7 @@ describe('SubscriptionInterceptor', () => {
 
   it('SubscriptionInterceptor reject : subscription not found', async () => {
     try {
-      user.stubs.findOne.resolves(mockUserWithCom);
+      userRepository.stubs.findOne.resolves(mockUserWithCom);
       subscriptionRepository.stubs.findOne.resolves(null);
 
       await interceptor.intercept(invocationContextReject, () => {});
@@ -136,7 +170,7 @@ describe('SubscriptionInterceptor', () => {
 
   it('SubscriptionInterceptor user with community, getSubscriptionFileByName', async () => {
     try {
-      user.stubs.findOne.resolves(mockUserWithCom);
+      userRepository.stubs.findOne.resolves(mockUserWithCom);
       subscriptionRepository.stubs.findById.resolves(mockSubscription);
 
       await interceptor.intercept(invocationContextGetSubscriptionFileByName, () => {});
@@ -147,7 +181,7 @@ describe('SubscriptionInterceptor', () => {
 
   it('SubscriptionInterceptor getSubscriptionFileByName : subscription not found', async () => {
     try {
-      user.stubs.findOne.resolves(mockUserWithCom);
+      userRepository.stubs.findOne.resolves(mockUserWithCom);
       subscriptionRepository.stubs.findById.resolves(undefined);
 
       await interceptor.intercept(invocationContextGetSubscriptionFileByName, () => {});
@@ -176,9 +210,92 @@ describe('SubscriptionInterceptor', () => {
     }
   });
 
+  it('SubscriptionInterceptor updateById: Error citizen can Access subscription data', async () => {
+    try {
+      subscriptionRepository.stubs.findById.resolves(mockSubscription);
+
+      await interceptor.intercept(invocationContextUpdateByIdWithData, () => {});
+    } catch (err) {
+      expect(err).to.deepEqual(error);
+    }
+  });
+
+  it('SubscriptionInterceptor updateById: Wrong subscription status', async () => {
+    try {
+      subscriptionRepository.stubs.findById.resolves(mockSubscriptionUpdateByIdValidated);
+
+      await interceptor.intercept(invocationContextUpdateByIdWithData, () => {});
+    } catch (err) {
+      expect(err).to.deepEqual(errorBadStatus);
+    }
+  });
+
+  it('SubscriptionInterceptor updateById: No data in body', async () => {
+    try {
+      subscriptionRepository.stubs.findById.resolves(mockSubscriptionUpdateByIdDraft);
+
+      await interceptor.intercept(invocationContextUpdateByIdNoData, () => {});
+    } catch (err) {
+      expect(err).to.deepEqual(errorAtLeastOneSpecificField);
+    }
+  });
+
+  it('SubscriptionInterceptor updateById: Incentive not found', async () => {
+    try {
+      subscriptionRepository.stubs.findById.resolves(mockSubscriptionUpdateByIdDraft);
+      incentiveRepository.stubs.findById.resolves(undefined);
+
+      await interceptor.intercept(invocationContextUpdateByIdWithData, () => {});
+    } catch (err) {
+      expect(err).to.deepEqual(errorIncentiveNotFound);
+    }
+  });
+
+  it('SubscriptionInterceptor updateById: Incentive without specificFields', async () => {
+    try {
+      subscriptionRepository.stubs.findById.resolves(mockSubscriptionUpdateByIdDraft);
+      incentiveRepository.stubs.findById.resolves(mockIncentiveWithoutSpecificFields);
+
+      await interceptor.intercept(invocationContextUpdateByIdWithData, () => {});
+    } catch (err) {
+      expect(err).to.deepEqual(errorIncentiveNoJsonSchema);
+    }
+  });
+
+  it('SubscriptionInterceptor updateById: Error in between specificField body and jsonSchema', async () => {
+    try {
+      subscriptionRepository.stubs.findById.resolves(mockSubscriptionUpdateByIdDraft);
+      incentiveRepository.stubs.findById.resolves(mockIncentiveWithSpecificFields);
+
+      await interceptor.intercept(invocationContextUpdateByIdWithWrongData, () => {});
+    } catch (err) {
+      expect(err).to.deepEqual(
+        new ValidationError(
+          'is not allowed to have the additional property "text"',
+          '',
+          StatusCode.UnprocessableEntity,
+          ResourceName.Subscription,
+        ),
+      );
+    }
+  });
+
+  it('SubscriptionInterceptor updateById: Success', async () => {
+    subscriptionRepository.stubs.findById.resolves(mockSubscriptionUpdateByIdDraft);
+    incentiveRepository.stubs.findById.resolves(mockIncentiveWithSpecificFields);
+
+    const result = await interceptor.intercept(
+      invocationContextUpdateByIdWithData,
+      () => {},
+    );
+
+    expect(result).to.Null;
+  });
+
   function givenStubbedRepository() {
-    user = createStubInstance(UserRepository);
+    userRepository = createStubInstance(UserRepository);
     subscriptionRepository = createStubInstance(SubscriptionRepository);
+    incentiveRepository = createStubInstance(IncentiveRepository);
     currentUserProfile = {
       id: 'testId',
       clientName: 'testName-client',
@@ -223,6 +340,24 @@ const invocationContextUserClientName = {
   target: {},
   methodName: 'getSubscriptionFileByName',
   args: ['randomInputId'],
+};
+
+const invocationContextUpdateByIdNoData = {
+  target: {},
+  methodName: 'updateById',
+  args: ['randomInputId', {}],
+};
+
+const invocationContextUpdateByIdWithData = {
+  target: {},
+  methodName: 'updateById',
+  args: ['randomInputId', {TextField: 'text', DateField: '2022-06-02'}],
+};
+
+const invocationContextUpdateByIdWithWrongData = {
+  target: {},
+  methodName: 'updateById',
+  args: ['randomInputId', {text: 'text', number: 2}],
 };
 
 const mockUserWithoutCom = new User({
@@ -286,4 +421,85 @@ const mockSubscription2 = new Subscription({
   status: SUBSCRIPTION_STATUS.VALIDATED,
   createdAt: new Date('2021-04-06T09:01:30.778Z'),
   updatedAt: new Date('2021-04-06T09:01:30.778Z'),
+});
+
+const mockSubscriptionUpdateByIdValidated = new Subscription({
+  id: 'randomInputId',
+  incentiveId: 'incentiveId',
+  funderName: 'funderName',
+  incentiveType: 'AideEmployeur',
+  incentiveTitle: 'incentiveTitle',
+  citizenId: 'testId',
+  lastName: 'lastName',
+  firstName: 'firstName',
+  email: 'email@gmail.com',
+  consent: true,
+  incentiveTransportList: ['velo'],
+  communityId: 'id1',
+  status: SUBSCRIPTION_STATUS.VALIDATED,
+  createdAt: new Date('2021-04-06T09:01:30.778Z'),
+  updatedAt: new Date('2021-04-06T09:01:30.778Z'),
+});
+
+const mockSubscriptionUpdateByIdDraft = new Subscription({
+  id: 'randomInputId',
+  incentiveId: 'incentiveId',
+  funderName: 'funderName',
+  incentiveType: 'AideEmployeur',
+  incentiveTitle: 'incentiveTitle',
+  citizenId: 'testId',
+  lastName: 'lastName',
+  firstName: 'firstName',
+  email: 'email@gmail.com',
+  consent: true,
+  incentiveTransportList: ['velo'],
+  communityId: 'id1',
+  status: SUBSCRIPTION_STATUS.DRAFT,
+  createdAt: new Date('2021-04-06T09:01:30.778Z'),
+  updatedAt: new Date('2021-04-06T09:01:30.778Z'),
+});
+
+const mockIncentiveWithoutSpecificFields = new Incentive({
+  id: 'incentiveId',
+});
+
+const mockIncentiveWithSpecificFields = new Incentive({
+  id: 'incentiveId',
+  specificFields: [
+    {
+      title: 'TextField',
+      inputFormat: 'Texte',
+      isRequired: true,
+    },
+    {
+      title: 'NumberField',
+      inputFormat: 'Numerique',
+      isRequired: true,
+    },
+    {
+      title: 'DateField',
+      inputFormat: 'Date',
+      isRequired: true,
+    },
+  ],
+  jsonSchema: {
+    properties: {
+      TextField: {
+        type: 'text',
+        minLength: 1,
+      },
+      NumberField: {
+        type: 'number',
+        minLength: 1,
+      },
+      DateField: {
+        type: 'string',
+        format: 'date',
+      },
+    },
+    title: 'test',
+    type: 'object',
+    required: ['TextField', 'NumberField', 'DateField'],
+    additionalProperties: false,
+  },
 });

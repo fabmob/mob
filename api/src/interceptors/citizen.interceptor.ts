@@ -5,14 +5,15 @@ import {
   InvocationContext,
   InvocationResult,
   Provider,
+  service,
   ValueOrPromise,
 } from '@loopback/core';
 import {repository} from '@loopback/repository';
 import {SecurityBindings} from '@loopback/security';
 
-import {CitizenService} from '../services';
+import {AffiliationService, CitizenService} from '../services';
 import {Citizen} from '../models/citizen/citizen.model';
-import {CitizenRepository, UserRepository} from '../repositories';
+import {EnterpriseRepository, UserRepository} from '../repositories';
 import {isAgeValid} from './utils';
 import {ValidationError} from '../validationError';
 import {
@@ -23,6 +24,7 @@ import {
   IUser,
   Roles,
 } from '../utils';
+import {Enterprise} from '../models';
 
 /**
  * This class will be bound to the application as an `Interceptor` during
@@ -39,10 +41,12 @@ export class CitizenInterceptor implements Provider<Interceptor> {
   constructor(
     @inject('services.CitizenService')
     public citizenService: CitizenService,
-    @repository(CitizenRepository)
-    public citizenRepository: CitizenRepository,
     @repository(UserRepository)
     private userRepository: UserRepository,
+    @repository(EnterpriseRepository)
+    private enterpriseRepository: EnterpriseRepository,
+    @service(AffiliationService)
+    private affiliationService: AffiliationService,
     @inject(SecurityBindings.USER)
     private currentUser: IUser,
   ) {}
@@ -78,6 +82,52 @@ export class CitizenInterceptor implements Provider<Interceptor> {
         );
       }
 
+      // Enterprise Verification
+      if (citizen.affiliation?.enterpriseId) {
+        const enterprise: Enterprise | null = await this.enterpriseRepository.findOne({
+          where: {id: citizen.affiliation.enterpriseId},
+        });
+
+        if (!enterprise) {
+          throw new ValidationError(
+            `Enterprise does not exist`,
+            '/affiliation',
+            StatusCode.NotFound,
+            ResourceName.Affiliation,
+          );
+        }
+
+        if (citizen.affiliation?.enterpriseId && citizen.affiliation?.enterpriseEmail) {
+          // Check if the professional email is unique
+          if (
+            await this.affiliationService.isEmailProExisting(
+              citizen?.affiliation?.enterpriseEmail,
+            )
+          ) {
+            throw new ValidationError(
+              'citizen.email.error.unique',
+              '/affiliation.enterpriseEmail',
+              StatusCode.UnprocessableEntity,
+              ResourceName.UniqueProfessionalEmail,
+            );
+          }
+          // Verification the employee's professional email format
+          if (
+            !this.affiliationService.isValidEmailProPattern(
+              citizen?.affiliation?.enterpriseEmail,
+              enterprise?.emailFormat,
+            )
+          ) {
+            throw new ValidationError(
+              'citizen.email.professional.error.format',
+              '/professionnalEmailBadFormat',
+              StatusCode.PreconditionFailed,
+              ResourceName.ProfessionalEmail,
+            );
+          }
+        }
+      }
+
       if (!citizen?.password) {
         throw new ValidationError(
           `Password cannot be empty`,
@@ -86,15 +136,88 @@ export class CitizenInterceptor implements Provider<Interceptor> {
           ResourceName.Account,
         );
       }
+      if (citizen && !isAgeValid(citizen.identity.birthDate.value)) {
+        throw new ValidationError(
+          `citizens.error.birthdate.age`,
+          '/birthdate',
+          StatusCode.PreconditionFailed,
+          ResourceName.Account,
+        );
+      }
     }
 
-    if (invocationCtx.methodName === 'replaceById') citizen = invocationCtx.args[1];
+    if (invocationCtx.methodName === 'updateById') {
+      citizen = invocationCtx.args[1];
+      const currentCitizen = await this.citizenService.getCitizenWithAffiliationById(
+        invocationCtx.args[0],
+      );
+      if (!currentCitizen) {
+        throw new ValidationError(
+          `Citizen not found`,
+          '/citizenNotFound',
+          StatusCode.NotFound,
+          ResourceName.Citizen,
+        );
+      }
+      // Enterprise Verification
+      if (citizen?.affiliation?.enterpriseId) {
+        const enterprise: Enterprise | null = await this.enterpriseRepository.findOne({
+          where: {id: citizen.affiliation?.enterpriseId},
+        });
+
+        if (!enterprise) {
+          throw new ValidationError(
+            `Enterprise does not exist`,
+            '/affiliation',
+            StatusCode.NotFound,
+            ResourceName.Affiliation,
+          );
+        }
+
+        if (
+          citizen.affiliation?.enterpriseId &&
+          citizen.affiliation?.enterpriseEmail &&
+          (citizen.affiliation.enterpriseEmail !==
+            currentCitizen.affiliation?.enterpriseEmail ||
+            citizen.affiliation.enterpriseId !== currentCitizen.affiliation?.enterpriseId)
+        ) {
+          // Verification the employee's professional email format
+          if (
+            !this.affiliationService.isValidEmailProPattern(
+              citizen?.affiliation?.enterpriseEmail,
+              enterprise?.emailFormat,
+            )
+          ) {
+            throw new ValidationError(
+              'citizen.email.professional.error.format',
+              '/professionnalEmailBadFormat',
+              StatusCode.PreconditionFailed,
+              ResourceName.ProfessionalEmail,
+            );
+          }
+        }
+        // Check if the professional email is unique
+        if (
+          citizen.affiliation?.enterpriseEmail &&
+          citizen.affiliation?.enterpriseEmail !==
+            currentCitizen.affiliation?.enterpriseEmail &&
+          (await this.affiliationService.isEmailProExisting(
+            citizen?.affiliation?.enterpriseEmail,
+          ))
+        ) {
+          throw new ValidationError(
+            'citizen.email.error.unique',
+            '/affiliation.enterpriseEmail',
+            StatusCode.UnprocessableEntity,
+            ResourceName.UniqueProfessionalEmail,
+          );
+        }
+      }
+    }
 
     if (invocationCtx.methodName === 'findCitizenId') {
       const citizenId = invocationCtx.args[0];
-      const citizen = await this.citizenRepository.findOne({
-        where: {id: citizenId},
-      });
+      const citizen = await this.citizenService.getCitizenWithAffiliationById(citizenId);
       if (!citizen) {
         throw new ValidationError(
           `Citizen not found`,
@@ -105,25 +228,17 @@ export class CitizenInterceptor implements Provider<Interceptor> {
       }
     }
 
-    if (citizen && !isAgeValid(citizen.identity.birthDate.value)) {
-      throw new ValidationError(
-        `citizens.error.birthdate.age`,
-        '/birthdate',
-        StatusCode.PreconditionFailed,
-        ResourceName.Account,
-      );
-    }
     if (invocationCtx.methodName === 'validateAffiliation') {
       const user = this.currentUser;
       if (user.id && !user.roles?.includes(Roles.CITIZENS)) {
         const userData = await this.userRepository.findById(this.currentUser?.id);
         const citizenId = invocationCtx.args[0];
-        const citizen = await this.citizenRepository.findOne({
-          where: {id: citizenId},
-        });
+        const citizen = await this.citizenService.getCitizenWithAffiliationById(
+          citizenId,
+        );
         if (
           userData?.funderId !== citizen?.affiliation.enterpriseId ||
-          citizen!.affiliation!.affiliationStatus !== AFFILIATION_STATUS.TO_AFFILIATE
+          citizen!.affiliation!.status !== AFFILIATION_STATUS.TO_AFFILIATE
         ) {
           throw new ValidationError(
             'citizen.affiliation.impossible',
@@ -156,9 +271,8 @@ export class CitizenInterceptor implements Provider<Interceptor> {
       let newAffiliatedEmployees: Citizen | undefined,
         newManuelAffiliatedEmployees: Citizen | undefined;
 
-      const citizenToDisaffiliate = await this.citizenRepository.findOne({
-        where: {id: citizenId},
-      });
+      const citizenToDisaffiliate =
+        await this.citizenService.getCitizenWithAffiliationById(citizenId);
       if (!citizenToDisaffiliate) {
         throw new ValidationError(
           `Citizen not found`,
@@ -167,10 +281,7 @@ export class CitizenInterceptor implements Provider<Interceptor> {
           ResourceName.Citizen,
         );
       }
-      if (
-        citizenToDisaffiliate.affiliation.affiliationStatus ===
-        AFFILIATION_STATUS.AFFILIATED
-      ) {
+      if (citizenToDisaffiliate.affiliation.status === AFFILIATION_STATUS.AFFILIATED) {
         const affiliatedEmployees = await this.citizenService.findEmployees({
           status: AFFILIATION_STATUS.AFFILIATED,
           lastName: undefined,
@@ -181,10 +292,7 @@ export class CitizenInterceptor implements Provider<Interceptor> {
         );
       }
 
-      if (
-        citizenToDisaffiliate.affiliation.affiliationStatus ===
-        AFFILIATION_STATUS.TO_AFFILIATE
-      ) {
+      if (citizenToDisaffiliate.affiliation.status === AFFILIATION_STATUS.TO_AFFILIATE) {
         const manuelAffiliatedEmployees = await this.citizenService.findEmployees({
           status: AFFILIATION_STATUS.TO_AFFILIATE,
           lastName: undefined,
@@ -204,7 +312,7 @@ export class CitizenInterceptor implements Provider<Interceptor> {
           StatusCode.Forbidden,
         );
       } else {
-        const checkDisaffiliation = await this.citizenService.checkDisaffiliation(
+        const checkDisaffiliation = await this.affiliationService.checkDisaffiliation(
           citizenId,
         );
 

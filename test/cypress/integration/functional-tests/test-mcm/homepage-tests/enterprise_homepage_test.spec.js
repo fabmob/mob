@@ -3,6 +3,7 @@ describe("Enterprise homepage", function () {
 	it("Test of the enterprise homepage", function () {
 		cy.viewport(1440, 900); // Desktop mode
 		cy.justVisit("WEBSITE_FQDN"); // Open website homepage
+		cy.wait(10000);
 
 		/* ==== Tabs Banner */
 		cy.get('.nav-links__item--active > a').should('have.text', 'Citoyen.ne'); // Citizen tab
@@ -14,8 +15,8 @@ describe("Enterprise homepage", function () {
 		// TODO default citizen tab & mobile : tabs slide
 
 		/* ==== Page title ==== */
-		cy.get('.page-container > .mt-m').should('have.text', 'Améliorez  la mobilité de vos salarié.e.s, leurs conditions de vie et de travail tout en réduisant l\'impact carbone de votre entreprise.'); // Text
-		cy.get('#employeur-contact > .button').should('have.text', 'Nous contacter'); // Button text
+		cy.get('.page-container > .mt-m').should('have.text', "Réduire l'impact carbone de mon entreprise et simplifier la gestion de mes politiques d’aides à la mobilité."); // Text
+		cy.get('#employeur-contact > .button').should('have.text', 'Demander une démo'); // Button text
 
 		/* ==== Video Section ==== */
 		cy.get('[data-testid="button"] > img').should('have.attr', 'src', 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxjaXJjbGUgZmlsbD0iI0ZGRkZGRiIgY3g9IjUwIiBjeT0iNTAiIHI9IjUwIi8+PHBhdGggZD0iTTQ3IDQxLjZsMTIgOC4zODdMNDcgNTguNHoiIGZpbGw9IiMwMGE3NmUiLz48L2c+PC9zdmc+'); // Play icon TODO video plays onClick
@@ -26,7 +27,7 @@ describe("Enterprise homepage", function () {
 		/* ==== Steps Section ==== */
 		cy.get('.mcm-steps')
 		  .should('have.class', 'mcm-steps') // Gray card
-		  .should('have.text', 'Mon Compte Mobilité, comment ça marche ?Je me connecte à moB Mon Compte MobilitéJe gère les demandes d’aides de mes salariésJe me connecte à moB Mon Compte Mobilité'); // Title & subs
+		  .should('have.text', 'Mon Compte Mobilité, comment ça marche ?Je me connecte à moB Mon Compte MobilitéJe gère les demandes d’aides de mes salariésJe pilote ma politique de mobilité sur mon tableau de bord'); // Title & subs
 		cy.get(':nth-child(2) > .step-img > img').should( // Image 1/3
 			'have.attr',
 			'src',      'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODUiIGhlaWdodD0iODUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGcgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj48cGF0aCBkPSJNNDIuODczIDYwLjkxMWMtNC43OTcgMC04Ljc1Ny0yLjYzNi05LjQ1LTYuMDdDMTguOTI3IDU3Ljk3MiA4LjIyNCA2OC40MTYgOCA4MC44OGg2OC45NzVjLS4yMi0xMi4yNTMtMTAuNTY1LTIyLjU1Ni0yNC42OS0yNS44NzQtLjc4MyAzLjM1NC00LjY5MiA1LjkwNi05LjQxMiA1LjkwNnoiIGZpbGw9IiNGRkQzMTQiLz48cGF0aCBkPSJNMjguNDg3IDE4LjM3OXMyLjkxNS04LjI5NSA1LjI4OC0xMC44NTFjMS44OTItMi4wNCA1LjA1MS0yLjM3NSA3Ljc2OC0xLjc4IDIuNzE3LjU5NiA1LjE5OCAxLjk1OSA3LjgyNyAyLjg2NyA0Ljc2MyAxLjY0NiA3LjYxNyAzLjI2NCAxMS42MTcgNS4yNjQtMiA2LTIuMzE1IDUuMTktNy41MzUgNi45NjgtMy41MDMgMS4xOTQtNy4zMTkuNjctMTEuMDIuNzM1LS44NDkuMDE0LTEuNzkzLjEwMy0yLjM2NS43My0uODUyLjkzNC0uNzMgMi4xMy0xLjU4IDMuMDY3LS41NTQuNjEtMS4yMDUuNzc5LTIgMS0xMy45OSAzLjg5OS04LTgtOC04IiBmaWxsPSIjMzYzNzU3Ii8+PHBhdGggZD0iTTYxLjc0NCAxMi41ODRjLTMuMTA0LTEuNTU3LTYuMTcyLTMuMTcyLTkuNDAyLTQuNDYtMS44MDUtLjcyLTMuNjQzLTEuMzM0LTUuNDM4LTIuMDgzLTEuNzI1LS43Mi0zLjQ3LTEuNDY3LTUuMzE4LTEuODExLTMuMDI3LS41NjMtNi40ODItLjE3NC04Ljc0NSAyLjEwOS0xLjY4NSAxLjctMi43MSA0LjExMi0zLjY1OCA2LjI2OWE3OC4xNzMgNzguMTczIDAgMDAtMi4wNyA1LjE4Yy0xLjQ4MyAzLjA1Ny0yLjU2OCA3Ljk1Ljk0MSAxMC4wMjIgMS4zNTUuNzk5IDMuMDI2LjkzNyA0LjU2My44MTUgMi4wOTEtLjE2NyA1LjA3MS0uNDkyIDYuNjg3LTEuOTUuNDc2LS40MjguODE1LS45NjQgMS4wNzYtMS41NDMuMjI1LS40OTguMzI1LTEuMzgxLjc0Ny0xLjc1OC40ODQtLjQzMyAxLjQwOC0uMjk3IDIuMDAxLS4yOTguOTMxLS4wMDEgMS44NjMuMDI4IDIuNzk0LjA0NyAzLjIwMy4wNjQgNi4wODMtLjI1NCA5LjEzNS0xLjIyNiAxLjYtLjUwOCAzLjQxOC0uODk0IDQuNjY4LTIuMDk0IDEuNDc4LTEuNDIgMi4wOC0zLjY1IDIuNzA4LTUuNTI1LjItLjU5MS0uMTI0LTEuNDExLS42ODktMS42OTRNNDEuOTM4IDcwLjQyMUw0MS45NiA3N2MuMDAyLjc4NC42ODggMS41MzYgMS41IDEuNS44MS0uMDM3IDEuNTAzLS42NiAxLjUtMS41LS4wMDctMi4xOTMtLjAxNS05LjM4Ni0uMDIyLTExLjU3OC0uMDAyLS43ODUtLjY4OC0xLjUzNy0xLjUtMS41LS44MS4wMzYtMS41MDIuNjYtMS41IDEuNSIgZmlsbD0iIzM2Mzc1NyIvPjxwYXRoIGQ9Ik00Ny44NzggMjcuNTcyYzEuOTMgMCAxLjkzNC0zIDAtMy0xLjkzMSAwLTEuOTM0IDMgMCAzIiBmaWxsPSIjMzYzNzU3Ii8+PHBhdGggZD0iTTU3Ljg0NSAxOS45MjVjLTMuNTQtMS41ODEtNi44OTctMy4wMy05LjkzMy01LjQ5NC0zLjE2LTIuNTY2LTYuNzQ2LTQuMzI4LTEwLjkzMi0zLjg0LTEuNzc1LjIwNy0zLjUzMS44MzctNC43NzIgMi4xNzgtMS4yMTEgMS4zMDktMS44MzUgMy4wMTgtMi4yODUgNC43MTMtLjQwMSAxLjUwNi0uNTk3IDMuMTMtMS4xOTYgNC41NzUtLjYzMiAxLjUyNC0yLjAwNyAxLjcwOS0zLjE3OCAyLjcwOS0yLjMxNiAxLjk3Ni0yLjAxNSA1LjA4NC0uMzkgNy4zOTUgMS4zNzUgMS45NTcgMy4zNzkgMy40MjggNS43NSAzLjY2OC4wMTkgNS42MjQuMDM4IDEzLjI0OC4wNTYgMTguODcuMDA1IDEuNDQ5IDIuMjU1IDEuNDUgMi4yNSAwLS4wMi02LjA2Mi0uMDQtMTQuMTI2LS4wNi0yMC4xOWExLjAyNyAxLjAyNyAwIDAwLS4zODQtLjgzMmMtLjIxNS0uNDQ3LS42NC0uNzktMS4yODMtLjc5OC0xLjA3MS0uMDE0LTEuMzQ1LS4yMi0yLjM1NC0uODU4LS41MDEtLjMxNy0xLjEwMy0uOTU0LTEuNTE3LTEuNTY2LS40MzItLjY0LS45LTEuNDgxLS43ODgtMi4yODcuMTQ2LTEuMDU3IDEuMTk3LTEuNDg3IDIuMDMyLTEuOTI2IDIuNTc4LTEuMzU0IDMuMDU1LTQuMjcgMy42NzYtNi44NTMuMzItMS4zMzEuNjItMi43NDggMS4zNjMtMy45Mi45NDUtMS40OTMgMi42MDMtMS45MzggNC4yODMtMS45NThhMTAuMjkgMTAuMjkgMCAwMTUuMTEyIDEuMjc3YzEuNjM4LjkwOCAyLjk4NiAyLjIzMiA0LjQ4MiAzLjM0MiAyLjU5NyAxLjkyOSA1LjYyNCAzLjA3NiA4LjU1NCA0LjM4NSAyLjU1IDEuMTQgNi40MyAyLjcxNyA3LjU2OSA1LjUyNC4yMjMuNTUuMzAzIDEuMjM1LjAzIDEuNzg3LS4zNS43MDctMS4xMS43ODMtMS44MTUuOS0xLjg1NC4zMS0zLjgyNS4zMTUtNS42NDUuNzgyLTEuNjQzLjQyMy0yLjQ5NyAxLjY2NS0yLjc0MyAzLjI4NC0uMzI4IDIuMTYyLS40MiA0LjM4Ni0uNTU2IDYuNTY3YTE3My4yMyAxNzMuMjMgMCAwMC0uMzA3IDEzLjYzNmMuMDMgMS45MjggMy4wMyAxLjkzNCAzIDBhMTczLjIzIDE3My4yMyAwIDAxLjMwNy0xMy42MzZjLjA3LTEuMTM1LjE1My0yLjI3LjI0Ny0zLjQwMi4wNzktLjk0Ny0uMDA4LTIuMTUyLjMyMy0zLjA0Ni4yOC0uNzU4IDEuNDc3LS42NiAyLjE4NC0uNzU1IDEuMDYzLS4xNDIgMi4xMjctLjI4MyAzLjE5LS40MjcgMS43NzItLjI0IDMuNDk0LS42OTMgNC40MDYtMi4zOS44MDktMS41MDIuNjk0LTMuMzExLS4wMy00LjgxNy0xLjU4LTMuMjktNS40ODQtNS4xODUtOC42NDYtNi41OTd6IiBmaWxsPSIjMzYzNzU3Ii8+PC9nPjwvc3ZnPgo='
@@ -42,27 +43,27 @@ describe("Enterprise homepage", function () {
 
 		/* ==== Toolbox Section ==== */
 		cy.get('.mcm-section-with-support--iphone__image > .mcm-image > picture > img').should('have.attr', 'srcset', '/static/5b768200d371dcb5d2e8ae26f4f6d0e7/8ac63/support-iphone.png 200w,\n/static/5b768200d371dcb5d2e8ae26f4f6d0e7/3891b/support-iphone.png 400w,\n/static/5b768200d371dcb5d2e8ae26f4f6d0e7/bc8e0/support-iphone.png 800w,\n/static/5b768200d371dcb5d2e8ae26f4f6d0e7/e48ff/support-iphone.png 868w'); // Image
-		cy.get('.mcm-section-with-support--iphone__body > .mb-m').should('have.text', 'MOB est une boîte à outils qui vous permettra de :'); // Title
+		cy.get('.mcm-section-with-support--iphone__body > .mb-m').should('have.text', 'Avec moB je peux : '); // Title
 		cy.get('.mcm-ordered-list > :nth-child(1)')
 		.should('have.class', 'mcm-ordered-list__item') // Bullet point 1/3
-		.should('have.text', 'Mieux comprendre les déplacements de vos salarié.e.s et calculer l’impact carbone de votre entreprise.'); // Text 1/3
+		.should('have.text', 'Encourager le report modal des salariés et les inciter à réduire leur empreinte carbone'); // Text 1/3
 		cy.get('.mcm-ordered-list > :nth-child(2)')
 		.should('have.class', 'mcm-ordered-list__item') // Bullet point 2/3
-		.should('have.text', 'Simplifier la mise en place et la gestion des aides de mobilité existantes, comme le forfait mobilité durable.'); // Text 2/3
+		.should('have.text', 'Faciliter la mise en place de dispositifs d’aides à la mobilité'); // Text 2/3
 		cy.get('.mcm-ordered-list > :nth-child(3)')
 		.should('have.class', 'mcm-ordered-list__item') // Bullet point 3/3
-		.should('have.text', 'Expérimenter et évaluer de nouvelles aides adaptées à votre politique de mobilité.'); // Text 3/3
+		.should('have.text', 'Simplifier le suivi et pilotage des politiques d’aides par la mise à disposition d’indicateurs'); // Text 3/3
 		cy.viewport(365, 568); // Switch to mobile mode for responsive
-		cy.get('.mcm-section-with-support--iphone__body > .mb-m').should('have.text', 'MOB est une boîte à outils qui vous permettra de :'); // Title
+		cy.get('.mcm-section-with-support--iphone__body > .mb-m').should('have.text', 'Avec moB je peux : '); // Title
 		cy.get('.mcm-ordered-list > :nth-child(1)')
 		.should('have.class', 'mcm-ordered-list__item') // Bullet point 1/3
-		.should('have.text', 'Mieux comprendre les déplacements de vos salarié.e.s et calculer l’impact carbone de votre entreprise.'); // Text 1/3
+		.should('have.text', 'Encourager le report modal des salariés et les inciter à réduire leur empreinte carbone'); // Text 1/3
 		cy.get('.mcm-ordered-list > :nth-child(2)')
 		.should('have.class', 'mcm-ordered-list__item') // Bullet point 2/3
-		.should('have.text', 'Simplifier la mise en place et la gestion des aides de mobilité existantes, comme le forfait mobilité durable.'); // Text 2/3
+		.should('have.text', 'Faciliter la mise en place de dispositifs d’aides à la mobilité'); // Text 2/3
 		cy.get('.mcm-ordered-list > :nth-child(3)')
 		.should('have.class', 'mcm-ordered-list__item') // Bullet point 3/3
-		.should('have.text', 'Expérimenter et évaluer de nouvelles aides adaptées à votre politique de mobilité.'); // Text 3/3
+		.should('have.text', 'Simplifier le suivi et pilotage des politiques d’aides par la mise à disposition d’indicateurs'); // Text 3/3
 
 		/* ==== moB banner Section ==== */
 		cy.get('.mob-pattern__svg').should('be.visible');  // Logo image (mobile)
@@ -72,8 +73,8 @@ describe("Enterprise homepage", function () {
 		/* ==== Why join moB? Section ==== */
 		cy.get('.img-wrapper > .mcm-image > picture > img').should('have.attr', 'srcset', '/static/3af6040b800ec4cdb106f764b7dea9b8/fd013/homme-d-affaire.jpg 200w,\n/static/3af6040b800ec4cdb106f764b7dea9b8/25252/homme-d-affaire.jpg 400w,\n/static/3af6040b800ec4cdb106f764b7dea9b8/2f1b1/homme-d-affaire.jpg 800w,\n/static/3af6040b800ec4cdb106f764b7dea9b8/768f4/homme-d-affaire.jpg 1160w');// Image TODO right-aligned
 		cy.get('h2.mb-s').should('have.text', 'Pourquoi rejoindre moB ?'); // Title
-		cy.get('.mb-xs').should('have.text', 'Rejoindre Mon Compte MOB signifie rejoindre un écosystème comprenant des Collectivités, des Opérateurs de transports et d’autres Employeurs.'); // Text 1/2
-		cy.get('p.mb-s').should('have.text', 'Via cet écosystème, vous aurez l\'opportunité de créer des liens avec les collectivités et différents opérateurs de mobilité. Vous pourrez ainsi proposer à vos salariés des aides plus adaptées à leurs besoins.'); // Text 2/2
+		cy.get('.mb-xs').should('have.text', 'moB est un écosystème regroupant des collectivités, des opérateurs de transports et des employeurs.'); // Text 1/2
+		cy.get('p.mb-s').should('have.text', 'Grâce à moB je peux valoriser ma marque employeur et réduire mon empreinte carbone en encourageant le report modal de mes salariés.'); // Text 2/2
 		cy.get('#employeur-contact2 > .button')
 		  .should('have.text', 'Nous contacter') // Button text
 		  .click(); // Button text
@@ -108,7 +109,7 @@ describe("Enterprise homepage", function () {
           .then((href) => {
 			  cy.request(href).its('status').should('eq', 200);
         });
-		cy.get(':nth-child(3) > a > .mcm-image').should('have.attr', 'src', '/static/66e7dd5e7118c2530d603c629276e063/logo-fabmob.png'); // Image 3/7
+		cy.get(':nth-child(3) > a > .mcm-image > picture > img').should('have.attr', 'src', '/static/2ffe5b8f543e3351b0d4063f40713791/bc8e0/logo-fabmob.png'); // Image 3/7
 		cy.get('.partner-list > :nth-child(3) > a')
           .should('have.attr', 'target', '_blank')
           .should('have.attr', 'href')
@@ -116,7 +117,7 @@ describe("Enterprise homepage", function () {
           .then((href) => {
 			  cy.request(href).its('status').should('eq', 200);
         });
-		cy.get(':nth-child(4) > a > .mcm-image > picture > img').should('have.attr', 'srcset', '/static/86b6820a622b2cd351c5631eaac00851/8ac63/logo-igart.png 200w,\n/static/86b6820a622b2cd351c5631eaac00851/8bf6f/logo-igart.png 352w'); // Image 4/7
+		cy.get(':nth-child(4) > a > .mcm-image > picture > img').should('have.attr', 'srcset', '/static/d47b24489ff8df5a19b3f9b74977a2ec/8ac63/logo-igart.png 200w,\n/static/d47b24489ff8df5a19b3f9b74977a2ec/ca83a/logo-igart.png 342w'); // Image 4/7
 		cy.get('.partner-list > :nth-child(4) > a')
           .should('have.attr', 'target', '_blank')
           .should('have.attr', 'href')
@@ -136,7 +137,7 @@ describe("Enterprise homepage", function () {
 		cy.get('.partner-list > :nth-child(6) > a')
           .should('have.attr', 'target', '_blank')
           .should('have.attr', 'href')
-          .and('eq', 'https://www.capgemini.com/fr-fr/mon-compte-mobilite/')
+          .and('eq', 'https://www.capgemini.com/fr-fr/actualites/communiques-de-presse/premiere-experimentation-mon-compte-mobilite-avec-ile-de-france-mobilites-et-dans-agglomeration-mulhousienne/')
           .then((href) => {
 			  cy.request(href).its('status').should('eq', 200);
         });

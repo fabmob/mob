@@ -6,13 +6,23 @@ import {
 } from '@loopback/testlab';
 import {AnyObject} from '@loopback/repository';
 import {Express} from 'express';
+import axios from 'axios';
 
-import {SubscriptionService, MailService, S3Service} from '../../services';
 import {
-  CitizenRepository,
+  SubscriptionService,
+  MailService,
+  S3Service,
+  KeycloakService,
+  CitizenService,
+} from '../../services';
+import {
+  AffiliationRepository,
   CommunityRepository,
   EnterpriseRepository,
+  IncentiveRepository,
   SubscriptionRepository,
+  SubscriptionTimestampRepository,
+  UserEntityRepository,
 } from '../../repositories';
 import {
   Subscription,
@@ -21,13 +31,20 @@ import {
   Community,
   Citizen,
   Affiliation,
+  Incentive,
+  Territory,
+  UserEntity,
+  UserAttribute,
 } from '../../models';
 import {ValidationError} from '../../validationError';
 import {
+  AFFILIATION_STATUS,
   INCENTIVE_TYPE,
   ISubscriptionBusError,
+  OperatorData,
   REJECTION_REASON,
   SEND_MODE,
+  SOURCES,
   StatusCode,
   SUBSCRIPTION_STATUS,
 } from '../../utils';
@@ -38,6 +55,7 @@ import {
   ValidationSinglePayment,
 } from '../../models/subscription/subscriptionValidation.model';
 import {NoReason} from '../../models/subscription/subscriptionRejection.model';
+import {Identity} from '../../models/citizen/identity.model';
 
 const expectedErrorPayment = new ValidationError(
   'is not allowed to have the additional property "frequency"',
@@ -57,29 +75,50 @@ const expectedErrorBuffer = new ValidationError(
   StatusCode.PreconditionFailed,
 );
 
+const expectedTokenNotFoundInGroup = new ValidationError(
+  'group.token.notFound',
+  'subscriptionTokenNotFound',
+  StatusCode.NotFound,
+);
+
 describe('Subscriptions service', () => {
   let subscriptionService: any = null;
   let subscriptionRepository: StubbedInstanceWithSinonAccessor<SubscriptionRepository>,
-    citizenRepository: StubbedInstanceWithSinonAccessor<CitizenRepository>,
+    subscriptionTimestampRepository: StubbedInstanceWithSinonAccessor<SubscriptionTimestampRepository>,
     s3Service: StubbedInstanceWithSinonAccessor<S3Service>,
     enterpriseRepository: StubbedInstanceWithSinonAccessor<EnterpriseRepository>,
-    communityRepository: StubbedInstanceWithSinonAccessor<CommunityRepository>;
+    affiliationRepository: StubbedInstanceWithSinonAccessor<AffiliationRepository>,
+    communityRepository: StubbedInstanceWithSinonAccessor<CommunityRepository>,
+    keycloakService: StubbedInstanceWithSinonAccessor<KeycloakService>,
+    citizenService: StubbedInstanceWithSinonAccessor<CitizenService>,
+    userEntityRepository: StubbedInstanceWithSinonAccessor<UserEntityRepository>,
+    incentiveRepository: StubbedInstanceWithSinonAccessor<IncentiveRepository>;
 
   let mailService: any = null;
 
   beforeEach(() => {
     subscriptionRepository = createStubInstance(SubscriptionRepository);
     enterpriseRepository = createStubInstance(EnterpriseRepository);
-    citizenRepository = createStubInstance(CitizenRepository);
+    subscriptionTimestampRepository = createStubInstance(SubscriptionTimestampRepository);
     communityRepository = createStubInstance(CommunityRepository);
+    affiliationRepository = createStubInstance(AffiliationRepository);
+    citizenService = createStubInstance(CitizenService);
+    incentiveRepository = createStubInstance(IncentiveRepository);
     s3Service = createStubInstance(S3Service);
+    userEntityRepository = createStubInstance(UserEntityRepository);
+    keycloakService = createStubInstance(KeycloakService);
     subscriptionService = new SubscriptionService(
       s3Service,
       subscriptionRepository,
-      citizenRepository,
-      mailService,
+      subscriptionTimestampRepository,
       communityRepository,
       enterpriseRepository,
+      affiliationRepository,
+      userEntityRepository,
+      mailService,
+      citizenService,
+      keycloakService,
+      incentiveRepository,
     );
     mailService = createStubInstance(MailService);
   });
@@ -309,9 +348,8 @@ describe('Subscriptions service', () => {
         mailService,
         'Aide 1',
         '23/05/2022',
-        'Capgemini',
-        'entreprise',
         'email@email.com',
+        'username',
         'subscriptionRejectionMessage',
         'comments',
       );
@@ -358,13 +396,14 @@ describe('Subscriptions service', () => {
   it('handleMessage REJECTED payload : success', async () => {
     subscriptionRepository.stubs.findById.resolves(RejectSubscription);
     s3Service.stubs.deleteObjectFile.resolves('any');
-
+    incentiveRepository.stubs.findById.resolves(mockIncentive);
     const result = await subscriptionService.handleMessage(objReject1);
     expect(result).to.Null;
   });
 
   it('handleMessage VALIDATED payload : success', async () => {
     subscriptionRepository.stubs.findById.resolves(validateSubscription);
+    incentiveRepository.stubs.findById.resolves(mockIncentiveNoNotification);
     const result = await subscriptionService.handleMessage(objValidated);
     expect(result).to.Null;
   });
@@ -377,11 +416,17 @@ describe('Subscriptions service', () => {
       expect(error.message).to.deepEqual('subscriptions.error.bad.status');
     }
   });
-  it('sendPublishPayload test : Success', async () => {
+  it('getSubscriptionPayload test : Success', async () => {
     subscriptionRepository.stubs.findById.resolves(RejectSubscription);
     enterpriseRepository.stubs.findById.resolves(enterprise);
     communityRepository.stubs.findById.resolves(community);
-    citizenRepository.stubs.findById.resolves(citizen);
+    affiliationRepository.stubs.findOne.resolves({
+      id: 'affId',
+      citizenId: 'citizenId',
+      enterpriseId: 'incentiveId',
+      enterpriseEmail: 'test@gmail.com',
+      status: AFFILIATION_STATUS.AFFILIATED,
+    } as Affiliation);
 
     const result = await subscriptionService.getSubscriptionPayload('randomInputId', {
       message: 'string',
@@ -397,6 +442,7 @@ describe('Subscriptions service', () => {
       comment: 'test',
     };
     s3Service.stubs.deleteObjectFile.resolves('any');
+    incentiveRepository.stubs.findById.resolves(mockIncentiveNoNotification);
     const result = await subscriptionService.rejectSubscription(
       objValidated,
       RejectWithAttachments,
@@ -410,7 +456,8 @@ describe('Subscriptions service', () => {
       comment: 'test',
     };
     s3Service.stubs.deleteObjectFile.resolves('any');
-    citizenRepository.stubs.findById.resolves(citizenNoAffilation);
+    citizenService.stubs.getCitizenWithAffiliationById.resolves(citizenNoAffilation);
+    incentiveRepository.stubs.findById.resolves(mockIncentive);
     const result = await subscriptionService.rejectSubscription(
       objValidated,
       RejectWithoutIncentive,
@@ -425,7 +472,7 @@ describe('Subscriptions service', () => {
         comment: 'test',
       };
       s3Service.stubs.deleteObjectFile.resolves('any');
-      citizenRepository.stubs.findById.resolves(citizen);
+      citizenService.stubs.getCitizenWithAffiliationById.resolves(citizen);
       await subscriptionService.rejectSubscription(objValidated, RejectSubscription);
     } catch (error) {
       expect(error.message).to.deepEqual('subscriptionRejection.type.not.found');
@@ -436,20 +483,23 @@ describe('Subscriptions service', () => {
       status: SUBSCRIPTION_STATUS.VALIDATED,
       mode: 'aucun',
     };
-    citizenRepository.stubs.findById.resolves(citizen);
+    citizenService.stubs.getCitizenWithAffiliationById.resolves(citizen);
     subscriptionRepository.stubs.updateById.resolves();
+    incentiveRepository.stubs.findById.resolves(mockIncentive);
     await subscriptionService.validateSubscription(
       objValidated,
       validateSubscriptionTest,
     );
   });
   it('validateSubscription test diffrent type : success', async () => {
+    incentiveRepository.stubs.findById.resolves(mockIncentive);
     const objValidated = {
       status: SUBSCRIPTION_STATUS.TO_PROCESS,
       mode: 'aucun',
     };
-    citizenRepository.stubs.findById.resolves(citizen);
+    citizenService.stubs.getCitizenWithAffiliationById.resolves(citizen);
     subscriptionRepository.stubs.updateById.resolves();
+    incentiveRepository.stubs.findById.resolves(mockIncentive);
     await subscriptionService.validateSubscription(
       objValidated,
       validateSubscriptionOtherStatus,
@@ -457,12 +507,22 @@ describe('Subscriptions service', () => {
   });
   it('handleMessage Error status payload : success', async () => {
     subscriptionRepository.stubs.findById.resolves(validateSubscription);
+    incentiveRepository.stubs.findById.resolves(mockIncentive);
+
     const result = await subscriptionService.handleMessage(objValidatedError);
     expect(result).to.Null;
   });
   it('preparePayLoad  payload : success', async () => {
     communityRepository.stubs.findById.resolves(community);
-    citizenRepository.stubs.findById.resolves(citizen);
+    affiliationRepository.stubs.findOne.resolves({
+      id: 'affId',
+      citizenId: 'citizenId',
+      enterpriseId: 'incentiveId',
+      enterpriseEmail: 'test@gmail.com',
+      status: AFFILIATION_STATUS.AFFILIATED,
+    } as Affiliation);
+    incentiveRepository.stubs.findById.resolves(mockIncentive);
+
     const result = await subscriptionService.preparePayLoad(RejectWithAttachment, {
       message: 'string',
       property: 'string',
@@ -472,7 +532,14 @@ describe('Subscriptions service', () => {
   });
   it('preparePayLoad no attachments payload : success', async () => {
     communityRepository.stubs.findById.resolves(community2);
-    citizenRepository.stubs.findById.resolves(citizenNoEnterpriseMail);
+    affiliationRepository.stubs.findOne.resolves({
+      id: 'affId',
+      citizenId: 'citizenId',
+      enterpriseId: 'incentiveId',
+      enterpriseEmail: 'test@gmail.com',
+      status: AFFILIATION_STATUS.AFFILIATED,
+    } as Affiliation);
+
     await subscriptionService.preparePayLoad(RejectSubscriptionNoAttachment, {
       message: 'string',
       property: 'string',
@@ -497,6 +564,340 @@ describe('Subscriptions service', () => {
     } catch (error) {
       expect(error.message).to.deepEqual('requires property "mode"');
     }
+  });
+
+  it('checkRPCAPI success ', async () => {
+    const applicationInfo = {
+      datetime: 0,
+      uuid: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+      journey_id: 0,
+      status: 'string',
+      token: 'signature(sha512(13002526500013/short/051227308989/2022-11-22T08:54:19Z))',
+    };
+
+    const axiosPost = sinon.stub(axios, 'post').resolves({
+      status: StatusCode.Created,
+      data: applicationInfo,
+    });
+
+    const result = await subscriptionService.callCEEApi(
+      apiUrl,
+      requestBodyExample,
+      'token',
+    );
+    expect(result).to.deepEqual({
+      code: StatusCode.Created,
+      status: 'success',
+      data: applicationInfo,
+    });
+    axiosPost.restore();
+  });
+
+  it('checkRPCAPI error Conflict 409', async () => {
+    const applicationInfo = {
+      datetime: 0,
+      uuid: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+    };
+
+    const axiosPost = sinon.stub(axios, 'post').throws({
+      response: {
+        status: StatusCode.Conflict,
+        data: applicationInfo,
+      },
+    });
+
+    const result = await subscriptionService.callCEEApi(
+      apiUrl,
+      requestBodyExample,
+      'token',
+    );
+    expect(result).to.deepEqual({
+      code: StatusCode.Conflict,
+      status: 'error',
+      data: applicationInfo,
+      message: 'La demande est déjà enregistrée',
+    });
+    axiosPost.restore();
+  });
+
+  it('checkRPCAPI error Not found 404', async () => {
+    const axiosPost = sinon.stub(axios, 'post').throws({
+      response: {
+        status: StatusCode.NotFound,
+        data: {message: 'Not found'},
+      },
+    });
+
+    const result = await subscriptionService.callCEEApi(
+      apiUrl,
+      requestBodyExample,
+      'token',
+    );
+    expect(result).to.deepEqual({
+      code: StatusCode.NotFound,
+      status: 'error',
+      message: 'Not found',
+    });
+    axiosPost.restore();
+  });
+
+  it('checkRPCAPI default Error ', async () => {
+    const axiosPost = sinon.stub(axios, 'post').throws({
+      response: {status: StatusCode.InternalServerError, data: 'Authorization'},
+    });
+
+    const result = await subscriptionService.callCEEApi(
+      apiUrl,
+      requestBodyExample,
+      'token',
+    );
+    expect(result).to.deepEqual({
+      message: 'Authorization',
+      code: StatusCode.InternalServerError,
+      status: 'error',
+    });
+    axiosPost.restore();
+  });
+
+  it('checkRPCAPI Error no response ', async () => {
+    const axiosPost = sinon.stub(axios, 'post').throws({
+      message: 'no response returned',
+    });
+
+    const result = await subscriptionService.callCEEApi(
+      apiUrl,
+      requestBodyExample,
+      'token',
+    );
+    expect(result).to.deepEqual({
+      message: 'no response returned',
+      status: 'error',
+    });
+    axiosPost.restore();
+  });
+
+  it('createSubscriptionTimestamp success ', async () => {
+    const result = await subscriptionService.createSubscriptionTimestamp(
+      citizenSubscription,
+    );
+
+    expect(result).to.Null;
+  });
+
+  it('checkFranceConnectIdentity :  should return true ', async () => {
+    userEntityRepository.stubs.getUserWithAttributes.resolves(mockFranceConnectUser);
+
+    const mockToCitizen = sinon.stub().returns(mockFranceConnectCitizen);
+    const sandbox = sinon.createSandbox();
+    sandbox.stub(UserEntity.prototype, 'toCitizen').callsFake(mockToCitizen);
+
+    const result = await subscriptionService.checkFranceConnectIdentity('randomInputId');
+
+    expect(result).to.eql(true);
+    sandbox.restore();
+  });
+
+  it('checkFranceConnectIdentity :  should return false ', async () => {
+    userEntityRepository.stubs.getUserWithAttributes.resolves(mockNoneFranceConnectUser);
+
+    const mockToCitizen = sinon.stub().returns(mockNoneFranceConnectCitizen);
+    const sandbox = sinon.createSandbox();
+    sandbox.stub(UserEntity.prototype, 'toCitizen').callsFake(mockToCitizen);
+
+    const result = await subscriptionService.checkFranceConnectIdentity('randomInputId');
+
+    expect(result).to.eql(false);
+    sandbox.restore();
+  });
+
+  it('checkCEEValidity: No Token stocked in group ', async () => {
+    keycloakService.stubs.getAttributesFromGroup.resolves({});
+
+    try {
+      await subscriptionService.checkCEEValidity(mockIncentive, mockSubscription);
+      sinon.assert.fail();
+    } catch (error) {
+      expect(error.message).to.equal(expectedTokenNotFoundInGroup.message);
+    }
+  });
+
+  it('checkCEEValidity: return success status', async () => {
+    keycloakService.stubs.getAttributesFromGroup.resolves({RPC_CEE_TOKEN: 'token'});
+    const stub = sinon.stub(SubscriptionService.prototype, 'callCEEApi').resolves({
+      status: 'success',
+      code: 201,
+      data: {
+        uuid: 'id',
+        datetime: '2022-12-05T00:00:00.000Z',
+        token: 'token',
+      },
+    });
+
+    const result = await subscriptionService.checkCEEValidity(
+      mockIncentive,
+      mockSubscription,
+    );
+    expect(result).to.eql({
+      status: 'success',
+      code: 201,
+      data: {
+        uuid: 'id',
+        datetime: '2022-12-05T00:00:00.000Z',
+        token: 'token',
+      },
+    });
+
+    stub.restore();
+  });
+
+  const mockFranceConnectCitizen = new Citizen({
+    id: 'randomInputId',
+    identity: {
+      lastName: {
+        value: 'lastName',
+        source: SOURCES.FRANCE_CONNECT,
+        certificationDate: new Date('2022-10-18T17:13:37.432Z'),
+      },
+      firstName: {
+        value: 'firstName',
+        source: SOURCES.FRANCE_CONNECT,
+        certificationDate: new Date('2022-10-18T17:13:37.432Z'),
+      },
+      birthDate: {
+        value: '1970-01-01',
+        source: SOURCES.FRANCE_CONNECT,
+        certificationDate: new Date('2022-10-18T17:13:37.432Z'),
+      },
+    } as Identity,
+  });
+
+  const mockNoneFranceConnectCitizen = new Citizen({
+    id: 'randomInputId',
+    identity: {
+      lastName: {
+        value: 'lastName',
+        source: SOURCES.MOB,
+        certificationDate: new Date('2022-10-18T17:13:37.432Z'),
+      },
+      firstName: {
+        value: 'firstName',
+        source: SOURCES.MOB,
+        certificationDate: new Date('2022-10-18T17:13:37.432Z'),
+      },
+      birthDate: {
+        value: '1970-01-01',
+        source: SOURCES.MOB,
+        certificationDate: new Date('2022-10-18T17:13:37.432Z'),
+      },
+    } as Identity,
+  });
+
+  const mockFranceConnectUser = new UserEntity({
+    id: 'randomInputId',
+    userAttributes: [
+      new UserAttribute({
+        name: 'lastName',
+        value: JSON.stringify({
+          value: 'lastName',
+          source: SOURCES.FRANCE_CONNECT,
+          certificationDate: '2022-10-18T17:13:37.432Z',
+        }),
+      }),
+      new UserAttribute({
+        name: 'firstName',
+        value: JSON.stringify({
+          value: 'firstName',
+          source: SOURCES.FRANCE_CONNECT,
+          certificationDate: '2022-10-18T17:13:37.432Z',
+        }),
+      }),
+      new UserAttribute({
+        name: 'birthDate',
+        value: JSON.stringify({
+          value: '1970-01-01',
+          source: SOURCES.FRANCE_CONNECT,
+          certificationDate: '2022-10-18T17:13:37.432Z',
+        }),
+      }),
+    ],
+  });
+
+  const mockNoneFranceConnectUser = new UserEntity({
+    id: 'randomInputId',
+    userAttributes: [
+      new UserAttribute({
+        name: 'lastName',
+        value: JSON.stringify({
+          value: 'lastName',
+          source: SOURCES.FRANCE_CONNECT,
+          certificationDate: '2022-10-18T17:13:37.432Z',
+        }),
+      }),
+      new UserAttribute({
+        name: 'firstName',
+        value: JSON.stringify({
+          value: 'firstName',
+          source: SOURCES.MOB,
+          certificationDate: '2022-10-18T17:13:37.432Z',
+        }),
+      }),
+      new UserAttribute({
+        name: 'birthDate',
+        value: JSON.stringify({
+          value: '1970-01-01',
+          source: SOURCES.MOB,
+          certificationDate: '2022-10-18T17:13:37.432Z',
+        }),
+      }),
+    ],
+  });
+
+  const mockIncentive = new Incentive({
+    territory: {name: 'Toulouse', id: 'test'} as Territory,
+    additionalInfos: 'test',
+    funderName: 'nameTerritoire',
+    allocatedAmount: '200 €',
+    description: 'test',
+    title: 'Aide pour acheter vélo électrique',
+    incentiveType: 'AideTerritoire',
+    createdAt: new Date('2021-04-06T09:01:30.747Z'),
+    transportList: ['velo'],
+    validityDate: '2022-04-06T09:01:30.778Z',
+    minAmount: 'A partir de 100 €',
+    contact: 'Mr le Maire',
+    validityDuration: '1 an',
+    paymentMethod: 'En une seule fois',
+    attachments: ['RIB'],
+    id: '606c236a624cec2becdef276',
+    conditions: 'Vivre à TOulouse',
+    updatedAt: new Date('2021-04-06T09:01:30.778Z'),
+    isMCMStaff: true,
+    subscriptionLink: 'http://link.com',
+    isCitizenNotificationsDisabled: true,
+  });
+
+  const mockIncentiveNoNotification = new Incentive({
+    territory: {name: 'Toulouse', id: 'test'} as Territory,
+    additionalInfos: 'test',
+    funderName: 'nameTerritoire',
+    allocatedAmount: '200 €',
+    description: 'test',
+    title: 'Aide pour acheter vélo électrique',
+    incentiveType: 'AideTerritoire',
+    createdAt: new Date('2021-04-06T09:01:30.747Z'),
+    transportList: ['velo'],
+    validityDate: '2022-04-06T09:01:30.778Z',
+    minAmount: 'A partir de 100 €',
+    contact: 'Mr le Maire',
+    validityDuration: '1 an',
+    paymentMethod: 'En une seule fois',
+    attachments: ['RIB'],
+    id: '606c236a624cec2becdef276',
+    conditions: 'Vivre à TOulouse',
+    updatedAt: new Date('2021-04-06T09:01:30.778Z'),
+    isMCMStaff: false,
+    subscriptionLink: 'http://link.com',
+    isCitizenNotificationsDisabled: false,
   });
 
   const subscriptionCompare = {
@@ -535,23 +936,17 @@ describe('Subscriptions service', () => {
     name: 'enterprise',
     funderId: 'incentiveId',
   } as Community;
-  const citizen = new Citizen({
+  const citizen = Object.assign(new Citizen(), {
     id: 'email@gmail.com',
     affiliation: {
+      citizenId: 'email@gmail.com',
       enterpriseId: 'incentiveId',
       enterpriseEmail: 'test@gmail.com',
-      affiliationStatus: 'AFFILIE',
-    } as Affiliation,
+      status: AFFILIATION_STATUS.AFFILIATED,
+    },
   });
   const citizenNoAffilation = new Citizen({
     id: 'email@gmail.com',
-  });
-  const citizenNoEnterpriseMail = new Citizen({
-    id: 'email@gmail.com',
-    affiliation: {
-      enterpriseId: 'incentiveId',
-      affiliationStatus: 'AFFILIE',
-    } as Affiliation,
   });
   const objReject1 = {
     citizenId: 'email@gmail.com',
@@ -977,4 +1372,38 @@ describe('Subscriptions service', () => {
       path: 'test',
     },
   ];
+
+  const apiUrl: string = 'https://api-example.com/v3/';
+
+  const requestBodyExample: OperatorData = {
+    journey_type: 'short',
+    driving_license: '051227308989',
+    last_name_trunc: 'TTT',
+    operator_journey_id: 'operator_journey_id',
+    application_timestamp: '2023-01-10T13:45:06.540Z',
+  };
+
+  const mockSubscription = new Subscription({
+    id: 'subscriptionId',
+    incentiveId: 'incentiveId',
+    funderName: 'funderName',
+    incentiveType: 'AideNationale',
+    incentiveTitle: 'Test titre',
+    incentiveTransportList: ['voiture'],
+    citizenId: 'randomId',
+    lastName: 'lastname',
+    firstName: 'firstname',
+    email: 'email@email.com',
+    city: 'Paris',
+    postcode: '75000',
+    consent: true,
+    specificFields: {
+      'Numéro de permis de conduire': '2334876523',
+      'Type de trajet': ['Long'],
+      'Numéro de téléphone': '0123456789',
+      'Date de partage des frais': '05/12/2022',
+    },
+    isCitizenDeleted: false,
+    enterpriseEmail: 'email.pro@mcm.com',
+  });
 });

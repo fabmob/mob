@@ -48,7 +48,7 @@
   "profile.modal.validate.button": "Valider ma désaffiliation",
   "profile.modal.cancel.button": "Annuler",
   "profile.modal.disaffiliation.confirm.title": "Suppression de l'affiliation entreprise",
-  "profile.modal.disaffiliation.confirm.text": "Confirmez-vous la suppression de l'affiliation avec votre entreprise {0} ? Vous ne pourrez plus accéder aux aides de cet employeur, et vos demandes d'aides en cours seront annulées.",
+  "profile.modal.disaffiliation.confirm.text": "Confirmez-vous la suppression de l'affiliation avec votre entreprise {0} ? Vous ne pourrez plus accéder aux aides de cet employeur.",
   "profile.affiliation.to.affiliate.tip.text": "Les aides de votre employeur seront disponibles après validation de votre mail professionnel. Assurez-vous d'avoir indiqué une adresse mail correcte",
   "profile.affiliation.affiliated.tip.text": "Il est possible d'accéder aux aides de votre employeur depuis le catalogue des aides ou depuis votre application de mobilité",
   "profile.affiliation.disaffiliated.tip.text": "Vous avez été désaffilié par votre entreprise {0}. Si vous êtes toujours employé par celle-ci rapprochez-vous d'un administrateur pour avoir plus d'informations",

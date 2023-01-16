@@ -14,6 +14,8 @@ spec:
         - name: idp-headers-middleware
         # - name: idp-ratelimit-middleware
         - name: idp-inflightreq-middleware
+        - name: custom-error-middleware
+          namespace: traefik-int
       kind: Rule
       services:
         - name: idp

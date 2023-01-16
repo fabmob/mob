@@ -1,6 +1,6 @@
 import {Entity, model, property, hasMany} from '@loopback/repository';
 
-import {KeycloakGroup, UserGroupMembership} from '..';
+import {KeycloakGroup, UserGroupMembership, UserAttribute, Citizen} from '..';
 
 @model({
   settings: {
@@ -203,8 +203,58 @@ export class UserEntity extends Entity {
   })
   keycloakGroups: KeycloakGroup[];
 
+  @hasMany(() => UserAttribute, {keyTo: 'userId'})
+  userAttributes: UserAttribute[];
+
   constructor(data?: Partial<UserEntity>) {
     super(data);
+  }
+
+  /**
+   * Convert user entity with userAttributes to Citizen
+   */
+  toCitizen(): Citizen {
+    const rawCMSAttributes: {[key: string]: any} = {
+      identity: {},
+      personalInformation: {},
+      dgfipInformation: {},
+    };
+    const rawCitizenAttributes: {[key: string]: any} = {id: this.id};
+
+    this.userAttributes.forEach((userAttribute: UserAttribute) => {
+      // Identify CMS fields with '.' , ex : 'identity.firstName'
+      // Used to map with CMS types
+      // ex : {name:'identity.firstName', value: 'Bob'} =>  {identity : {firstName: 'Bob'}}
+      if (userAttribute.name.includes('.')) {
+        // Identity CMS Attributes
+        const splittedUserAttributeName = [...userAttribute.name.split('.')];
+        if (userAttribute.name.includes('identity')) {
+          Object.assign(rawCMSAttributes.identity, {
+            [splittedUserAttributeName[1]]: JSON.parse(userAttribute.value!),
+          });
+        }
+        // PersonalInfo CMS Attributes
+        if (userAttribute.name.includes('personalInformation')) {
+          Object.assign(rawCMSAttributes.personalInformation, {
+            [splittedUserAttributeName[1]]: JSON.parse(userAttribute.value!),
+          });
+        }
+        // DGFIP CMS Attributes
+        if (userAttribute.name.includes('dgfipInformation')) {
+          Object.assign(rawCMSAttributes.dgfipInformation, {
+            [splittedUserAttributeName[1]]: JSON.parse(userAttribute.value!),
+          });
+        }
+      } else {
+        // Citizen Attributes to map with name: value, ex : {name:'status', value: 'etudiant'} => status: 'etudiant'
+        Object.assign(rawCitizenAttributes, {[userAttribute.name]: userAttribute.value});
+      }
+    });
+
+    // Assign CMS object to citizen
+    Object.assign(rawCitizenAttributes, rawCMSAttributes);
+
+    return new Citizen(rawCitizenAttributes);
   }
 }
 

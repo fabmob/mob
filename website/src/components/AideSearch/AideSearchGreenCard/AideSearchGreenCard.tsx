@@ -23,7 +23,7 @@ const AideSearchGreenCard: FC = () => {
    */
   const isAffiliated: boolean =
     authenticated &&
-    citizen?.affiliation?.affiliationStatus !== AffiliationStatus.AFFILIATED;
+    citizen?.affiliation?.status !== AffiliationStatus.AFFILIATED;
 
   return (
     <Card

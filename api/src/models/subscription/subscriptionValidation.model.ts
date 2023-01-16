@@ -1,5 +1,5 @@
 import {Model, model, property} from '@loopback/repository';
-import {PAYMENT_FREQ, PAYMENT_MODE} from '../../utils';
+import {AdditionalProps, PAYMENT_FREQ, PAYMENT_MODE} from '../../utils';
 
 @model({
   settings: {idInjection: false},
@@ -52,6 +52,11 @@ export class ValidationSinglePayment extends CommonValidation {
   settings: {idInjection: false},
 })
 export class ValidationNoPayment extends CommonValidation {
+  @property({
+    type: 'object',
+  })
+  additionalProperties: AdditionalProps;
+
   constructor(data?: Partial<ValidationNoPayment>) {
     super(data);
   }

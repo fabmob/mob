@@ -9,6 +9,9 @@ spec:
   routes:
     - match: Host(`${WEBSITE_FQDN}`)
       kind: Rule
+      middlewares:
+        - name: custom-error-middleware
+          namespace: traefik-int
       services:
         - name: website
           port: 80
