@@ -5,6 +5,7 @@
     <table style="width: 640px; max-width: 640px">
         <tr>
             <td>
+            <div style="margin-bottom: 40px"">
                 ${kcSanitize(msg("passwordResetBodyHtml1", user.getFirstName()))?no_esc}
                 ${kcSanitize(msg("passwordResetBodyHtml2"))?no_esc}
                 <div class="btn">
@@ -14,6 +15,7 @@
                 <div>
                     ${kcSanitize(msg("passwordResetBodyHtml5"))?no_esc}
                 </div>
+            <div>
             </td>
         </tr>
     </table>

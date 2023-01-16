@@ -3,11 +3,16 @@
   "incentives.error.title.minLength": "Le nom de l'aide doit faire plus de 3 caractères",
   "incentives.error.validityDate.format": "La durée de validité doit être au format JJ/MM/AAAA",
   "incentives.error.validityDate.minDate": "La durée de validité doit être supérieure à la date d'aujourd'hui",
-  "incentives.error.fundername.enterprise.notExist": "L'Entrepise renseignée n'existe pas",
+  "incentives.error.fundername.enterprise.notExist": "L'Entreprise renseignée n'existe pas",
   "incentives.error.title.alreadyUsedForFunder": "Ce titre d'aide est déjà utilisé pour ce financeur",
+  "incentives.error.funderid.notfound": "Veuillez choisir un financeur existant",
+  "incentives.error.min.required.eligibilityChecks": "Une aide à validation automatique doit nécessairement inclure à minima un contrôle actif",
+  "incentives.error.duplicated.eligibilityChecks": "Veuillez choisir un autre contrôle, ce contrôle est déjà utilisé !",
+  "incentives.error": "Problème durant la récupération des aides",
   "aides.edit.success": "L'aide \"{aidTitle}\" a été modifiée avec succès",
   "aides.edit.title": "Modification d'une aide à la mobilité",
   "aides.create.success": "L'aide \"{aidTitle}\" a été créée avec succès",
   "aides.create.title": "Création d'une aide à la mobilité",
-  "territory.name.error.unique": "Attention, le nom de territoire est déjà utilisé. Veuillez le vérifier sur votre liste."
+  "territory.name.error.unique": "Attention, le nom de territoire est déjà utilisé. Veuillez le vérifier sur votre liste.",
+  "incentiveEligibilityChecks.error": "Problème durant la récupération des contôles d'éligibilité de l'aide"
 }

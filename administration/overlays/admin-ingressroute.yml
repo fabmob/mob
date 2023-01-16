@@ -9,6 +9,9 @@ spec:
   routes:
     - match: Host(`${ADMIN_FQDN}`)
       kind: Rule
+      middlewares:
+        - name: custom-error-middleware
+          namespace: traefik-int
       services:
         - kind: Service
           name: admin

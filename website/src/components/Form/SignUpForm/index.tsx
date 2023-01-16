@@ -7,7 +7,7 @@ import { useSession } from '../../../context';
 
 import { computeServerErrorsV2 } from '@utils/form';
 import { getEntreprisesList, EntrepriseName } from '@api/EntrepriseService';
-import { createCitizen, createCitizenFcById } from '@api/CitizenService';
+import { createCitizen } from '@api/CitizenService';
 import { Citizen, CmsType } from '@utils/citoyens';
 import { matomoAccountCreation } from '@utils/matomo';
 import { formatDate } from '@utils/helpers';
@@ -29,7 +29,6 @@ import { matomoTrackEvent } from '@utils/matomo';
 import { AnyObject } from 'yup/lib/types';
 import { StringParam, useQueryParam } from 'use-query-params';
 import { CertificationSource } from '@constants';
-import { KeycloakTokenParsed } from 'keycloak-js';
 
 // Options to inject into "status" select
 const statusOptions = [
@@ -79,16 +78,13 @@ interface CitizenForm extends Citizen {
  */
 interface SignUpFormProps {
   handleSwitchMode: () => void;
-  completionMode: boolean;
 }
 
 const SignUpForm: React.FC<SignUpFormProps> = ({
   handleSwitchMode,
-  completionMode,
 }) => {
   const [companyOptions, setCompanyOption] = useState<CompanyOption[]>([]);
   const [dateErrors, setDateErrors] = useState<boolean>(false);
-  const { keycloak } = useSession();
   const [inscription, setInscription] = useQueryParam(
     'inscription',
     StringParam
@@ -96,39 +92,9 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
 
   const cmsObject: CmsType = {
     value: '',
-    source: completionMode ? CertificationSource.FC : CertificationSource.MOB,
+    source: CertificationSource.MOB,
     certificationDate: new Date(),
   };
-
-  const defaultValue =
-    completionMode && keycloak && keycloak.authenticated && keycloak.tokenParsed
-      ? {
-          identity: {
-            gender: {
-              ...cmsObject,
-              value: keycloak.tokenParsed?.gender === 'female' ? 2 : 1,
-            },
-            lastName: {
-              ...cmsObject,
-              value: keycloak.tokenParsed?.family_name,
-            },
-            firstName: {
-              ...cmsObject,
-              value: keycloak.tokenParsed?.given_name,
-            },
-            birthDate: {
-              ...cmsObject,
-              value: new Date(keycloak.tokenParsed?.birthdate),
-            },
-          },
-          personalInformation: {
-            email: {
-              ...cmsObject,
-              value: keycloak.tokenParsed?.email,
-            },
-          },
-        }
-      : {};
 
   const {
     register,
@@ -141,8 +107,7 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
   } = useForm<CitizenForm>({
     criteriaMode: 'all',
     resolver: yupResolver(schema),
-    context: { companyOptions, exist: !completionMode },
-    defaultValues: defaultValue,
+    context: { companyOptions },
   });
 
   // handle the create citizen query
@@ -153,9 +118,7 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
   const createCitizenMutation = useMutation(
     (user: Citizen) => {
       userData = user;
-      return completionMode
-        ? createCitizenFcById(keycloak.tokenParsed?.sub, user)
-        : createCitizen(user);
+      return createCitizen(user);
     },
     {
       onSuccess: (data: any) => {
@@ -188,11 +151,7 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
    */
   const onSubmit = async (userData: CitizenForm): Promise<void> => {
     if (!dateErrors) {
-      const condition: false | KeycloakTokenParsed | undefined =
-        completionMode &&
-        keycloak &&
-        keycloak.authenticated &&
-        keycloak.tokenParsed;
+
       const newIdentity: AnyObject = {
         identity: {
           gender: { ...cmsObject },
@@ -202,18 +161,12 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
           birthPlace: {
             ...cmsObject,
             name: '',
-            inseeValue:
-              condition && keycloak?.tokenParsed?.birthplace
-                ? keycloak.tokenParsed.birthplace
-                : '',
+            inseeValue: '',
           },
           birthCountry: {
             ...cmsObject,
             isoValue: '',
-            value:
-              condition && keycloak?.tokenParsed?.birthcountry
-                ? keycloak.tokenParsed.birthcountry
-                : '',
+            value: '',
           },
         },
         personalInformation: { email: { ...cmsObject } },
@@ -250,12 +203,8 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
       );
 
       // BirthCountry BirthPlace delete value
-      if (!completionMode) {
-        delete userDataParsed.identity.birthPlace;
-        delete userDataParsed.identity.birthCountry;
-      } else {
-        delete userDataParsed.identity.birthPlace.value;
-      }
+      delete userDataParsed.identity.birthPlace;
+      delete userDataParsed.identity.birthCountry;
 
       // prepare the right format to fetch
       userDataParsed.affiliation.enterpriseId = companyOptions.find(
@@ -325,7 +274,6 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
           options={genderOptions}
           errors={errors}
           control={control}
-          disabled={keycloak.tokenParsed?.gender ? true : false}
           required
         />
         <div className="lastName-input-container">
@@ -336,7 +284,6 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
             {...register('identity.lastName.value')}
             errors={errors}
             placeholder="Rasovsky"
-            readOnly={completionMode}
             required
           />
         </div>
@@ -347,7 +294,6 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
           {...register('identity.firstName.value')}
           errors={errors}
           placeholder="Bob"
-          readOnly={completionMode}
           required
         />
         <DatePickerComponent
@@ -355,13 +301,11 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
           {...register('identity.birthDate.value')}
           name="identity.birthDate.value"
           placeholder="JJ/MM/AAAA"
-          readOnly={completionMode}
           required
           control={control}
           setValue={setValue}
           errors={errors?.identity?.birthDate?.value}
           getDateErrors={getDateErrors}
-          defaultValue={defaultValue?.identity?.birthDate?.value}
           hasAgeCheck
         />
         <TextField
@@ -371,11 +315,9 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
           {...register('personalInformation.email.value')}
           errors={errors}
           placeholder="exemple@mail.com"
-          readOnly={completionMode}
           required
         />
-        {!completionMode && (
-          <>
+
             <TextField
               {...register('password')}
               id="password"
@@ -392,8 +334,6 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
               errors={errors}
               required
             />
-          </>
-        )}
       </FormSection>
       <FormSection sectionName={Strings['address.section']}>
         <TextField

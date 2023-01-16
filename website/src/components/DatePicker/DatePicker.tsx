@@ -94,7 +94,11 @@ const DatePickerComponent = React.forwardRef<HTMLInputElement, DatePickerProps>(
         getDateErrors(Object.keys(newDateErrors).length === 0 ? false : true);
       }
       setDateValue(date);
-      setValue(name, format(new Date(date), 'dd/MM/yyyy'));
+      if (date !== null) {
+        setValue(name, format(new Date(date), 'dd/MM/yyyy'));
+      } else {
+        setValue(name, date);
+      }
     };
 
     /**

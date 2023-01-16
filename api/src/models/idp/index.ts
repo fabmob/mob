@@ -10,3 +10,5 @@ export * from './offline-client-session.model';
 export * from './client.model';
 export * from './client-scope.model';
 export * from './client-scope-client.model';
+export * from './group-attribute.model';
+export * from './user-attribute.model';

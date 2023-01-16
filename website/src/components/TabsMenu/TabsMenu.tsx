@@ -59,12 +59,12 @@ const TabsMenu: FC<TabsMenuProps> = ({ tabs, info, contact }) => {
         key={item.id}
         style={visibleTab === item.id ? {} : { display: 'none' }}
       >
-        <ReactMarkdown>{item.tabContent}</ReactMarkdown>
+        <Markdown>{item.tabContent}</Markdown>
       </div>
     );
   });
   const CSSContentClass = classNames('mcm-tabs__content', {
-    'has-show-more': contentHeight > 700,
+    'has-show-more': contentHeight > 500,
     'is-expanded': isExpanded,
     'has-info': info,
   });
@@ -75,7 +75,7 @@ const TabsMenu: FC<TabsMenuProps> = ({ tabs, info, contact }) => {
         <div ref={measuredRef} className="page-container">
           <div className="content-list">
             {tabsContentList}
-            {contentHeight > 800 && (
+            {contentHeight > 500 && (
               <div className="show-more">
                 <button
                   type="button"

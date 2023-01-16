@@ -126,7 +126,7 @@ const RechercheComponent: FC<RechercheProps> = ({ pageContext }) => {
         INCENTIVE_TYPE.TERRITORY_INCENTIVE,
       ];
       const enterpriseId: string | undefined =
-        citizen?.affiliation?.affiliationStatus ===
+        citizen?.affiliation?.status ===
           AffiliationStatus.AFFILIATED && citizen?.affiliation?.enterpriseId
           ? citizen.affiliation.enterpriseId
           : undefined;
@@ -340,7 +340,7 @@ const RechercheComponent: FC<RechercheProps> = ({ pageContext }) => {
                     )}
                     greenCard={
                       !authenticated ||
-                      citizen?.affiliation?.affiliationStatus !==
+                      citizen?.affiliation?.status !==
                         AffiliationStatus.AFFILIATED
                     }
                   />

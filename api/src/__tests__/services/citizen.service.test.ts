@@ -1,10 +1,10 @@
 import * as Excel from 'exceljs';
+import {cloneDeep} from 'lodash';
 import {
   StubbedInstanceWithSinonAccessor,
   createStubInstance,
   expect,
   sinon,
-  stubServerRequest,
 } from '@loopback/testlab';
 import {securityId, UserProfile} from '@loopback/security';
 import {
@@ -13,11 +13,13 @@ import {
   MailService,
   Tab,
   KeycloakService,
+  AffiliationService,
 } from '../../services';
 import {ValidationError} from '../../validationError';
 import {
   AFFILIATION_STATUS,
   CITIZEN_STATUS,
+  GROUPS,
   ResourceName,
   StatusCode,
   SUBSCRIPTION_STATUS,
@@ -33,28 +35,33 @@ import {
   Client,
   User,
   Territory,
+  UserAttribute,
+  Affiliation,
 } from '../../models';
 import {
   UserRepository,
-  CitizenRepository,
   EnterpriseRepository,
   SubscriptionRepository,
   UserEntityRepository,
   ClientRepository,
   OfflineClientSessionRepository,
   OfflineUserSessionRepository,
+  AffiliationRepository,
 } from '../../repositories';
+import {RequiredActionAlias} from 'keycloak-admin/lib/defs/requiredActionProviderRepresentation';
+import {createCitizen} from '../dataFactory';
 
 describe('Citizen services', () => {
   let citizenService: any = null;
-  let citizenRepository: StubbedInstanceWithSinonAccessor<CitizenRepository>,
-    enterpriseRepository: StubbedInstanceWithSinonAccessor<EnterpriseRepository>,
+  let enterpriseRepository: StubbedInstanceWithSinonAccessor<EnterpriseRepository>,
     userRepository: StubbedInstanceWithSinonAccessor<UserRepository>,
     subscriptionRepository: StubbedInstanceWithSinonAccessor<SubscriptionRepository>,
     userEntityRepository: StubbedInstanceWithSinonAccessor<UserEntityRepository>,
     clientRepository: StubbedInstanceWithSinonAccessor<ClientRepository>,
     offlineClientSessionRepository: StubbedInstanceWithSinonAccessor<OfflineClientSessionRepository>,
-    offlineUserSessionRepository: StubbedInstanceWithSinonAccessor<OfflineUserSessionRepository>;
+    offlineUserSessionRepository: StubbedInstanceWithSinonAccessor<OfflineUserSessionRepository>,
+    affiliationRepository: StubbedInstanceWithSinonAccessor<AffiliationRepository>,
+    affiliationService: StubbedInstanceWithSinonAccessor<AffiliationService>;
 
   const currentUser: UserProfile = {
     id: 'idUser',
@@ -116,7 +123,7 @@ describe('Citizen services', () => {
   beforeEach(() => {
     mailService = createStubInstance(MailService);
     keycloakService = createStubInstance(KeycloakService);
-    citizenRepository = createStubInstance(CitizenRepository);
+    affiliationService = createStubInstance(AffiliationService);
     enterpriseRepository = createStubInstance(EnterpriseRepository);
     userRepository = createStubInstance(UserRepository);
     subscriptionRepository = createStubInstance(SubscriptionRepository);
@@ -125,212 +132,24 @@ describe('Citizen services', () => {
     clientRepository = createStubInstance(ClientRepository);
     offlineClientSessionRepository = createStubInstance(OfflineClientSessionRepository);
     offlineUserSessionRepository = createStubInstance(OfflineUserSessionRepository);
+    affiliationRepository = createStubInstance(AffiliationRepository);
 
     jwtService = new JwtService();
     citizenService = new CitizenService(
-      citizenRepository,
       enterpriseRepository,
       userRepository,
       subscriptionRepository,
-      jwtService,
-      currentUser,
       userEntityRepository,
       clientRepository,
       offlineClientSessionRepository,
       offlineUserSessionRepository,
+      jwtService,
+      affiliationService,
+      currentUser,
       keycloakService,
       mailService,
+      affiliationRepository,
     );
-  });
-
-  it('sendAffiliationMail: successfull', () => {
-    citizenService.sendAffiliationMail(mailService, mockCitizen, 'funderName');
-    mailService.stubs.sendMailAsHtml.resolves('success');
-    expect(mailService.sendMailAsHtml.calledOnce).true();
-    expect(
-      mailService.sendMailAsHtml.calledWith(
-        'test@outlook.com',
-        `Bienvenue dans votre communauté moB ${'funderName'}`,
-        'citizen-affiliation',
-        sinon.match.any,
-      ),
-    ).true();
-  });
-
-  it('validateEmailPattern : successful', () => {
-    try {
-      citizenService.validateEmailPattern('rerer@toto.fr', ['@toto.fr', '@toto.com']);
-    } catch (error) {
-      sinon.assert.fail();
-    }
-  });
-
-  it('validateEmailPattern : fail', () => {
-    try {
-      citizenService.validateEmailPattern('rerer@titi.fr', ['@toto.fr', '@toto.com']);
-      sinon.assert.fail();
-    } catch (error) {
-      expect(error).to.deepEqual(expectedErrorEmailFormat);
-    }
-  });
-
-  it('Check Affiliation: OK', async () => {
-    citizenRepository.stubs.findById.resolves(mockCitizen);
-    enterpriseRepository.stubs.findById.resolves(mockEnterprise);
-    sinon.stub(jwtService, 'verifyAffiliationAccessToken').returns(true);
-
-    sinon.stub(jwtService, 'decodeAffiliationAccessToken').returns(mockedDecodedToken);
-
-    const citizen = await citizenService.checkAffiliation(mockedToken);
-    expect(citizen).to.deepEqual(mockCitizen);
-  });
-
-  it('Check Affiliation: Token KO', async () => {
-    sinon.stub(jwtService, 'verifyAffiliationAccessToken').returns(false);
-
-    try {
-      await citizenService.checkAffiliation(mockedToken);
-    } catch (err) {
-      expect(err).to.deepEqual(expectedErrorNotValid);
-    }
-  });
-
-  it('Check Affiliation: Enterprise Repository KO', async () => {
-    citizenRepository.stubs.findById.resolves(mockCitizen);
-    enterpriseRepository.stubs.findById.rejects();
-
-    sinon.stub(jwtService, 'verifyAffiliationAccessToken').returns(true);
-
-    sinon.stub(jwtService, 'decodeAffiliationAccessToken').returns(mockedDecodedToken);
-
-    try {
-      await citizenService.checkAffiliation(mockedToken);
-    } catch (err) {
-      expect(err).to.deepEqual(expectedErrorNotValid);
-    }
-  });
-
-  it('Check Affiliation: Citizen Repository KO', async () => {
-    citizenRepository.stubs.findById.rejects();
-    enterpriseRepository.stubs.findById.resolves(mockEnterprise);
-
-    sinon.stub(jwtService, 'verifyAffiliationAccessToken').returns(true);
-
-    sinon.stub(jwtService, 'decodeAffiliationAccessToken').returns(mockedDecodedToken);
-
-    try {
-      await citizenService.checkAffiliation(mockedToken);
-    } catch (err) {
-      expect(err).to.deepEqual(expectedErrorNotValid);
-    }
-  });
-
-  it('Check Affiliation: Citizen Affiliation KO', async () => {
-    const mockCitizenAffliationKO = new Citizen({...mockCitizen});
-
-    citizenRepository.stubs.findById.resolves(mockCitizenAffliationKO);
-    enterpriseRepository.stubs.findById.resolves(mockEnterprise);
-
-    sinon.stub(jwtService, 'verifyAffiliationAccessToken').returns(true);
-
-    sinon.stub(jwtService, 'decodeAffiliationAccessToken').returns(mockedDecodedToken);
-
-    try {
-      await citizenService.checkAffiliation(mockedToken);
-    } catch (err) {
-      expect(err).to.deepEqual(expectedErrorNotValid);
-    }
-  });
-
-  it('Check Affiliation: Affiliation enterpriseId matches token KO', async () => {
-    const mockCitizenAffliationKO: any = {
-      ...mockCitizen,
-      affiliation: {...mockCitizen.affiliation},
-    };
-    mockCitizenAffliationKO.affiliation.enterpriseId = 'KO';
-
-    citizenRepository.stubs.findById.resolves(mockCitizenAffliationKO);
-    enterpriseRepository.stubs.findById.resolves(mockEnterprise);
-
-    sinon.stub(jwtService, 'verifyAffiliationAccessToken').returns(true);
-
-    sinon.stub(jwtService, 'decodeAffiliationAccessToken').returns(mockedDecodedToken);
-
-    try {
-      await citizenService.checkAffiliation(mockedToken);
-    } catch (err) {
-      expect(err).to.deepEqual(expectedErrorNotValid);
-    }
-  });
-
-  it('Check Affiliation: Status KO', async () => {
-    const mockCitizenAffliationKO: any = {
-      ...mockCitizen,
-      affiliation: {...mockCitizen.affiliation},
-    };
-    mockCitizenAffliationKO.affiliation!.affiliationStatus =
-      AFFILIATION_STATUS.AFFILIATED;
-    citizenRepository.stubs.findById.resolves(mockCitizenAffliationKO);
-    enterpriseRepository.stubs.findById.resolves(mockEnterprise);
-
-    sinon.stub(jwtService, 'verifyAffiliationAccessToken').returns(true);
-
-    sinon.stub(jwtService, 'decodeAffiliationAccessToken').returns(mockedDecodedToken);
-
-    try {
-      await citizenService.checkAffiliation(mockedToken);
-    } catch (err) {
-      expect(err).to.deepEqual(expectedErrorBadStatus);
-    }
-  });
-
-  it('sendDisaffiliationMail: successfull', () => {
-    citizenService.sendDisaffiliationMail(mailService, mockCitizen);
-    mailService.stubs.sendMailAsHtml.resolves('success');
-    expect(mailService.sendMailAsHtml.calledOnce).true();
-    expect(
-      mailService.sendMailAsHtml.calledWith(
-        'email@gmail.com',
-        'Votre affiliation employeur vient d’être supprimée',
-        'disaffiliation-citizen',
-      ),
-    ).true();
-  });
-  it('sendRejectedAffiliation: successfull', () => {
-    citizenService.sendRejectedAffiliation(mockCitizen, 'enterpriseName');
-    mailService.stubs.sendMailAsHtml.resolves('success');
-    expect(mailService.sendMailAsHtml.calledOnce).true();
-    expect(
-      mailService.sendMailAsHtml.calledWith(
-        'email@gmail.com',
-        "Votre demande d'affiliation a été refusée",
-        'affiliation-rejection',
-      ),
-    ).true();
-  });
-  it('sendValidatedAffiliation: successfull', () => {
-    citizenService.sendValidatedAffiliation(mockCitizen, 'enterpriseName');
-    mailService.stubs.sendMailAsHtml.resolves('success');
-    expect(mailService.sendMailAsHtml.calledOnce).true();
-    expect(
-      mailService.sendMailAsHtml.calledWith(
-        'email@gmail.com',
-        "Votre demande d'affiliation a été acceptée !",
-        'affiliation-validation',
-      ),
-    ).true();
-  });
-
-  it('Check Disaffiliation: KO', async () => {
-    citizenRepository.stubs.findById.resolves(new Citizen({id: 'randomInputId'}));
-    userRepository.stubs.findOne.resolves(mockUserWithCom);
-    subscriptionRepository.stubs.find.resolves();
-
-    try {
-      await citizenService.checkDisaffiliation('randomInputId');
-    } catch (err) {
-      expect(err).to.deepEqual(expectedErrorDisaffiliation);
-    }
   });
 
   it('check generateRow : success', async () => {
@@ -475,7 +294,7 @@ describe('Citizen services', () => {
     const listMaas: string[] = [];
     const companyName = 'companyName';
     try {
-      const result = await citizenService.generateExcelRGPD(
+      const result = await citizenService.generateExcelGDPR(
         citizen,
         companyName,
         userDemandes,
@@ -488,7 +307,7 @@ describe('Citizen services', () => {
     }
   });
 
-  it('sendDeletionMail: successfull', () => {
+  it('sendDeletionMail: successful', () => {
     citizenService.sendDeletionMail(mailService, mockCitizen, '23/07/2022 à 12:12');
     mailService.stubs.sendMailAsHtml.resolves('success');
     expect(mailService.sendMailAsHtml.calledOnce).true();
@@ -502,40 +321,216 @@ describe('Citizen services', () => {
     ).true();
   });
 
-  it('checkProEmailExistence : successful', () => {
-    citizenRepository.stubs.findOne.resolves(null);
-    try {
-      citizenService.checkProEmailExistence('test@test.com');
-    } catch (error) {
-      sinon.assert.fail();
-    }
-  });
+  it('findEmployees: successful with affiliation', async () => {
+    const mockCitizenUserEntity = new UserEntity({
+      id: 'randomInputId',
+      userAttributes: [
+        new UserAttribute({
+          name: 'lastName',
+          value: 'lastName',
+        }),
+        new UserAttribute({
+          name: 'firstName',
+          value: 'firstName',
+        }),
+      ],
+    });
 
-  it('checkProEmailExistence : fail', () => {
-    citizenRepository.stubs.findOne.resolves(mockCitizen);
-    try {
-      citizenService.checkProEmailExistence('test@outlook.com');
-    } catch (error) {
-      expect(error).to.deepEqual(expectedErrorEmailUnique);
-    }
-  });
+    const affiliation: Affiliation = {
+      id: 'affiliationId',
+      citizenId: 'randomInputId',
+      enterpriseEmail: '',
+      enterpriseId: 'funderId',
+      status: AFFILIATION_STATUS.AFFILIATED,
+    } as Affiliation;
 
-  it('findEmployees: successfull', async () => {
-    userEntityRepository.stubs.findOne.resolves(userEntity);
+    const citizenWithAffiliationResult: Citizen = Object.assign(new Citizen(), {
+      id: 'randomInputId',
+      lastName: 'lastName',
+      firstName: 'firstName',
+      identity: {},
+      personalInformation: {},
+      dgfipInformation: {},
+      affiliation: affiliation,
+    });
+
     userRepository.stubs.findById.resolves(mockUserWithCom);
+    affiliationRepository.stubs.find.resolves([affiliation]);
+    userEntityRepository.stubs.searchUserWithAttributesByFilter.resolves([
+      mockCitizenUserEntity,
+    ]);
+    affiliationRepository.stubs.findOne.resolves(affiliation);
+    affiliationRepository.stubs.count.resolves({count: 1});
 
-    const employees = [{employees: [mockCitizen, mockCitizen2], employeesCount: 2}];
+    const result = await citizenService.findEmployees({
+      status: AFFILIATION_STATUS.AFFILIATED,
+      lastName: undefined,
+      skip: undefined,
+      limit: 10,
+    });
+    expect(result).to.deepEqual({
+      employees: [citizenWithAffiliationResult],
+      employeesCount: 1,
+    });
 
-    citizenRepository.stubs.execute.resolves(employees);
-
-    const result = citizenService
-      .findEmployees(AFFILIATION_STATUS.AFFILIATED, 'lastName', 0, 10)
-      .then((res: any) => res)
-      .catch((err: any) => err);
-    expect(result).deepEqual(
-      new Promise(() => {
-        return employees;
+    sinon.assert.calledWithExactly(
+      affiliationRepository.stubs.count,
+      sinon.match({enterpriseId: mockUserWithCom.funderId}),
+    );
+    sinon.assert.calledWithExactly(
+      affiliationRepository.stubs.find,
+      sinon.match({where: {enterpriseId: mockUserWithCom.funderId}}),
+    );
+    sinon.assert.calledWithExactly(
+      userEntityRepository.stubs.searchUserWithAttributesByFilter,
+      sinon.match({
+        order: ['lastName ASC'],
+        limit: 10,
+        where: {id: {inq: ['randomInputId']}},
       }),
+      GROUPS.citizens,
+    );
+  });
+
+  it('findEmployees: successful with affiliation and skip', async () => {
+    const mockCitizenUserEntity = new UserEntity({
+      id: 'randomInputId',
+      userAttributes: [
+        new UserAttribute({
+          name: 'lastName',
+          value: 'lastName',
+        }),
+        new UserAttribute({
+          name: 'firstName',
+          value: 'firstName',
+        }),
+      ],
+    });
+
+    const affiliation: Affiliation = {
+      id: 'affiliationId',
+      citizenId: 'randomInputId',
+      enterpriseEmail: '',
+      enterpriseId: 'funderId',
+      status: AFFILIATION_STATUS.AFFILIATED,
+    } as Affiliation;
+
+    const citizenWithAffiliationResult: Citizen = Object.assign(new Citizen(), {
+      id: 'randomInputId',
+      lastName: 'lastName',
+      firstName: 'firstName',
+      identity: {},
+      personalInformation: {},
+      dgfipInformation: {},
+      affiliation: affiliation,
+    });
+
+    userRepository.stubs.findById.resolves(mockUserWithCom);
+    affiliationRepository.stubs.find.resolves([affiliation]);
+    userEntityRepository.stubs.searchUserWithAttributesByFilter.resolves([
+      mockCitizenUserEntity,
+    ]);
+    affiliationRepository.stubs.findOne.resolves(affiliation);
+    affiliationRepository.stubs.count.resolves({count: 1});
+
+    const result = await citizenService.findEmployees({
+      status: AFFILIATION_STATUS.AFFILIATED,
+      lastName: undefined,
+      skip: 10,
+      limit: 10,
+    });
+    expect(result).to.deepEqual({
+      employees: [citizenWithAffiliationResult],
+      employeesCount: 1,
+    });
+
+    sinon.assert.calledWithExactly(
+      affiliationRepository.stubs.count,
+      sinon.match({enterpriseId: mockUserWithCom.funderId}),
+    );
+    sinon.assert.calledWithExactly(
+      affiliationRepository.stubs.find,
+      sinon.match({where: {enterpriseId: mockUserWithCom.funderId}}),
+    );
+    sinon.assert.calledWithExactly(
+      userEntityRepository.stubs.searchUserWithAttributesByFilter,
+      sinon.match({
+        order: ['lastName ASC'],
+        skip: 10,
+        limit: 10,
+        where: {id: {inq: ['randomInputId']}},
+      }),
+      GROUPS.citizens,
+    );
+  });
+
+  it('findEmployees: successful with affiliation and search lastName', async () => {
+    const mockCitizenUserEntity = new UserEntity({
+      id: 'randomInputId',
+      userAttributes: [
+        new UserAttribute({
+          name: 'lastName',
+          value: 'lastName',
+        }),
+        new UserAttribute({
+          name: 'firstName',
+          value: 'firstName',
+        }),
+      ],
+    });
+
+    const affiliation: Affiliation = {
+      id: 'affiliationId',
+      citizenId: 'randomInputId',
+      enterpriseEmail: '',
+      enterpriseId: 'funderId',
+      status: AFFILIATION_STATUS.AFFILIATED,
+    } as Affiliation;
+
+    const citizenWithAffiliationResult: Citizen = Object.assign(new Citizen(), {
+      id: 'randomInputId',
+      lastName: 'lastName',
+      firstName: 'firstName',
+      identity: {},
+      personalInformation: {},
+      dgfipInformation: {},
+      affiliation: affiliation,
+    });
+
+    userRepository.stubs.findById.resolves(mockUserWithCom);
+    affiliationRepository.stubs.find.resolves([affiliation]);
+    userEntityRepository.stubs.searchUserWithAttributesByFilter.resolves([
+      mockCitizenUserEntity,
+    ]);
+    affiliationRepository.stubs.findOne.resolves(affiliation);
+    affiliationRepository.stubs.count.resolves({count: 1});
+
+    const result = await citizenService.findEmployees({
+      status: AFFILIATION_STATUS.AFFILIATED,
+      lastName: 'last',
+      skip: undefined,
+      limit: 10,
+    });
+    expect(result).to.deepEqual({
+      employees: [citizenWithAffiliationResult],
+      employeesCount: 1,
+    });
+    sinon.assert.notCalled(affiliationRepository.stubs.count);
+    sinon.assert.calledWithExactly(
+      affiliationRepository.stubs.find,
+      sinon.match({where: {enterpriseId: mockUserWithCom.funderId}}),
+    );
+    sinon.assert.calledWithExactly(
+      userEntityRepository.stubs.searchUserWithAttributesByFilter,
+      sinon.match({
+        order: ['lastName ASC'],
+        limit: 10,
+        where: {
+          id: {inq: ['randomInputId']},
+          lastName: new RegExp('.*' + 'last' + '.*', 'i'),
+        },
+      }),
+      GROUPS.citizens,
     );
   });
 
@@ -574,43 +569,30 @@ describe('Citizen services', () => {
     ).true();
   });
 
-  it('SendManualAffiliationMail: successfull', () => {
-    userRepository.stubs.find.resolves([mockUserWithCom]);
-    keycloakService.stubs.getUser.resolves(userEntity);
-    citizenService.sendManualAffiliationMail(mockCitizen, mockEnterprise);
-
-    [mockUserWithCom].map(async singleFunder => {
-      mailService.stubs.sendMailAsHtml.resolves('success');
-      expect(mailService.sendMailAsHtml.calledOnce).true();
-      expect(
-        mailService.sendMailAsHtml.calledWith(
-          singleFunder.email,
-          `Vous avez une nouvelle demande d'affiliation !`,
-          'manual-affiliation',
-          sinon.match.any,
-        ),
-      ).true();
-    });
-  });
-
-  it('CreateCitizen Service  : fails because of create repository error', async () => {
+  it('CreateCitizen Service  : fails because of Affiliation Repository error', async () => {
     const errorRepository = 'can not add data in database';
     try {
       keycloakService.stubs.createUserKc.resolves({
         id: 'randomInputId',
       });
-      citizenRepository.stubs.create.rejects(errorRepository);
       enterpriseRepository.stubs.findById.resolves(enterprise);
+      affiliationRepository.stubs.createAffiliation.rejects(errorRepository);
+      affiliationRepository.stubs.findOne.resolves(
+        Object.assign({
+          citizenId: 'randomInputId',
+        }),
+      );
+      affiliationRepository.stubs.deleteById.resolves();
       keycloakService.stubs.deleteUserKc.resolves();
-
       await citizenService.createCitizen(salarie);
     } catch (err) {
       expect(err.name).to.equal(errorRepository);
     }
 
     keycloakService.stubs.createUserKc.restore();
-    citizenRepository.stubs.create.restore();
     enterpriseRepository.stubs.findById.restore();
+    affiliationRepository.stubs.createAffiliation.restore();
+    affiliationRepository.stubs.findOne.restore();
     keycloakService.stubs.deleteUserKc.restore();
   });
 
@@ -619,7 +601,15 @@ describe('Citizen services', () => {
     keycloakService.stubs.createUserKc.resolves({
       id: 'randomInputId',
     });
-    citizenRepository.stubs.create.resolves(createdSalarie);
+
+    affiliationRepository.stubs.createAffiliation.resolves(
+      Object.assign({
+        citizenId: 'randomInputId',
+        enterpriseId: 'enterpriseId',
+        enterpriseEmail: 'enterpriseEmail@gmail.com',
+        status: AFFILIATION_STATUS.TO_AFFILIATE,
+      }),
+    );
     keycloakService.stubs.sendExecuteActionsEmailUserKc.resolves();
 
     const result = await citizenService.createCitizen(salarie);
@@ -629,13 +619,21 @@ describe('Citizen services', () => {
     });
 
     sinon.assert.calledWithExactly(
-      citizenRepository.stubs.create,
-      sinon.match(createdSalarie),
+      affiliationRepository.stubs.createAffiliation,
+      sinon.match(new Citizen(expectedSalarieToBeCalledWith)),
+      sinon.match(enterprise.hasManualAffiliation as Boolean),
+    );
+
+    sinon.assert.calledWithExactly(
+      keycloakService.stubs.createUserKc,
+      sinon.match(new Citizen(expectedSalarieToBeCalledWith)),
+      sinon.match([GROUPS.citizens]),
+      sinon.match([RequiredActionAlias.VERIFY_EMAIL]),
     );
 
     enterpriseRepository.stubs.findById.restore();
+    affiliationRepository.stubs.createAffiliation.restore();
     keycloakService.stubs.createUserKc.restore();
-    citizenRepository.stubs.create.restore();
     keycloakService.stubs.sendExecuteActionsEmailUserKc.restore();
   });
 
@@ -644,11 +642,18 @@ describe('Citizen services', () => {
     keycloakService.stubs.createUserKc.resolves({
       id: 'randomInputId',
     });
-    citizenRepository.stubs.create.resolves(createdSalarieNoProEmail);
+
+    affiliationRepository.stubs.createAffiliation.resolves(
+      Object.assign({
+        citizenId: 'randomInputId',
+        enterpriseId: salarieNoProEmail.affiliation.enterpriseId,
+        enterpriseEmail: salarieNoProEmail.affiliation.enterpriseEmail,
+        status: AFFILIATION_STATUS.TO_AFFILIATE,
+      }),
+    );
     keycloakService.stubs.sendExecuteActionsEmailUserKc.resolves();
-    const sendManualAff = sinon
-      .stub(citizenService, 'sendManualAffiliationMail')
-      .resolves(null);
+    const sendManualAff =
+      affiliationService.stubs.sendManualAffiliationMail.resolves(undefined);
 
     const result = await citizenService.createCitizen(salarieNoProEmail);
 
@@ -656,14 +661,32 @@ describe('Citizen services', () => {
       id: 'randomInputId',
     });
 
-    sinon.assert.calledWithExactly(
-      citizenRepository.stubs.create,
-      sinon.match(createdSalarieNoProEmail),
+    sinon.assert.calledWith(
+      affiliationRepository.stubs.createAffiliation,
+      sinon.match.has(
+        'affiliation',
+        sinon.match.has('enterpriseId', salarieNoProEmail.affiliation.enterpriseId),
+      ) &&
+        sinon.match.has(
+          'affiliation',
+          sinon.match.has(
+            'enterpriseEmail',
+            salarieNoProEmail.affiliation.enterpriseEmail,
+          ),
+        ),
+      sinon.match(mockEnterprise.hasManualAffiliation as Boolean),
     );
 
+    sinon.assert.calledWithExactly(
+      keycloakService.stubs.createUserKc,
+      sinon.match(new Citizen(expectedSalarieNoProEmailToBeCalledWith)),
+      sinon.match([GROUPS.citizens]),
+      sinon.match([RequiredActionAlias.VERIFY_EMAIL]),
+    );
+
+    affiliationRepository.stubs.createAffiliation.restore();
     enterpriseRepository.stubs.findById.restore();
     keycloakService.stubs.createUserKc.restore();
-    citizenRepository.stubs.create.restore();
     keycloakService.stubs.sendExecuteActionsEmailUserKc.restore();
     sendManualAff.restore();
   });
@@ -672,7 +695,14 @@ describe('Citizen services', () => {
     keycloakService.stubs.createUserKc.resolves({
       id: 'randomInputId',
     });
-    citizenRepository.stubs.create.resolves(createdSalarieNoEnterprise);
+    affiliationRepository.stubs.createAffiliation.resolves(
+      Object.assign({
+        citizenId: 'randomInputId',
+        enterpriseId: salarieNoEnterprise.affiliation.enterpriseId,
+        enterpriseEmail: salarieNoEnterprise.affiliation.enterpriseEmail,
+        status: AFFILIATION_STATUS.UNKNOWN,
+      }),
+    );
     keycloakService.stubs.sendExecuteActionsEmailUserKc.resolves();
 
     const result = await citizenService.createCitizen(salarieNoEnterprise);
@@ -682,12 +712,32 @@ describe('Citizen services', () => {
     });
 
     sinon.assert.calledWithExactly(
-      citizenRepository.stubs.create,
-      sinon.match(createdSalarieNoEnterprise),
+      affiliationRepository.stubs.createAffiliation,
+      sinon.match.has(
+        'affiliation',
+        sinon.match.has('enterpriseId', salarieNoEnterprise.affiliation.enterpriseId),
+      ) &&
+        sinon.match.has(
+          'affiliation',
+          sinon.match.has(
+            'enterpriseEmail',
+            salarieNoEnterprise.affiliation.enterpriseEmail,
+          ),
+        ),
+      sinon.match(false as Boolean),
     );
 
+    sinon.assert.calledWithExactly(
+      keycloakService.stubs.createUserKc,
+      sinon.match(expectedSalarieNoEnterpriseToBeCalledWith),
+      sinon.match([GROUPS.citizens]),
+      sinon.match([RequiredActionAlias.VERIFY_EMAIL]),
+    );
+
+    sinon.assert.notCalled(enterpriseRepository.stubs.findById);
+
     keycloakService.stubs.createUserKc.restore();
-    citizenRepository.stubs.create.restore();
+    affiliationRepository.stubs.createAffiliation.restore();
     keycloakService.stubs.sendExecuteActionsEmailUserKc.restore();
   });
 
@@ -695,7 +745,14 @@ describe('Citizen services', () => {
     keycloakService.stubs.createUserKc.resolves({
       id: 'randomInputId',
     });
-    citizenRepository.stubs.create.resolves(createdStudent);
+    affiliationRepository.stubs.createAffiliation.resolves(
+      Object.assign({
+        citizenId: 'randomInputId',
+        enterpriseId: student.affiliation.enterpriseId,
+        enterpriseEmail: student.affiliation.enterpriseEmail,
+        status: AFFILIATION_STATUS.UNKNOWN,
+      }),
+    );
     keycloakService.stubs.sendExecuteActionsEmailUserKc.resolves();
 
     const result = await citizenService.createCitizen(student);
@@ -704,200 +761,126 @@ describe('Citizen services', () => {
       id: 'randomInputId',
     });
 
-    const arg: any = {
-      personalInformation: {
-        email: {
-          value: 'email@gmail.com',
-          certificationDate: new Date('2022-11-03'),
-          source: 'moncomptemobilite.fr',
-        },
-      },
-      identity: {
-        gender: {
-          value: 1,
-          source: 'moncomptemobilite.fr',
-          certificationDate: new Date('2022-10-24'),
-        },
-        firstName: {
-          value: 'firstName',
-          source: 'moncomptemobilite.fr',
-          certificationDate: new Date('2022-10-24'),
-        },
-        lastName: {
-          value: 'lastName',
-          source: 'moncomptemobilite.fr',
-          certificationDate: new Date('2022-10-24'),
-        },
-        birthDate: {
-          value: '1991-11-17',
-          source: 'moncomptemobilite.fr',
-          certificationDate: new Date('2022-10-24'),
-        },
-      },
-      city: 'test',
-      postcode: '31000',
-      status: CITIZEN_STATUS.STUDENT,
-      tos1: true,
-      tos2: true,
-      id: 'randomInputId',
-      affiliation: {
-        enterpriseId: null,
-        enterpriseEmail: null,
-        affiliationStatus: AFFILIATION_STATUS.UNKNOWN,
-      },
-    };
+    sinon.assert.calledWithExactly(
+      affiliationRepository.stubs.createAffiliation,
+      sinon.match.has(
+        'affiliation',
+        sinon.match.has('enterpriseId', student.affiliation.enterpriseId),
+      ) &&
+        sinon.match.has(
+          'affiliation',
+          sinon.match.has('enterpriseEmail', student.affiliation.enterpriseEmail),
+        ),
+      sinon.match(false as Boolean),
+    );
+
+    sinon.assert.calledWithExactly(
+      keycloakService.stubs.createUserKc,
+      sinon.match(expectedStudentToBeCalledWith),
+      sinon.match([GROUPS.citizens]),
+      sinon.match([RequiredActionAlias.VERIFY_EMAIL]),
+    );
 
     sinon.assert.notCalled(enterpriseRepository.stubs.findById);
+
+    affiliationRepository.stubs.createAffiliation.restore();
     keycloakService.stubs.createUserKc.restore();
-    sinon.assert.calledWithExactly(citizenRepository.stubs.create, sinon.match(arg));
-    citizenRepository.stubs.create.restore();
     keycloakService.stubs.sendExecuteActionsEmailUserKc.restore();
   });
 
-  it('CreateCitizen Service createCitizenFc salarie : successful', async () => {
-    enterpriseRepository.stubs.findById.resolves(enterprise);
-    keycloakService.stubs.updateCitizenRole.resolves({
+  it('getCitizenWithAffiliationById: successful', async () => {
+    const mockCitizenUserEntity = new UserEntity({
       id: 'randomInputId',
-    });
-    citizenRepository.stubs.create.resolves(createdSalarie);
-
-    const result = await citizenService.createCitizen(salarie, 'randomInputId');
-
-    expect(result).to.deepEqual({
-      id: 'randomInputId',
-    });
-
-    sinon.assert.calledWithExactly(
-      citizenRepository.stubs.create,
-      sinon.match(createdSalarie),
-    );
-
-    enterpriseRepository.stubs.findById.restore();
-    keycloakService.stubs.updateCitizenRole.restore();
-    citizenRepository.stubs.create.restore();
-  });
-
-  it('CreateCitizenFc salarie no enterprise : successful', async () => {
-    keycloakService.stubs.updateCitizenRole.resolves({
-      id: 'randomInputId',
-    });
-    citizenRepository.stubs.create.resolves(createdSalarieNoEnterprise);
-    keycloakService.stubs.sendExecuteActionsEmailUserKc.resolves();
-
-    const result = await citizenService.createCitizen(
-      salarieNoEnterprise,
-      'randomInputId',
-    );
-
-    expect(result).to.deepEqual({
-      id: 'randomInputId',
-    });
-
-    sinon.assert.calledWithExactly(
-      citizenRepository.stubs.create,
-      sinon.match(createdSalarieNoEnterprise),
-    );
-
-    keycloakService.stubs.updateCitizenRole.restore();
-    citizenRepository.stubs.create.restore();
-  });
-
-  it('CreateCitizen Service createCitizenFc student : successful', async () => {
-    keycloakService.stubs.updateCitizenRole.resolves({
-      id: 'randomInputId',
-    });
-    citizenRepository.stubs.create.resolves(createdStudent);
-
-    const result = await citizenService.createCitizen(student, 'randomInputId');
-
-    expect(result).to.deepEqual({
-      id: 'randomInputId',
-    });
-
-    const arg: any = {
-      identity: {
-        firstName: {
-          value: 'firstName',
-          source: 'moncomptemobilite.fr',
-          certificationDate: new Date('2022-10-24'),
-        },
-        lastName: {
+      userAttributes: [
+        new UserAttribute({
+          name: 'lastName',
           value: 'lastName',
-          source: 'moncomptemobilite.fr',
-          certificationDate: new Date('2022-10-24'),
-        },
-        birthDate: {
-          value: '1991-11-17',
-          source: 'moncomptemobilite.fr',
-          certificationDate: new Date('2022-10-24'),
-        },
-      },
-      personalInformation: {
-        email: {
-          value: 'email@gmail.com',
-          certificationDate: new Date('2022-11-03'),
-          source: 'moncomptemobilite.fr',
-        },
-      },
-      city: 'test',
-      postcode: '31000',
-      status: CITIZEN_STATUS.STUDENT,
-      tos1: true,
-      tos2: true,
-      id: 'randomInputId',
-      affiliation: {
-        enterpriseId: null,
-        enterpriseEmail: null,
-        affiliationStatus: AFFILIATION_STATUS.UNKNOWN,
-      },
-    };
-
-    sinon.assert.notCalled(enterpriseRepository.stubs.findById);
-    keycloakService.stubs.updateCitizenRole.restore();
-    sinon.assert.calledWithExactly(citizenRepository.stubs.create, sinon.match(arg));
-    citizenRepository.stubs.create.restore();
-  });
-
-  it('CreateCitizen Service createCitizenFc etudiant keycloakResult undefined', async () => {
-    keycloakService.stubs.updateCitizenRole.resolves({
-      id: 'undefined',
+        }),
+        new UserAttribute({
+          name: 'firstName',
+          value: 'firstName',
+        }),
+      ],
     });
 
-    const result = await citizenService.createCitizen(student);
+    const affiliation: Affiliation = {
+      id: 'affiliationId',
+      citizenId: 'randomInputId',
+      enterpriseEmail: '',
+      enterpriseId: '',
+      status: AFFILIATION_STATUS.UNKNOWN,
+    } as Affiliation;
 
-    expect(result).to.deepEqual(undefined);
+    const citizenWithAffiliationResult: Citizen = Object.assign(new Citizen(), {
+      id: 'randomInputId',
+      lastName: 'lastName',
+      firstName: 'firstName',
+      identity: {},
+      personalInformation: {},
+      dgfipInformation: {},
+      affiliation: affiliation,
+    });
 
-    keycloakService.stubs.updateCitizenRole.restore();
+    userEntityRepository.stubs.getUserWithAttributes.resolves(mockCitizenUserEntity);
+    affiliationRepository.stubs.findOne.resolves(affiliation);
+
+    const result = await citizenService.getCitizenWithAffiliationById('randomInputId');
+    expect(result).to.deepEqual(citizenWithAffiliationResult);
+  });
+
+  it('searchCitizenWithAffiliationListByFilter: successful', async () => {
+    const mockCitizenUserEntity = new UserEntity({
+      id: 'randomInputId',
+      userAttributes: [
+        new UserAttribute({
+          name: 'lastName',
+          value: 'lastName',
+        }),
+        new UserAttribute({
+          name: 'firstName',
+          value: 'firstName',
+        }),
+      ],
+    });
+
+    const affiliation: Affiliation = {
+      id: 'affiliationId',
+      citizenId: 'randomInputId',
+      enterpriseEmail: '',
+      enterpriseId: '',
+      status: AFFILIATION_STATUS.UNKNOWN,
+    } as Affiliation;
+
+    const citizenWithAffiliationResult: Citizen = Object.assign(new Citizen(), {
+      id: 'randomInputId',
+      lastName: 'lastName',
+      firstName: 'firstName',
+      identity: {},
+      personalInformation: {},
+      dgfipInformation: {},
+      affiliation: affiliation,
+    });
+
+    affiliationRepository.stubs.find.resolves([affiliation]);
+    userEntityRepository.stubs.searchUserWithAttributesByFilter.resolves([
+      mockCitizenUserEntity,
+    ]);
+    affiliationRepository.stubs.findOne.resolves(affiliation);
+
+    const result = await citizenService.searchCitizenWithAffiliationListByFilter(
+      {where: {}},
+      {},
+    );
+    expect(result).to.deepEqual([citizenWithAffiliationResult]);
+    sinon.assert.calledWithExactly(affiliationRepository.stubs.find, sinon.match({}));
+    sinon.assert.calledWithExactly(
+      userEntityRepository.stubs.searchUserWithAttributesByFilter,
+      sinon.match({where: {id: {inq: ['randomInputId']}}}),
+      GROUPS.citizens,
+    );
   });
 });
 
-const expectedErrorNotValid = new ValidationError(
-  'citizens.affiliation.not.valid',
-  '/citizensAffiliationNotValid',
-  StatusCode.UnprocessableEntity,
-  ResourceName.Affiliation,
-);
-
-const expectedErrorBadStatus = new ValidationError(
-  'citizens.affiliation.bad.status',
-  '/citizensAffiliationBadStatus',
-  StatusCode.PreconditionFailed,
-  ResourceName.AffiliationBadStatus,
-);
-
-const expectedErrorEmailFormat = new ValidationError(
-  'citizen.email.professional.error.format',
-  '/professionnalEmailBadFormat',
-  StatusCode.PreconditionFailed,
-  ResourceName.ProfessionalEmail,
-);
-
-const expectedErrorDisaffiliation = new ValidationError(
-  'citizens.disaffiliation.impossible',
-  '/citizensDisaffiliationImpossible',
-  StatusCode.PreconditionFailed,
-  ResourceName.Disaffiliation,
-);
 const expectedErrorClientId = new ValidationError(
   'client.id.notFound',
   '/clientIdNotFound',
@@ -905,92 +888,11 @@ const expectedErrorClientId = new ValidationError(
   ResourceName.Client,
 );
 
-const expectedErrorEmailUnique = new ValidationError(
-  'citizen.email.error.unique',
-  '/affiliation.enterpriseEmail',
-  StatusCode.UnprocessableEntity,
-  ResourceName.UniqueProfessionalEmail,
-);
-
-const mockedToken = 'montoken';
-
-const mockedDecodedToken = {
-  id: 'randomInputId',
-  enterpriseId: 'randomInputEnterpriseId',
-};
-
-const mockCitizen2 = new Citizen({
-  id: 'randomInputId',
-  identity: {
-    gender: {
-      value: 1,
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date('2022-10-24'),
-      getId: () => {},
-      getIdObject: () => ({id: 'random'}),
-      toJSON: () => ({id: 'random'}),
-      toObject: () => ({id: 'random'}),
-    },
-    firstName: {
-      value: 'firstName',
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date('2022-10-24'),
-      getId: () => {},
-      getIdObject: () => ({id: 'random'}),
-      toJSON: () => ({id: 'random'}),
-      toObject: () => ({id: 'random'}),
-    },
-    lastName: {
-      value: 'lastName',
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date('2022-10-24'),
-      getId: () => {},
-      getIdObject: () => ({id: 'random'}),
-      toJSON: () => ({id: 'random'}),
-      toObject: () => ({id: 'random'}),
-    },
-    birthDate: {
-      value: '1991-11-17',
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date('2022-10-24'),
-      getId: () => {},
-      getIdObject: () => ({id: 'random'}),
-      toJSON: () => ({id: 'random'}),
-      toObject: () => ({id: 'random'}),
-    },
-    toJSON: () => ({id: 'random'}),
-    toObject: () => ({id: 'random'}),
-  },
-  personalInformation: Object.assign({
-    email: Object.assign({
-      value: 'email@gmail.com',
-      certificationDate: new Date('2022-11-03'),
-      source: 'moncomptemobilite.fr',
-    }),
-  }),
-  password: 'password123123!',
-  city: 'test',
-  status: CITIZEN_STATUS.EMPLOYEE,
-  postcode: '31000',
-  tos1: true,
-  tos2: true,
-  affiliation: Object.assign({
-    enterpriseId: 'funderId',
-    enterpriseEmail: 'test@outlook.com',
-    affiliationStatus: AFFILIATION_STATUS.AFFILIATED,
-  }),
-  getId: () => {},
-  getIdObject: () => ({id: 'random'}),
-  toJSON: () => ({id: 'random'}),
-  toObject: () => ({id: 'random'}),
-});
-
 const mockCitizen3 = {
   id: 'randomInputId',
   lastName: 'lastName',
   firstName: 'firstName',
   email: 'email@gmail.com',
-  password: 'password123123!',
   city: 'test',
   status: CITIZEN_STATUS.EMPLOYEE,
   birthdate: '1991-11-17',
@@ -1000,7 +902,7 @@ const mockCitizen3 = {
   affiliation: Object.assign({
     enterpriseId: 'funderId',
     enterpriseEmail: 'test@outlook.com',
-    affiliationStatus: AFFILIATION_STATUS.AFFILIATED,
+    status: AFFILIATION_STATUS.AFFILIATED,
   }),
   getId: () => {},
   getIdObject: () => ({id: 'random'}),
@@ -1057,7 +959,6 @@ const mockCitizen = new Citizen({
       source: 'moncomptemobilite.fr',
     }),
   }),
-  password: 'password123123!',
   city: 'test',
   status: CITIZEN_STATUS.EMPLOYEE,
   postcode: '31000',
@@ -1066,7 +967,7 @@ const mockCitizen = new Citizen({
   affiliation: Object.assign({
     enterpriseId: 'randomInputEnterpriseId',
     enterpriseEmail: 'test@outlook.com',
-    affiliationStatus: AFFILIATION_STATUS.TO_AFFILIATE,
+    status: AFFILIATION_STATUS.TO_AFFILIATE,
   }),
   getId: () => {},
   getIdObject: () => ({id: 'random'}),
@@ -1189,7 +1090,9 @@ const userEntity: UserEntity = {
   getIdObject: () => new Object(),
   toObject: () => new Object(),
   toJSON: () => new Object(),
+  toCitizen: () => new Citizen(),
   keycloakGroups: [],
+  userAttributes: [],
 };
 
 const offlineUserSession: OfflineUserSession = {
@@ -1328,6 +1231,7 @@ const mockAideCollectivite = new Incentive({
 });
 
 const salarie = Object.assign(new Citizen(), {
+  id: 'randomInputId',
   identity: {
     gender: {
       value: 1,
@@ -1350,7 +1254,6 @@ const salarie = Object.assign(new Citizen(), {
       certificationDate: new Date('2022-10-24'),
     },
   },
-  id: 'randomInputId',
   lastName: 'lastName',
   firstName: 'firstName',
   personalInformation: {
@@ -1360,29 +1263,71 @@ const salarie = Object.assign(new Citizen(), {
       source: 'moncomptemobilite.fr',
     },
   },
-  password: 'password123123!',
   city: 'test',
-
   status: CITIZEN_STATUS.EMPLOYEE,
   postcode: '31000',
   tos1: true,
   tos2: true,
-  affiliation: Object.assign({
+  affiliation: {
     enterpriseId: 'enterpriseId',
     enterpriseEmail: 'enterpriseEmail@gmail.com',
-  }),
-  getId: () => {},
-  getIdObject: () => ({id: 'random'}),
-  toJSON: () => ({id: 'random'}),
-  toObject: () => ({id: 'random'}),
+  },
 });
+
+const expectedSalarieToBeCalledWith = cloneDeep(salarie);
 
 const enterprise: Enterprise = new Enterprise({
   name: 'enterprise',
   emailFormat: ['@gmail.com', 'rr'],
+  hasManualAffiliation: false,
 });
 
-const createdSalarie = Object.assign(new Citizen(), {
+const salarieNoEnterprise = Object.assign(new Citizen(), {
+  id: 'randomInputId',
+  identity: {
+    gender: {
+      value: 1,
+      source: 'moncomptemobilite.fr',
+      certificationDate: new Date('2022-10-24'),
+    },
+    firstName: {
+      value: 'firstName',
+      source: 'moncomptemobilite.fr',
+      certificationDate: new Date('2022-10-24'),
+    },
+    lastName: {
+      value: 'lastName',
+      source: 'moncomptemobilite.fr',
+      certificationDate: new Date('2022-10-24'),
+    },
+    birthDate: {
+      value: '1991-11-17',
+      source: 'moncomptemobilite.fr',
+      certificationDate: new Date('2022-10-24'),
+    },
+  },
+  lastName: 'lastName',
+  firstName: 'firstName',
+  personalInformation: {
+    email: {
+      value: 'email@gmail.com',
+      certificationDate: new Date('2022-11-03'),
+      source: 'moncomptemobilite.fr',
+    },
+  },
+  city: 'test',
+  status: CITIZEN_STATUS.EMPLOYEE,
+  postcode: '31000',
+  tos1: true,
+  tos2: true,
+  affiliation: {
+    enterpriseId: '',
+    enterpriseEmail: '',
+  },
+});
+const expectedSalarieNoEnterpriseToBeCalledWith = cloneDeep(salarieNoEnterprise);
+
+const student = Object.assign(new Citizen(), {
   id: 'randomInputId',
   identity: {
     gender: {
@@ -1414,174 +1359,44 @@ const createdSalarie = Object.assign(new Citizen(), {
     },
   },
   city: 'test',
-  postcode: '31000',
-  status: CITIZEN_STATUS.EMPLOYEE,
-  tos1: true,
-  tos2: true,
-  affiliation: Object.assign({
-    enterpriseId: 'enterpriseId',
-    enterpriseEmail: 'enterpriseEmail@gmail.com',
-    affiliationStatus: AFFILIATION_STATUS.TO_AFFILIATE,
-  }),
-});
-
-const createdSalarieNoEnterprise = Object.assign(new Citizen(), {
-  id: 'randomInputId',
-  identity: Object.assign({
-    gender: Object.assign({
-      value: 1,
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date('2022-10-24'),
-    }),
-    firstName: Object.assign({
-      value: 'firstName',
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date('2022-10-24'),
-    }),
-    lastName: Object.assign({
-      value: 'lastName',
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date('2022-10-24'),
-    }),
-    birthDate: Object.assign({
-      value: '1991-11-17',
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date('2022-10-24'),
-    }),
-  }),
-  personalInformation: {
-    email: {
-      value: 'email@gmail.com',
-      certificationDate: new Date('2022-11-03'),
-      source: 'moncomptemobilite.fr',
-    },
-  },
-  city: 'test',
-  postcode: '31000',
-  status: CITIZEN_STATUS.EMPLOYEE,
-  tos1: true,
-  tos2: true,
-  affiliation: Object.assign({
-    enterpriseId: null,
-    enterpriseEmail: null,
-    affiliationStatus: AFFILIATION_STATUS.UNKNOWN,
-  }),
-});
-
-const salarieNoEnterprise = Object.assign(new Citizen(), {
-  id: 'randomInputId',
-  identity: Object.assign({
-    gender: Object.assign({
-      value: 1,
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date('2022-10-24'),
-    }),
-    firstName: Object.assign({
-      value: 'firstName',
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date('2022-10-24'),
-    }),
-    lastName: Object.assign({
-      value: 'lastName',
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date('2022-10-24'),
-    }),
-    birthDate: Object.assign({
-      value: '1991-11-17',
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date('2022-10-24'),
-    }),
-  }),
-  personalInformation: {
-    email: {
-      value: 'email@gmail.com',
-      certificationDate: new Date('2022-11-03'),
-      source: 'moncomptemobilite.fr',
-    },
-  },
-  password: 'password123123!',
-  city: 'test',
-  status: CITIZEN_STATUS.EMPLOYEE,
-  postcode: '31000',
-  tos1: true,
-  tos2: true,
-  affiliation: Object.assign({
-    enterpriseId: '',
-    enterpriseEmail: '',
-  }),
-});
-
-const student = Object.assign(new Citizen(), {
-  id: 'randomInputId',
-  identity: Object.assign({
-    gender: Object.assign({
-      value: 1,
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date('2022-10-24'),
-    }),
-    firstName: Object.assign({
-      value: 'firstName',
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date('2022-10-24'),
-    }),
-    lastName: Object.assign({
-      value: 'lastName',
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date('2022-10-24'),
-    }),
-    birthDate: Object.assign({
-      value: '1991-11-17',
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date('2022-10-24'),
-    }),
-  }),
-  personalInformation: {
-    email: {
-      value: 'email@gmail.com',
-      certificationDate: new Date('2022-11-03'),
-      source: 'moncomptemobilite.fr',
-    },
-  },
-  password: 'password123123!',
-  city: 'test',
   status: CITIZEN_STATUS.STUDENT,
   postcode: '31000',
   tos1: true,
   tos2: true,
-  affiliation: Object.assign({
+  affiliation: {
     enterpriseId: '',
     enterpriseEmail: '',
-  }),
-  getId: () => {},
-  getIdObject: () => ({id: 'random'}),
-  toJSON: () => ({id: 'random'}),
-  toObject: () => ({id: 'random'}),
+  },
 });
 
-const createdStudent = Object.assign(new Citizen(), {
+const expectedStudentToBeCalledWith = cloneDeep(student);
+
+const salarieNoProEmail = Object.assign(new Citizen(), {
   id: 'randomInputId',
-  identity: Object.assign({
-    gender: Object.assign({
+  identity: {
+    gender: {
       value: 1,
       source: 'moncomptemobilite.fr',
       certificationDate: new Date('2022-10-24'),
-    }),
-    firstName: Object.assign({
+    },
+    firstName: {
       value: 'firstName',
       source: 'moncomptemobilite.fr',
       certificationDate: new Date('2022-10-24'),
-    }),
-    lastName: Object.assign({
+    },
+    lastName: {
       value: 'lastName',
       source: 'moncomptemobilite.fr',
       certificationDate: new Date('2022-10-24'),
-    }),
-    birthDate: Object.assign({
+    },
+    birthDate: {
       value: '1991-11-17',
       source: 'moncomptemobilite.fr',
       certificationDate: new Date('2022-10-24'),
-    }),
-  }),
+    },
+  },
+  lastName: 'lastName',
+  firstName: 'firstName',
   personalInformation: {
     email: {
       value: 'email@gmail.com',
@@ -1589,105 +1404,15 @@ const createdStudent = Object.assign(new Citizen(), {
       source: 'moncomptemobilite.fr',
     },
   },
-  password: 'password123123!',
-  city: 'test',
-  status: CITIZEN_STATUS.STUDENT,
-  postcode: '31000',
-  tos1: true,
-  tos2: true,
-  affiliation: Object.assign({
-    enterpriseId: null,
-    enterpriseEmail: null,
-    affiliationStatus: AFFILIATION_STATUS.UNKNOWN,
-  }),
-  getId: () => {},
-  getIdObject: () => ({id: 'random'}),
-  toJSON: () => ({id: 'random'}),
-  toObject: () => ({id: 'random'}),
-});
-
-const createdSalarieNoProEmail = new Citizen({
-  id: 'randomInputId',
-  identity: Object.assign({
-    gender: Object.assign({
-      value: 1,
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date('2022-10-24'),
-    }),
-    firstName: Object.assign({
-      value: 'firstName',
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date('2022-10-24'),
-    }),
-    lastName: Object.assign({
-      value: 'lastName',
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date('2022-10-24'),
-    }),
-    birthDate: Object.assign({
-      value: '1991-11-17',
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date('2022-10-24'),
-    }),
-  }),
-  personalInformation: Object.assign({
-    email: Object.assign({
-      value: 'email@gmail.com',
-      certificationDate: new Date('2022-11-03'),
-      source: 'moncomptemobilite.fr',
-    }),
-  }),
   city: 'test',
   status: CITIZEN_STATUS.EMPLOYEE,
   postcode: '31000',
   tos1: true,
   tos2: true,
-  affiliation: Object.assign({
-    enterpriseId: 'enterpriseId',
-    enterpriseEmail: null,
-  }),
+  affiliation: {
+    enterpriseId: 'randomInputIdEntreprise',
+    enterpriseEmail: '',
+  },
 });
 
-const salarieNoProEmail = new Citizen({
-  id: 'randomInputId',
-  identity: Object.assign({
-    gender: Object.assign({
-      value: 1,
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date('2022-10-24'),
-    }),
-    firstName: Object.assign({
-      value: 'firstName',
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date('2022-10-24'),
-    }),
-    lastName: Object.assign({
-      value: 'lastName',
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date('2022-10-24'),
-    }),
-    birthDate: Object.assign({
-      value: '1991-11-17',
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date('2022-10-24'),
-    }),
-  }),
-  personalInformation: Object.assign({
-    email: Object.assign({
-      value: 'email@gmail.com',
-      certificationDate: new Date('2022-11-03'),
-      source: 'moncomptemobilite.fr',
-    }),
-  }),
-  password: 'password123123!',
-  city: 'test',
-  status: CITIZEN_STATUS.EMPLOYEE,
-  postcode: '31000',
-  tos1: true,
-  tos2: true,
-  affiliation: Object.assign({
-    enterpriseId: 'enterpriseId',
-    enterpriseEmail: null,
-    affiliationStatus: AFFILIATION_STATUS.UNKNOWN,
-  }),
-});
+const expectedSalarieNoProEmailToBeCalledWith = cloneDeep(salarieNoProEmail);

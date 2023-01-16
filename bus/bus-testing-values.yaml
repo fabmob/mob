@@ -158,6 +158,9 @@ ingressRoutes:
       routes:
         - kind: Rule
           match: Host(`${ADMIN_BUS_FQDN}`)
+          middlewares:
+            - name: custom-error-middleware
+              namespace: traefik-int
           services:
             - kind: Service
               name: bus

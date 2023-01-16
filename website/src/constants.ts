@@ -5,7 +5,6 @@ export enum Roles {
   FUNDERS = 'financeurs',
   SUPER_MANAGERS = 'superviseurs-gestionnaires',
   CONTENT_EDITOR = 'content_editor',
-  CITIZENS_FC = 'citoyens_fc',
 }
 
 export enum FunderType {

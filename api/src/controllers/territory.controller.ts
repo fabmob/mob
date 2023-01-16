@@ -99,12 +99,7 @@ export class TerritoryController {
 
   @authenticate(AUTH_STRATEGY.KEYCLOAK, AUTH_STRATEGY.API_KEY)
   @authorize({
-    allowedRoles: [
-      Roles.CONTENT_EDITOR,
-      Roles.API_KEY,
-      Roles.CITIZENS,
-      Roles.CITIZENS_FC,
-    ],
+    allowedRoles: [Roles.CONTENT_EDITOR, Roles.API_KEY, Roles.CITIZENS],
   })
   @get('/v1/territories', {
     'x-controller-name': 'Territories',
@@ -149,19 +144,19 @@ export class TerritoryController {
     security: SECURITY_SPEC_KC_PASSWORD,
     responses: {
       [StatusCode.NoContent]: {
-        description: 'La modification est faite',
+        description: 'Modification du territoire réussie',
       },
-      [StatusCode.NotFound]: {
-        description: "Le territoire que vous voulez modifier n'existe pas",
+      [StatusCode.Unauthorized]: {
+        description: "L'utilisateur est non connecté",
         content: {
           'application/json': {
             schema: getModelSchemaRef(Error),
             example: {
               error: {
-                statusCode: 404,
+                statusCode: StatusCode.Unauthorized,
                 name: 'Error',
-                message: 'Entity not found: Territory',
-                code: 'ENTITY_NOT_FOUND',
+                message: 'Authorization header not found',
+                path: '/authorization',
               },
             },
           },
@@ -174,9 +169,25 @@ export class TerritoryController {
             schema: getModelSchemaRef(Error),
             example: {
               error: {
-                statusCode: 403,
+                statusCode: StatusCode.Unauthorized,
                 name: 'Error',
                 message: 'Access denied',
+              },
+            },
+          },
+        },
+      },
+      [StatusCode.NotFound]: {
+        description: "Le territoire que vous voulez modifier n'existe pas",
+        content: {
+          'application/json': {
+            schema: getModelSchemaRef(Error),
+            example: {
+              error: {
+                statusCode: StatusCode.NotFound,
+                name: 'Error',
+                message: 'Entity not found: Territory',
+                code: 'ENTITY_NOT_FOUND',
               },
             },
           },
@@ -189,7 +200,7 @@ export class TerritoryController {
             schema: getModelSchemaRef(Error),
             example: {
               error: {
-                statusCode: 422,
+                statusCode: StatusCode.UnprocessableEntity,
                 name: 'Error',
                 message: 'territory.name.error.unique',
                 path: '/territoryName',

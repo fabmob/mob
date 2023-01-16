@@ -8,7 +8,9 @@ import {
 import {KeycloakService} from '../../services';
 import {ValidationError} from '../../validationError';
 import {GROUPS, StatusCode} from '../../utils';
-import {KeycloakGroupRepository} from '../../repositories';
+import {KeycloakGroupRepository, UserEntityRepository} from '../../repositories';
+import {GroupAttribute, KeycloakGroup, User} from '../../models';
+import {Count, DefaultHasManyRepository, HasManyRepository} from '@loopback/repository';
 
 describe('keycloak services', () => {
   let kc: any = null;
@@ -16,11 +18,35 @@ describe('keycloak services', () => {
 
   const errorMessageGroup = new ValidationError('cannot connect to IDP or add group', '');
 
-  let keycloakGroupRepository: StubbedInstanceWithSinonAccessor<KeycloakGroupRepository>;
+  let keycloakGroupRepository: StubbedInstanceWithSinonAccessor<KeycloakGroupRepository>,
+    userEntityRepository: StubbedInstanceWithSinonAccessor<UserEntityRepository>,
+    constrainedGroupAttributeRepo: StubbedInstanceWithSinonAccessor<
+      HasManyRepository<GroupAttribute>
+    >,
+    groupAttributes: sinon.SinonStub<GroupAttribute[], []>,
+    create: sinon.SinonStub<any[], Promise<GroupAttribute>>,
+    find: sinon.SinonStub<any[], Promise<GroupAttribute[]>>,
+    patch: sinon.SinonStub<any[], Promise<Count>>,
+    del: sinon.SinonStub<any[], Promise<Count>>;
 
   beforeEach(() => {
     keycloakGroupRepository = createStubInstance(KeycloakGroupRepository);
-    kc = new KeycloakService(keycloakGroupRepository);
+    userEntityRepository = createStubInstance(UserEntityRepository);
+
+    kc = new KeycloakService(keycloakGroupRepository, userEntityRepository);
+
+    constrainedGroupAttributeRepo = createStubInstance<HasManyRepository<GroupAttribute>>(
+      DefaultHasManyRepository,
+    );
+
+    groupAttributes = sinon
+      .stub()
+      .withArgs('randomGroupId')
+      .returns(constrainedGroupAttributeRepo);
+    (keycloakGroupRepository as any).groupAttributes = groupAttributes;
+
+    // Setup CRUD fakes
+    ({create, find, patch, delete: del} = constrainedGroupAttributeRepo.stubs as any);
   });
 
   it('deleteUserKc : successful', async () => {
@@ -281,12 +307,12 @@ describe('keycloak services', () => {
     kc.keycloakAdmin.users.executeActionsEmail.restore();
   });
 
-  it('updateUser fail : connection fails', async () => {
+  it('updateUserKC fail : connection fails', async () => {
     const errorMessage = 'connexion échoue';
     sinon.stub(kc.keycloakAdmin, 'auth').rejects(errorMessage);
 
     await kc
-      .updateUser('randomId', {
+      .updateUserKC('randomId', {
         firstName: 'firstName',
         lastName: 'lastName',
       })
@@ -297,14 +323,17 @@ describe('keycloak services', () => {
     kc.keycloakAdmin.auth.restore();
   });
 
-  it('updateUser succes', async () => {
+  it('updateUserKC succes', async () => {
     const messageSuccess = 'modification reussie';
     sinon.stub(kc.keycloakAdmin, 'auth').resolves('connexion réussie');
     sinon.stub(kc.keycloakAdmin.users, 'update').resolves(messageSuccess);
-    const result = await kc.updateUser('randomId', {
-      firstName: 'firstName',
-      lastName: 'lastName',
-    });
+    const result = await kc.updateUserKC(
+      'randomId',
+      new User({
+        firstName: 'firstName',
+        lastName: 'lastName',
+      }),
+    );
     sinon.assert.calledWithExactly(
       kc.keycloakAdmin.users.update,
       {id: 'randomId'},
@@ -365,30 +394,6 @@ describe('keycloak services', () => {
 
     await kc.updateUserGroupsKc('randomId', ['superviseurs']).catch((error: any) => {
       expect(error.message).to.equal('cannot connect to IDP or add user');
-    });
-
-    kc.keycloakAdmin.auth.restore();
-  });
-
-  it('disableUserKc : successful', async () => {
-    const message = 'compte désactivé';
-    sinon.stub(kc.keycloakAdmin, 'auth').resolves('connexion réussie');
-
-    sinon.stub(kc.keycloakAdmin.users, 'update').resolves(message);
-
-    const result = await kc.disableUserKc('randomId');
-    kc.keycloakAdmin.auth.restore();
-    kc.keycloakAdmin.users.update.restore();
-
-    expect(result).equal(message);
-  });
-
-  it('disableUserKc fail : connection fails', async () => {
-    const errorMessage = 'connexion échoue';
-    sinon.stub(kc.keycloakAdmin, 'auth').rejects(errorMessage);
-
-    await kc.disableUserKc('randomId').catch((error: any) => {
-      expect(error.message).to.equal(errorMessageUser.message);
     });
 
     kc.keycloakAdmin.auth.restore();
@@ -515,5 +520,42 @@ describe('keycloak services', () => {
     });
 
     kc.keycloakAdmin.auth.restore();
+  });
+
+  it('getAttributesFromGroup : returns objects of attributes', async () => {
+    keycloakGroupRepository.stubs.getGroupById.resolves(
+      new KeycloakGroup({
+        id: 'randomGroupId',
+        name: 'grp1',
+        parentGroup: '',
+        realmId: 'realm',
+      }),
+    );
+
+    find.resolves([
+      {name: 'attribute1', value: 'value1'},
+      {name: 'attribute2', value: 'value2'},
+    ] as GroupAttribute[]);
+
+    const result = await kc.getAttributesFromGroup(
+      ['attribute1, attribute2'],
+      'funderName',
+      'randomGroupId',
+    );
+
+    expect(result).to.eql({attribute1: 'value1', attribute2: 'value2'});
+  });
+
+  it('getAttributesFromGroup : returns empty object', async () => {
+    keycloakGroupRepository.stubs.getGroupById.resolves(null);
+
+    find.resolves([]);
+    const result = await kc.getAttributesFromGroup(
+      ['attribute1, attribute2'],
+      'funderName',
+      'randomGroupId',
+    );
+
+    expect(result).to.eql({});
   });
 });

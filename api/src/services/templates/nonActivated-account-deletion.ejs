@@ -1,33 +1,35 @@
 <%- include('css/style'); %> <%- include('commons/header'); %>
 
-<table style="margin-bottom: 40px;max-width: 640px;width: 640px;">
+<table style="max-width: 640px;width: 640px;">
   <tr>
     <td>
-    <div>
-      <p>Bonjour <%= username %>,</p>
-    </div>
-    <div>
-      <p>Votre compte moB créé il y a 6 mois n’a toujours pas été activé.</p>
-    </div>
-    <div>
-      <p>
-        Nous vous informons que votre compte est désormais considéré inactif et a été
-        supprimé.
-      </p>
-    </div>
-    <div>
-      <p>
-        A noter, dans le respect des normes RGPD en vigueur, l’ensemble de vos données
-        personnelles ont été supprimées.
-      </p>
-    </div>
+      <div style="margin-bottom: 40px">
+        <div>
+          <p>Bonjour <%= username %>,</p>
+        </div>
+        <div>
+          <p>Votre compte moB créé il y a 6 mois n’a toujours pas été activé.</p>
+        </div>
+        <div>
+          <p>
+            Nous vous informons que votre compte est désormais considéré inactif et a été
+            supprimé.
+          </p>
+        </div>
+        <div>
+          <p>
+            A noter, dans le respect des normes RGPD en vigueur, l’ensemble de vos données
+            personnelles ont été supprimées.
+          </p>
+        </div>
 
-    <div>
-      <p>Merci pour votre confiance,</p>
-      <p>L’équipe Mon Compte Mobilité</p>
-    </div>
-  </td>
-</tr>
+        <div>
+          <p>Merci pour votre confiance,</p>
+          <p>L’équipe Mon Compte Mobilité</p>
+        </div>
+      </div>
+    </td>
+  </tr>
 </table>
 
 <%- include('commons/footer'); %>

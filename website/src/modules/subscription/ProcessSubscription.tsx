@@ -118,7 +118,16 @@ const ProcessSubscription: FC<Props> = ({ query, location }) => {
             ...result,
             [element.name]: yup
               .string()
-              .required(Strings['subscription.error.required'])
+              .test(
+                'Required field',
+                Strings['subscription.error.required'],
+                (value) => {
+                  return (
+                    (element.isRequired && value !== undefined) ||
+                    !element.isRequired
+                  );
+                }
+              )
               .nullable(),
           };
         } else if (element.inputFormat === 'Numerique') {
@@ -126,8 +135,18 @@ const ProcessSubscription: FC<Props> = ({ query, location }) => {
             ...result,
             [element.name]: yup
               .string()
-              .required(Strings['subscription.error.required'])
-              .matches(/^[0-9]/, Strings['subscription.error.number']),
+              .test(
+                'Required field',
+                Strings['subscription.error.required'],
+                (value) =>
+                  (element.isRequired && value !== '') || !element.isRequired
+              )
+              .test(
+                'Number field error',
+                Strings['subscription.error.number'],
+                (value) =>
+                  value === '' || (value !== '' && /^[0-9]/.test(value))
+              ),
           };
         } else if (element.inputFormat === 'listeChoix') {
           result = {
@@ -135,9 +154,11 @@ const ProcessSubscription: FC<Props> = ({ query, location }) => {
             [element.name]: yup
               .array()
               .test(
-                'Required listeChoix',
+                'Required field',
                 Strings['subscription.error.required'],
-                (value) => value && value?.length > 0
+                (value) =>
+                  (element.isRequired && value && value?.length > 0) ||
+                  !element.isRequired
               ),
           };
         } else {
@@ -145,7 +166,12 @@ const ProcessSubscription: FC<Props> = ({ query, location }) => {
             ...result,
             [element.name]: yup
               .string()
-              .required(Strings['subscription.error.required']),
+              .test(
+                'Required field',
+                Strings['subscription.error.required'],
+                (value) =>
+                  (element.isRequired && value !== '') || !element.isRequired
+              ),
           };
         }
       });
@@ -276,25 +302,29 @@ const ProcessSubscription: FC<Props> = ({ query, location }) => {
 
       let formatData = {};
       incentiveSpecificFields.forEach((element: object) => {
-        if (element.inputFormat === 'listeChoix') {
-          const values = formData[element.name].map((el: object) => el.value);
-          formatData = { ...formatData, [element.title]: [...values] };
-        } else if (element.inputFormat === 'Date') {
-          const dateValue = formatDate(formData[element.name]);
-          formatData = {
-            ...formatData,
-            [element.title]: format(new Date(dateValue), 'yyyy-MM-dd'),
-          };
-        } else if (element.inputFormat === 'Numerique') {
-          formatData = {
-            ...formatData,
-            [element.title]: parseInt(formData[element.name]),
-          };
+        if (!formData[element.name]?.length || !formData[element.name]) {
+          formatData = { ...formatData, [element.title]: null };
         } else {
-          formatData = {
-            ...formatData,
-            [element.title]: formData[element.name],
-          };
+          if (element.inputFormat === 'listeChoix') {
+            const values = formData[element.name].map((el: object) => el.value);
+            formatData = { ...formatData, [element.title]: [...values] };
+          } else if (element.inputFormat === 'Date') {
+            const dateValue = formatDate(formData[element.name]);
+            formatData = {
+              ...formatData,
+              [element.title]: format(new Date(dateValue), 'yyyy-MM-dd'),
+            };
+          } else if (element.inputFormat === 'Numerique') {
+            formatData = {
+              ...formatData,
+              [element.title]: parseInt(formData[element.name]),
+            };
+          } else {
+            formatData = {
+              ...formatData,
+              [element.title]: formData[element.name],
+            };
+          }
         }
       });
 

@@ -26,7 +26,7 @@ spec:
   {{- toYaml . | nindent 8 }}
   {{- end }}
   {{- end }}
-  serviceName: {{ .metadata.name }}
+  serviceName: {{ .spec.serviceName }}
   template:
     metadata:
       annotations:
@@ -40,6 +40,11 @@ spec:
     spec:
       containers:
       - env:
+        - name: HOST_IP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIP
         - name: MY_POD_NAME
           valueFrom:
             fieldRef:
@@ -52,6 +57,12 @@ spec:
         - name: {{ $k }}
           value: {{ $v | quote -}}
         {{- end }}
+        {{- if (.spec.template.spec.containers.extraEnv) }}
+          extraEnv:
+          {{- with .spec.template.spec.containers.extraEnv }}
+          {{- toYaml . | nindent 12 }}
+          {{- end }}
+        {{- end }}
         {{ if (.spec.template.spec.containers.args) }}
         args:
         {{- range $k, $v := .spec.template.spec.containers.args }}
@@ -60,6 +71,27 @@ spec:
         {{- end}}
         name: {{ .spec.template.spec.containers.name }}
         image: {{ .spec.template.spec.containers.image }}
+        {{ if (.spec.template.spec.containers.pullPolicy) }}
+        imagePullPolicy: {{.spec.template.spec.pullPolicy }}
+        {{- end }}
+        {{ if (.spec.template.spec.containers.livenessProbe) }}
+        {{- with.spec.template.spec.containers.livenessProbe }}
+        livenessProbe:
+        {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- end }}
+        {{ if (.spec.template.spec.containers.readinessProbe) }}
+        {{- with.spec.template.spec.containers.readinessProbe }}
+        readinessProbe:
+        {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- end }}
+        {{ if (.spec.template.spec.containers.startupProbe) }}
+        {{- with.spec.template.spec.containers.startupProbe }}
+        startupProbe:
+        {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- end }}
         {{ if (.spec.template.spec.containers.command) }}
         command:
         {{- range $k, $v := .spec.template.spec.containers.command }}
@@ -69,6 +101,10 @@ spec:
         ports:
         {{- with .spec.template.spec.containers.ports }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{ if (.spec.template.spec.containers.resources) }}
+        resources:
+        {{- toYaml .spec.template.spec.containers.resources | nindent 10 }}
         {{- end }}
         {{ if (.spec.template.spec.containers.volumeMounts) }}
         volumeMounts:
@@ -82,10 +118,10 @@ spec:
         {{- toYaml . | nindent 10 }}
         {{- end }}
         {{- end }}
-      {{ if (.spec.template.spec.containers.terminationGracePeriodSeconds) }}
+      {{ if (.spec.template.spec.terminationGracePeriodSeconds) }}
       terminationGracePeriodSeconds: {{.spec.template.spec.terminationGracePeriodSeconds }}
       {{- end }}
-      {{ if (.spec.template.spec.containers.securityContext) }}
+      {{ if (.spec.template.spec.securityContext) }}
       securityContext:
       {{- with .spec.template.spec.securityContext }}
       {{- toYaml . | nindent 8 }}
@@ -97,14 +133,22 @@ spec:
         {{- toYaml . | nindent 6 }}
         {{- end }}
       {{- end }}
+      {{ if (.spec.template.spec.serviceAccountName) }}
+      serviceAccountName: {{.spec.template.spec.serviceAccountName }}
+      {{- end }}
+      {{ if (.spec.template.spec.enableServiceLinks) }}
+      enableServiceLinks: {{.spec.template.spec.enableServiceLinks }}
+      {{- end }}
+      {{ if (.spec.template.spec.restartPolicy) }}
+      restartPolicy: {{.spec.template.spec.restartPolicy }}
+      {{- end }}
+      {{ if (.spec.template.spec.terminationGracePeriodSeconds) }}
+      terminationGracePeriodSeconds: {{.spec.template.spec.terminationGracePeriodSeconds }}
+      {{- end }}
       {{ if (.spec.template.spec.volumes) }}
-      {{- range $k, $v := .spec.template.spec.volumes }}
       volumes:
-      - name: {{ $v.name }}
-        {{ if ($v.configMap) }}
-        configMap:
-          name: {{ $v.configMap.name }}
-        {{- end}}
+      {{- with .spec.template.spec.volumes }}
+      {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- end }}
   volumeClaimTemplates:

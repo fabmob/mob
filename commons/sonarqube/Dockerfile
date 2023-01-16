@@ -21,8 +21,9 @@ RUN yarn install
 # whereas it is provided in the docker image
 #RUN ln -s /opt/sonar-scanner/bin/sonar-scanner /usr/local/bin
 RUN cat /opt/sonar-scanner/bin/sonar-scanner
-RUN mkdir -p /tmp/.sonar/native-sonar-scanner/sonar-scanner-4.5.0.2216-linux/bin/
-RUN ln -s /opt/sonar-scanner/bin/sonar-scanner /tmp/.sonar/native-sonar-scanner/sonar-scanner-4.5.0.2216-linux/bin/sonar-scanner
+RUN mkdir -p /tmp/.sonar/native-sonar-scanner/sonar-scanner-4.7.0.2747-linux/bin/
+RUN ln -s /opt/sonar-scanner/bin/sonar-scanner /tmp/.sonar/native-sonar-scanner/sonar-scanner-4.7.0.2747-linux/bin/sonar-scanner
+
 
 # Add scripts to verify
 COPY verify.sh .

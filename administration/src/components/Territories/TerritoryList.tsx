@@ -24,6 +24,7 @@ const TerritoryFilter: FC = (props) => (
 const TerritoryList: FC<ListProps> = (props) => {
   return (
     <List
+      exporter={false}
       {...props}
       filters={<TerritoryFilter />}
       sort={{ field: 'name', order: 'ASC' }}

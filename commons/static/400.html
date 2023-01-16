@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="utf-8">
+    <title>moB | Mon Compte Mobilité</title>
+    <link rel="icon" type="image/x-icon" href="https://static.moncomptemobilite.fr/assets/mob-favicon.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            --color-white-cloud: #F7F7F9;
+            --color-blue-petrol: #464CD0;
+            --font-family: 'sofia-pro', sans-serif;
+        }
+
+        body {
+            margin: 0;
+            height: 100vh;
+            font-family: var(--font-family);
+            font-weight: 400;
+            overflow: hidden;
+            background-color: var(--color-white-cloud);
+        }
+
+
+        .mcm-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .mcm-top {
+            height: 70%;
+            display: flex;
+            align-items: center;
+            flex-direction: column;
+            justify-content: space-around;
+        }
+
+        .mcm-top>h1 {
+            color: var(--color-blue-petrol);
+            font-size: 10em;
+            margin: 0;
+        }
+
+        .mcm-top>img {
+            width: 250px;
+        }
+
+        .mcm-bottom {
+            text-align: center;
+            background-color: var(--color-blue-petrol);
+            padding: 5%;
+            width: 100%;
+            height: 30%;
+        }
+
+        .mcm-bottom::before {
+            content: "";
+            background: url("https://static.moncomptemobilite.fr/assets/mob-pattern.svg") repeat-x;
+            background-size: 20%;
+            background-position: bottom;
+            position: absolute;
+            top: 0px;
+            right: 0px;
+            bottom: 0px;
+            left: 0px;
+            margin-bottom: -3%;
+        }
+
+        .mcm-bottom>h2 {
+            color: var(--color-white-cloud);
+            font-size: 2.5em;
+        }
+
+        @media screen and (max-width: 1024px) {
+            .mcm-top>h1 {
+                font-size: 5em;
+            }
+
+            .mcm-top>img {
+                width: 200px;
+            }
+
+            .mcm-bottom>h2 {
+                font-size: 1.5em;
+            }
+
+            .mcm-header {
+                height: 15%;
+                margin-top: 0%;
+            }
+
+            .mcm-container-text {
+                width: 100%;
+            }
+
+
+            .mcm-bottom::before {
+                background-size: 40%;
+                margin-bottom: -5%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="mcm-container">
+        <div class="mcm-top">
+            <img src="https://static.moncomptemobilite.fr/assets/logo-with-baseline.svg" alt="mob-logo" />
+            <h1>404</h1>
+        </div>
+        <div class="mcm-bottom">
+            <h2>Désolé,</h2>
+            <h2>Ce service Mon Compte Mobilité n'existe pas.</h2>
+        </div>
+    </div>
+</body>
+
+</html>

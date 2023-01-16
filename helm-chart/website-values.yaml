@@ -40,6 +40,43 @@ services:
     status:
       loadBalancer: {}
 
+autoscaling:
+  metadata:
+    annotations:
+      app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+      app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+      kompose.service.type: clusterip
+      kubernetes.io/ingress.class: traefik
+    enabled: true
+    name: website
+  spec:
+    scaleTargetRef:
+      kind: Deployment
+      name: website
+      apiVersion: apps/v1
+    minReplicas: 2
+    maxReplicas: 8
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 80
+      - type: Resource
+        resource:
+          name: memory
+          target:
+            type: Utilization
+            averageUtilization: 80
+    behavior:
+      scaleDown:
+        stabilizationWindowSeconds: 300
+        policies:
+          - type: Pods
+            value: 1
+            periodSeconds: 300
+
 deployments:
   - metadata:
       annotations:
@@ -81,7 +118,19 @@ deployments:
             name: website
             ports:
               - containerPort: 80
-            resources: {}
+            readinessProbe:
+              httpGet:
+                path: /
+                port: 80
+              initialDelaySeconds: 15
+              timeoutSeconds: 1
+            resources:
+              requests:
+                cpu: "500m"
+                memory: "1Gi"
+              limits:
+                cpu: "500m"
+                memory: "16Gi"
             volumeMounts:
               - mountPath: /usr/share/nginx/html/keycloak.json
                 name: keycloak-config
@@ -150,6 +199,9 @@ ingressRoutes:
       routes:
         - kind: Rule
           match: Host(`${WEBSITE_FQDN}`)
+          middlewares:
+            - name: custom-error-middleware
+              namespace: traefik-int
           services:
             - name: website
               port: 80

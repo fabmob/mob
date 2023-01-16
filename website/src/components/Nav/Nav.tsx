@@ -20,24 +20,11 @@ const CommonNav: FC<{ keycloak: Keycloak.KeycloakInstance }> = ({
   const isConnected = keycloak?.authenticated;
   const isSupervisor = useRoleAccepted(Roles.SUPERVISORS);
   const isManager = useRoleAccepted(Roles.MANAGERS);
-  const isFcCitizen = useRoleAccepted(Roles.CITIZENS_FC);
   const isCitizen = useRoleAccepted(Roles.CITIZENS);
   const isFunder = isSupervisor || isManager;
-  const isFcCitizenOnly = isFcCitizen && !isCitizen;
-  const completionMode = window.location.pathname.includes(
-    'completer-formulaire'
-  );
-  const completionModeSuccess = window.location.search.includes(
-    'inscription=success'
-  );
+  let showSearchValue = !isConnected;
 
-  let showSearchValue = !isConnected ||
-    (isConnected && !completionModeSuccess && completionMode) ||
-    (isConnected && !completionMode && !isFcCitizen) ||
-    (isConnected && !completionMode && !isCitizen);
-
-  let showSearchValueAuth = (!isFcCitizenOnly && isConnected && !isFunder && completionModeSuccess) ||
-    (isConnected && isCitizen);
+  let showSearchValueAuth = (isConnected && isCitizen);
 
   return (
     <>
@@ -49,21 +36,13 @@ const CommonNav: FC<{ keycloak: Keycloak.KeycloakInstance }> = ({
         </li>
       )}
 
-      {isConnected &&
-        !completionMode &&
-        !isFcCitizenOnly && (
-          <li className="mcm-nav__item">
-            {completionModeSuccess ? (
-              <a id="nav-dashbord" href="/mon-dashboard">
-                {Strings['nav.dashboard.value']}
-              </a>
-            ) : (
-              <Link id="nav-dashbord" to="/mon-dashboard">
-                {Strings['nav.dashboard.value']}
-              </Link>
-            )}
-          </li>
-        )}
+      {isConnected && (
+        <li className="mcm-nav__item">
+          <Link id="nav-dashbord" to="/mon-dashboard">
+            {Strings['nav.dashboard.value']}
+          </Link>
+        </li>
+      )}
 
       {isFunder && (
         <>
@@ -104,7 +83,7 @@ const CommonNav: FC<{ keycloak: Keycloak.KeycloakInstance }> = ({
       )}
 
       {/* Displays a specific message if the user is connected */}
-      {showSearchValue && !showSearchValueAuth && (
+      {showSearchValue && !showSearchValueAuth && !isFunder && (
         <li className="mcm-nav__item">
           <Link id="nav-recherche" to="/recherche">
             {Strings['nav.search.value']}
@@ -112,20 +91,15 @@ const CommonNav: FC<{ keycloak: Keycloak.KeycloakInstance }> = ({
         </li>
       )}
 
-      <li className="mcm-nav__item">
-        {showSearchValueAuth ? (
+
+      {showSearchValueAuth && (
+        <li className="mcm-nav__item">
           <Link id="nav-recherche" to="/recherche">
             {Strings['nav.search.value.authenticated']}
           </Link>
-        ) : (
-          isConnected &&
-          completionModeSuccess && (
-            <a id="nav-recherche" href="/recherche">
-              {Strings['nav.search.value.authenticated']}
-            </a>
-          )
-        )}
-      </li>
+        </li>
+      )}
+
     </>
   );
 };
@@ -142,16 +116,12 @@ const MobileNav: FC<{
   const isManager = useRoleAccepted(Roles.MANAGERS);
   const isFunder = isSupervisor || isManager;
   const isCitizen = useRoleAccepted(Roles.CITIZENS);
-  const completionModeSuccess = window.location.search.includes(
-    'inscription=success'
-  );
 
   return (
     <ul className="mcm-nav__list mcm-nav__mobile">
       <li
-        className={`${
-          keycloak?.authenticated ? 'mcm-nav__straighten' : ''
-        } mcm-nav__item mcm-nav__item--accent`}
+        className={`${keycloak?.authenticated ? 'mcm-nav__straighten' : ''
+          } mcm-nav__item mcm-nav__item--accent`}
       >
         {keycloak?.authenticated && (
           <>
@@ -174,20 +144,13 @@ const MobileNav: FC<{
       {keycloak?.authenticated ? (
         <>
           {(isCitizen ||
-            isFunder ||
-            completionModeSuccess) && (
-            <li className="mcm-mobile--profile mcm-nav__item">
-              {completionModeSuccess ? (
-                <a id="nav-mon-profile2" href="/mon-profil/">
-                  {Strings['nav.profile.value']}
-                </a>
-              ) : (
-                <Link id="nav-mon-profile2" to="/mon-profil/">
-                  {Strings['nav.profile.value']}
-                </Link>
-              )}
-            </li>
-          )}
+            isFunder) && (
+              <li className="mcm-mobile--profile mcm-nav__item">
+                  <Link id="nav-mon-profile2" to="/mon-profil/">
+                    {Strings['nav.profile.value']}
+                  </Link>
+              </li>
+            )}
           <li className="mcm-mobile--profile mcm-nav__item">
             <Link id="nav-logout" to="#" onClick={() => logout()}>
               {Strings['nav.sign.out.value']}
@@ -244,18 +207,15 @@ const DesktopNav: FC<{
   const isManager = useRoleAccepted(Roles.MANAGERS);
   const isFunder = isSupervisor || isManager;
   const isCitizen = useRoleAccepted(Roles.CITIZENS);
-  const completionModeSuccess = window.location.search.includes(
-    'inscription=success'
-  );
+
 
   return (
     <ul className="mcm-nav__list mcm-nav__desktop">
       <CommonNav keycloak={keycloak} />
 
       <li
-        className={`${
-          keycloak?.authenticated ? 'mcm-nav__straighten' : ''
-        } mcm-nav__item mcm-nav__item--accent`}
+        className={`${keycloak?.authenticated ? 'mcm-nav__straighten' : ''
+          } mcm-nav__item mcm-nav__item--accent`}
       >
         {keycloak?.authenticated ? (
           <>
@@ -270,17 +230,11 @@ const DesktopNav: FC<{
               </div>
             )}
             <ul className="mcm-nav__drop-down">
-              {(isFunder || isCitizen || completionModeSuccess) && (
+              {(isFunder || isCitizen) && (
                 <li>
-                  {completionModeSuccess ? (
-                    <a id="nav-mon-profile2" href="/mon-profil/">
-                      {Strings['nav.profile.value']}
-                    </a>
-                  ) : (
                     <Link id="nav-mon-profile2" to="/mon-profil/">
                       {Strings['nav.profile.value']}
                     </Link>
-                  )}
                 </li>
               )}
               <li>

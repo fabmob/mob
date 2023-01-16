@@ -228,20 +228,17 @@ validate_env:
   touch ${SAST_RESULT_FILE}
 
   ls -altr .
-
-  createCommandExit=""
   runCommandExit=""
+  echo "COPY_FROM_RELEASE" ${COPY_FROM_RELEASE}
 
-  if [ "$COPY_FROM_RELEASE" = "" ]
-  then
-      createCommandExit=`java -jar /usr/lib/FodAPIClient.jar ${FOD_AUTHENTICATION_ARGS} create-release -an ${FORTIFY_APPLICATION_NAME} -rn ${RELEASE_NAME} -sdlc ${SDLC_STATUS} -rd '${RELEASE_DESCRIPTION}' | awk -F ',' '{print($2)}'`
-  else
-      createCommandExit=`java -jar /usr/lib/FodAPIClient.jar ${FOD_AUTHENTICATION_ARGS} create-release -an ${FORTIFY_APPLICATION_NAME} -rn ${RELEASE_NAME} -sdlc ${SDLC_STATUS} -rd '${RELEASE_DESCRIPTION}' -copy -copyRelease ${COPY_FROM_RELEASE} | awk -F ',' '{print($2)}'`
+  releaseId=""
+  if [ $RELEASE_NAME = "website" ]; then releaseId=115062
+   elif [ $RELEASE_NAME = "api" ]; then releaseId=115060
+   elif [ $RELEASE_NAME = "admin" ]; then releaseId=115061
+   else releaseId=""
   fi
 
-  echo $createCommandExit >> ${SAST_LOG_FILE}
-  releaseId=`echo $createCommandExit | awk -F '=' '{print($2)}'`
-
+  echo "releaseId" ${releaseId}
   optionArgs=""
 
   [ ${ALLOW_POLICY_FAIL} = 'true' ] && optionArgs="${optionArgs} -policy"
@@ -250,6 +247,7 @@ validate_env:
 
   # Run the scan
   runCommandExit=`java -jar /usr/lib/FodAPIClient.jar ${FOD_AUTHENTICATION_ARGS} static-scan -z ${RELEASE_NAME}.zip -tid ${FORTIFY_TENANT_ID} -rid $releaseId -I ${POLLING_INTERVAL}${optionArgs} -pp ${IN_PROGRESS_SCAN_ACTION_TYPE} -rp ${REMEDIATION_SCAN_PREFERENCE_TYPE} -tech ${TECHNOLOGY_TYPE} -o ${SAST_RESULT_FILE}`
+  echo "runCommandExit" ${runCommandExit}
 
   echo "Processing output..."
   scanId=`echo $runCommandExit | grep -o -P "Scan.?[0-9]*" | awk -F 'Scan ' '{print($2)}'`
@@ -288,11 +286,11 @@ validate_env:
   variables:
     FOD_AUTHENTICATION_ARGS: -ac ${FORTIFY_API_KEY} ${FORTIFY_API_ACCESS_KEY} -tc ${FORTIFY_TENANT_CODE} -aurl ${FORTIFY_API_URL} -purl ${FORTIFY_PORTAL_URL}
     # Should be the name of an existing release. Keep empty to create a proper new version
-    COPY_FROM_RELEASE: ""
-    RELEASE_DESCRIPTION: "Scan for ${MODULE_NAME} from ${CI_COMMIT_REF_SLUG}"
-    RELEASE_NAME: ${MODULE_NAME}-${CI_COMMIT_REF_SLUG}
+    COPY_FROM_RELEASE: ${MODULE_NAME}
+    RELEASE_DESCRIPTION: "Scan for ${MODULE_NAME}"
+    RELEASE_NAME: ${MODULE_NAME}
     # [1:Production, 2:QA, 3:Development, 4:Retired]
-    SDLC_STATUS: 3
+    SDLC_STATUS: 1
     SAST_RESULT_FILE: result_summary.json
     SAST_LOG_FILE: sast_data_${RELEASE_NAME}.log
     # Polling interval for retrieving results. If 0, the scan will be performed asynchronously. Value in minutes

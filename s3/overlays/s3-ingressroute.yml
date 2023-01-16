@@ -11,6 +11,9 @@ spec:
   routes:
     - match: Host(`${S3_FQDN}`)
       kind: Rule
+      middlewares:
+        - name: custom-error-middleware
+          namespace: traefik-int
       services:
         - name: s3
           port: 9001

@@ -9,6 +9,9 @@ spec:
   routes:
     - match: Host(`${SIMULATION_MAAS_FQDN}`)
       kind: Rule
+      middlewares:
+        - name: custom-error-middleware
+          namespace: traefik-int
       services:
         - name: simulation-maas
           port: 8888

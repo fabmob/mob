@@ -54,6 +54,24 @@ spec:
         {{ end }}
         {{- end }}
         name: {{ .spec.template.spec.containers.name }}
+        {{ if (.spec.template.spec.containers.livenessProbe) }}
+        {{- with.spec.template.spec.containers.livenessProbe }}
+        livenessProbe:
+        {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- end }}
+        {{ if (.spec.template.spec.containers.readinessProbe) }}
+        {{- with.spec.template.spec.containers.readinessProbe }}
+        readinessProbe:
+        {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- end }}
+        {{ if (.spec.template.spec.containers.startupProbe) }}
+        {{- with.spec.template.spec.containers.startupProbe }}
+        startupProbe:
+        {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- end }}
         ports:
         {{- with .spec.template.spec.containers.ports }}
         {{- toYaml . | nindent 8 }}

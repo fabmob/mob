@@ -5,9 +5,25 @@ import {
   StubbedInstanceWithSinonAccessor,
 } from '@loopback/testlab';
 import {IncentiveInterceptor} from '../../interceptors';
-import {Incentive, Territory} from '../../models';
-import {IncentiveRepository} from '../../repositories';
-import {ResourceName, StatusCode} from '../../utils';
+import {
+  Collectivity,
+  EligibilityCheck,
+  Incentive,
+  IncentiveEligibilityChecks,
+  Territory,
+} from '../../models';
+import {
+  IncentiveRepository,
+  IncentiveEligibilityChecksRepository,
+  CollectivityRepository,
+  EnterpriseRepository,
+} from '../../repositories';
+import {
+  ELIGIBILITY_CHECKS_LABEL,
+  ResourceName,
+  StatusCode,
+  SUBSCRIPTION_CHECK_MODE,
+} from '../../utils';
 import {ValidationError} from '../../validationError';
 
 describe('IncentiveInterceptor', () => {
@@ -16,11 +32,6 @@ describe('IncentiveInterceptor', () => {
   const errorMinDate: any = new ValidationError(
     `incentives.error.validityDate.minDate`,
     '/validityDate',
-  );
-
-  const errorIsMCMStaffSubscription: any = new ValidationError(
-    `incentives.error.isMCMStaff.subscriptionLink`,
-    '/isMCMStaff',
   );
 
   const errorIsMCMStaffSpecificFields: any = new ValidationError(
@@ -40,6 +51,61 @@ describe('IncentiveInterceptor', () => {
     ResourceName.Incentive,
   );
 
+  const errorFunderIdMissing = new ValidationError(
+    `incentives.error.isMCMStaff.funderIdMissing`,
+    '/isMCMStaff',
+    StatusCode.NotFound,
+    ResourceName.Funder,
+  );
+
+  const errorControlNotFound = new ValidationError(
+    `EligibilityCheck wrong-id not found`,
+    '/eligibilityChecks',
+    StatusCode.NotFound,
+    ResourceName.Incentive,
+  );
+
+  const errorExclusionListEmpty = new ValidationError(
+    `incentives.error.eligibilityChecks.array.empty`,
+    '/eligibilityChecks',
+    StatusCode.PreconditionFailed,
+    ResourceName.Incentive,
+  );
+
+  const mockIncentiveEligibilityCheck = [
+    new IncentiveEligibilityChecks({
+      id: 'uuid-fc',
+      label: ELIGIBILITY_CHECKS_LABEL.FRANCE_CONNECT,
+      name: 'Identité FranceConnect',
+      description:
+        "Les données d'identité doivent être fournies/certifiées par FranceConnect",
+      type: 'boolean',
+      motifRejet: 'CompteNonFranceConnect',
+    }),
+    new IncentiveEligibilityChecks({
+      id: 'uuid-exclusion',
+      label: ELIGIBILITY_CHECKS_LABEL.EXCLUSION,
+      name: 'Offre à caractère exclusive, non cumulable',
+      description:
+        "1 souscription valide pour un ensemble d'aides mutuellement exclusives",
+      type: 'array',
+      motifRejet: 'SouscriptionValideeExistante',
+    }),
+  ];
+
+  const mockEligibilityCheck = [
+    new EligibilityCheck({
+      id: 'uuid-fc',
+      value: [],
+      active: true,
+    }),
+    new EligibilityCheck({
+      id: 'uuid-exclusion',
+      value: ['test'],
+      active: true,
+    }),
+  ];
+
   const invocationContextCreates = {
     target: {},
     methodName: 'create',
@@ -49,7 +115,8 @@ describe('IncentiveInterceptor', () => {
         description: 'incentive to test in unit test',
         territory: {name: 'IDF', id: 'randomTerritoryId'} as Territory,
         funderName: 'idf',
-        incentiveType: 'AideNationale',
+        funderId: 'funderId',
+        incentiveType: 'AideTerritoire',
         conditions: '',
         paymentMethod: 'cb',
         allocatedAmount: '1231',
@@ -83,7 +150,37 @@ describe('IncentiveInterceptor', () => {
         description: 'incentive to test in unit test',
         territory: {name: 'IDF', id: 'randomTerritoryId'} as Territory,
         funderName: 'idf',
-        incentiveType: 'AideNationale',
+        funderId: 'funderId',
+        incentiveType: 'AideTerritoire',
+        conditions: '',
+        paymentMethod: 'cb',
+        allocatedAmount: '1231',
+        minAmount: '15',
+        transportList: ['velo'],
+        additionalInfos: '',
+        contact: '',
+        validityDate: '3000-06-08',
+        isMCMStaff: true,
+        subscriptionLink: 'https://subscriptionLink.com',
+        getId: () => {},
+        getIdObject: () => ({id: 'random'}),
+        toJSON: () => ({id: 'random'}),
+        toObject: () => ({id: 'random'}),
+      },
+    ],
+  };
+
+  const invocationCtxCreateMCMStaffSubLink = {
+    target: {},
+    methodName: 'create',
+    args: [
+      {
+        title: 'incentives to test',
+        description: 'incentive to test in unit test',
+        territory: {name: 'IDF', id: 'randomTerritoryId'} as Territory,
+        funderName: 'idf',
+        funderId: 'funderId',
+        incentiveType: 'AideTerritoire',
         conditions: '',
         paymentMethod: 'cb',
         allocatedAmount: '1231',
@@ -111,6 +208,94 @@ describe('IncentiveInterceptor', () => {
         description: 'incentive to test in unit test',
         territory: {name: 'IDF', id: 'randomTerritoryId'} as Territory,
         funderName: 'idf',
+        funderId: 'funderId',
+        incentiveType: 'AideTerritoire',
+        conditions: '',
+        paymentMethod: 'cb',
+        allocatedAmount: '1231',
+        minAmount: '15',
+        transportList: ['velo'],
+        additionalInfos: '',
+        contact: '',
+        validityDate: '3000-06-08',
+        isMCMStaff: true,
+        getId: () => {},
+        getIdObject: () => ({id: 'random'}),
+        toJSON: () => ({id: 'random'}),
+        toObject: () => ({id: 'random'}),
+      },
+    ],
+  };
+
+  const invocationCtxCreateCheckModeAutoNoControl = {
+    target: {},
+    methodName: 'create',
+    args: [
+      {
+        title: 'incentives to test',
+        description: 'incentive to test in unit test',
+        territory: {name: 'IDF', id: 'randomTerritoryId'} as Territory,
+        funderName: 'idf',
+        funderId: 'funderId',
+        incentiveType: 'AideTerritoire',
+        conditions: '',
+        paymentMethod: 'cb',
+        allocatedAmount: '1231',
+        minAmount: '15',
+        transportList: ['velo'],
+        additionalInfos: '',
+        contact: '',
+        validityDate: '3000-06-08',
+        isMCMStaff: true,
+        subscriptionCheckMode: SUBSCRIPTION_CHECK_MODE.AUTOMATIC,
+        eligibilityChecks: [],
+        getId: () => {},
+        getIdObject: () => ({id: 'random'}),
+        toJSON: () => ({id: 'random'}),
+        toObject: () => ({id: 'random'}),
+      },
+    ],
+  };
+
+  const invocationCtxCreateEligibilityCheck = {
+    target: {},
+    methodName: 'create',
+    args: [
+      {
+        title: 'incentives to test',
+        description: 'incentive to test in unit test',
+        territory: {name: 'IDF', id: 'randomTerritoryId'} as Territory,
+        funderName: 'idf',
+        funderId: 'funderId',
+        incentiveType: 'AideTerritoire',
+        conditions: '',
+        paymentMethod: 'cb',
+        allocatedAmount: '1231',
+        minAmount: '15',
+        transportList: ['velo'],
+        additionalInfos: '',
+        contact: '',
+        validityDate: '3000-06-08',
+        isMCMStaff: true,
+        subscriptionCheckMode: SUBSCRIPTION_CHECK_MODE.AUTOMATIC,
+        eligibilityChecks: mockEligibilityCheck,
+        getId: () => {},
+        getIdObject: () => ({id: 'random'}),
+        toJSON: () => ({id: 'random'}),
+        toObject: () => ({id: 'random'}),
+      },
+    ],
+  };
+
+  const invocationCtxCreateFunderIDMissing = {
+    target: {},
+    methodName: 'create',
+    args: [
+      {
+        title: 'incentives to test',
+        description: 'incentive to test in unit test',
+        territory: {name: 'IDF', id: 'randomTerritoryId'} as Territory,
+        funderName: 'idf',
         incentiveType: 'AideNationale',
         conditions: '',
         paymentMethod: 'cb',
@@ -121,6 +306,8 @@ describe('IncentiveInterceptor', () => {
         contact: '',
         validityDate: '3000-06-08',
         isMCMStaff: true,
+        subscriptionCheckMode: SUBSCRIPTION_CHECK_MODE.AUTOMATIC,
+        eligibilityChecks: [],
         getId: () => {},
         getIdObject: () => ({id: 'random'}),
         toJSON: () => ({id: 'random'}),
@@ -139,7 +326,8 @@ describe('IncentiveInterceptor', () => {
         description: 'incentive to test in unit test',
         territory: {name: 'IDF', id: 'randomTerritoryId'} as Territory,
         funderName: 'idf',
-        incentiveType: 'AideNationale',
+        funderId: 'funderId',
+        incentiveType: 'AideTerritoire',
         conditions: '',
         paymentMethod: 'cb',
         allocatedAmount: '1231',
@@ -167,6 +355,7 @@ describe('IncentiveInterceptor', () => {
         description: 'incentive to test in unit test',
         territory: {name: 'IDF', id: 'randomTerritoryId'} as Territory,
         funderName: 'Mulhouse',
+        funderId: 'funderId',
         incentiveType: 'AideTerritoire',
         conditions: '',
         paymentMethod: 'cb',
@@ -184,6 +373,13 @@ describe('IncentiveInterceptor', () => {
       },
     ],
   };
+
+  const mockCollectivity = new Collectivity({
+    id: 'randomInputIdCollectivity',
+    name: 'nameCollectivity',
+    citizensCount: 10,
+    mobilityBudget: 12,
+  });
 
   const mockTerritoryIncentive = new Incentive({
     id: '61d372bcf3a8e84cc09ace7f',
@@ -210,15 +406,28 @@ describe('IncentiveInterceptor', () => {
     funderId: '0d606650-4689-4438-9911-72bbd069cd2b',
   });
 
-  let incentiveRepository: StubbedInstanceWithSinonAccessor<IncentiveRepository>;
+  let incentiveRepository: StubbedInstanceWithSinonAccessor<IncentiveRepository>,
+    eligibilityChecksRepository: StubbedInstanceWithSinonAccessor<IncentiveEligibilityChecksRepository>,
+    collectivityRepository: StubbedInstanceWithSinonAccessor<CollectivityRepository>,
+    enterpriseRepository: StubbedInstanceWithSinonAccessor<EnterpriseRepository>;
 
   function givenStubbedRepository() {
     incentiveRepository = createStubInstance(IncentiveRepository);
+    eligibilityChecksRepository = createStubInstance(
+      IncentiveEligibilityChecksRepository,
+    );
+    collectivityRepository = createStubInstance(CollectivityRepository);
+    enterpriseRepository = createStubInstance(EnterpriseRepository);
   }
 
   beforeEach(() => {
     givenStubbedRepository();
-    interceptor = new IncentiveInterceptor(incentiveRepository);
+    interceptor = new IncentiveInterceptor(
+      incentiveRepository,
+      eligibilityChecksRepository,
+      collectivityRepository,
+      enterpriseRepository,
+    );
   });
 
   it('IncentiveInterceptor creates: error date', async () => {
@@ -233,10 +442,10 @@ describe('IncentiveInterceptor', () => {
   it('IncentiveInterceptor creates: error MCM false no subscription', async () => {
     try {
       incentiveRepository.stubs.findOne.resolves(null);
-      invocationContextCreatesMCMStaffCases.args[0].isMCMStaff = false;
-      delete (invocationContextCreatesMCMStaffCases?.args[0] as Partial<Incentive>)
-        .subscriptionLink;
-      await interceptor.intercept(invocationContextCreatesMCMStaffCases);
+      const invocationCtxMCMStaffFalse = invocationContextCreatesMCMStaffCases;
+      invocationCtxMCMStaffFalse.args[0].isMCMStaff = false;
+      delete (invocationCtxMCMStaffFalse?.args[0] as Partial<Incentive>).subscriptionLink;
+      await interceptor.intercept(invocationCtxMCMStaffFalse);
     } catch (err) {
       expect(err.message).to.equal(errorIsMCMStaffSpecificFields.message);
     }
@@ -245,10 +454,12 @@ describe('IncentiveInterceptor', () => {
   it('IncentiveInterceptor creates: error MCM false specific Fields', async () => {
     try {
       incentiveRepository.stubs.findOne.resolves(null);
-      (
-        invocationContextCreatesMCMStaffCases.args[0] as Partial<Incentive>
-      ).specificFields = [{} as any];
-      await interceptor.intercept(invocationContextCreatesMCMStaffCases);
+      const invocationCtxMCMStaffFalse = invocationContextCreatesMCMStaffCases;
+      invocationCtxMCMStaffFalse.args[0].isMCMStaff = false;
+      (invocationCtxMCMStaffFalse.args[0] as Partial<Incentive>).specificFields = [
+        {} as any,
+      ];
+      await interceptor.intercept(invocationCtxMCMStaffFalse);
     } catch (err) {
       expect(err.message).to.equal(errorIsMCMStaffSpecificFields.message);
     }
@@ -263,8 +474,67 @@ describe('IncentiveInterceptor', () => {
     }
   });
 
+  it('IncentiveInterceptor creates: error when isMCMStaff true and no funderId', async () => {
+    try {
+      incentiveRepository.stubs.findOne.resolves(null);
+      collectivityRepository.stubs.findOne.resolves(null);
+      enterpriseRepository.stubs.findOne.resolves(null);
+      await interceptor.intercept(invocationCtxCreateFunderIDMissing);
+    } catch (err) {
+      expect(err.message).to.equal(errorFunderIdMissing.message);
+    }
+  });
+
+  it('IncentiveInterceptor creates: error control not found', async () => {
+    try {
+      incentiveRepository.stubs.findOne.resolves(null);
+      collectivityRepository.stubs.findOne.resolves(mockCollectivity);
+      enterpriseRepository.stubs.findOne.resolves(null);
+      eligibilityChecksRepository.stubs.find.resolves(mockIncentiveEligibilityCheck);
+      const invocationCtxCreateEligibilityCheckControlNotFound =
+        invocationCtxCreateEligibilityCheck;
+      invocationCtxCreateEligibilityCheckControlNotFound.args[0].eligibilityChecks[0].id =
+        'wrong-id';
+      await interceptor.intercept(invocationCtxCreateEligibilityCheckControlNotFound);
+    } catch (err) {
+      expect(err.message).to.equal(errorControlNotFound.message);
+    }
+  });
+
+  it('IncentiveInterceptor creates: error exclusion list empty', async () => {
+    try {
+      incentiveRepository.stubs.findOne.resolves(null);
+      collectivityRepository.stubs.findOne.resolves(mockCollectivity);
+      enterpriseRepository.stubs.findOne.resolves(null);
+      eligibilityChecksRepository.stubs.find.resolves(mockIncentiveEligibilityCheck);
+      const invocationCtxCreateEligibilityCheckExclusionEmpty =
+        invocationCtxCreateEligibilityCheck;
+      invocationCtxCreateEligibilityCheckExclusionEmpty.args[0].eligibilityChecks[0].id =
+        'uuid-fc';
+      invocationCtxCreateEligibilityCheckExclusionEmpty.args[0].eligibilityChecks[1].value =
+        [];
+      await interceptor.intercept(invocationCtxCreateEligibilityCheckExclusionEmpty);
+    } catch (err) {
+      expect(err.message).to.equal(errorExclusionListEmpty.message);
+    }
+  });
+
+  it('IncentiveInterceptor creates: successful with isMCMStaff true and subscriptionLink', async () => {
+    incentiveRepository.stubs.findOne.resolves(null);
+    collectivityRepository.stubs.findOne.resolves(mockCollectivity);
+    enterpriseRepository.stubs.findOne.resolves(null);
+    const result = await interceptor.intercept(
+      invocationCtxCreateMCMStaffSubLink,
+      () => {},
+    );
+
+    expect(result).to.Null;
+  });
+
   it('IncentiveInterceptor creates: successful', async () => {
     incentiveRepository.stubs.findOne.resolves(null);
+    collectivityRepository.stubs.findOne.resolves(mockCollectivity);
+    enterpriseRepository.stubs.findOne.resolves(null);
     const result = await interceptor.intercept(invocationContextCreate, () => {});
 
     expect(result).to.Null;
@@ -308,6 +578,8 @@ describe('IncentiveInterceptor', () => {
   it('IncentiveInterceptor updateById: successful', async () => {
     incentiveRepository.stubs.findOne.onCall(0).resolves(mockTerritoryIncentive);
     incentiveRepository.stubs.findOne.onCall(1).resolves(null);
+    collectivityRepository.stubs.findOne.resolves(mockCollectivity);
+    enterpriseRepository.stubs.findOne.resolves(null);
     expect(
       await interceptor.intercept(invocationContextUpdateById, () => {}),
     ).not.to.throwError();

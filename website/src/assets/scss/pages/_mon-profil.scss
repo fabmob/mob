@@ -13,6 +13,7 @@ $laptop-breakpoint: 1024px;
 }
 .profile-width {
   width: 80% !important;
+  margin-top: 7em;
 }
 .horizontal {
   margin-top: 40px;
@@ -38,5 +39,6 @@ $laptop-breakpoint: 1024px;
 @media screen and (max-width: 900px) {
   .profile-width {
     width: 90% !important;
+    margin-top: 7em;
   }
 }

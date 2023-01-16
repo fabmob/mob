@@ -9,12 +9,15 @@
         </head>
     <body>
         <#include "../commons/header.ftl">
-        <table style="width: 100%; max-width: 640px">
-            <tr>
+        <table style=" margin-bottom: 40px; width: 100%; max-width: 640px">
+        <div style="margin-bottom: 40px">
+         <tr>
                 <td>
                 <#nested>
                 </td>
             </tr>
+        </div>
+           
         </table>
         <#include "../commons/footer.ftl">
     </body>

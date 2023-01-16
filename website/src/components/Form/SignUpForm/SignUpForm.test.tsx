@@ -28,7 +28,7 @@ jest.mock('@utils/matomo', () => {
     matomoTrackEvent: () => jest.fn(),
   };
 });
-const setInscription  = () => jest.fn()
+const setInscription = () => jest.fn();
 
 jest.mock('use-query-params', () => {
   return {
@@ -141,10 +141,7 @@ describe('<SignUpForm />', () => {
     useSession.mockImplementation(() => mockUseKeycloak);
     render(
       <QueryClientProvider client={queryClient}>
-        <SignUpForm
-          completionMode={false}
-          handleSwitchMode={onSubmitCallback}
-        />
+        <SignUpForm handleSwitchMode={onSubmitCallback} />
       </QueryClientProvider>
     );
 
@@ -160,12 +157,32 @@ describe('<SignUpForm />', () => {
 
   test('Submit form well filled', async () => {
     useSession.mockImplementation(() => mockUseKeycloakYoungUser);
-    render(
+
+    const { container } = render(
       <QueryClientProvider client={queryClient}>
-        <SignUpForm completionMode handleSwitchMode={onSubmitCallback} />
+        <SignUpForm handleSwitchMode={onSubmitCallback} />
       </QueryClientProvider>
     );
 
+    await fireEvent.change(screen.getByLabelText('Nom *'), {
+      target: { value: userMock.lastName },
+    });
+    await fireEvent.change(screen.getByLabelText('Prénom *'), {
+      target: { value: userMock.firstName },
+    });
+    await fireEvent.change(screen.getByLabelText('Email *'), {
+      target: { value: userMock.email },
+    });
+    await fireEvent.change(screen.getByLabelText('Mot de passe *'), {
+      target: { value: 'Azerty123!' },
+    });
+    await fireEvent.change(screen.getByLabelText('Confirmation du mot de passe *'), {
+      target: { value: 'Azerty123!' },
+    });
+
+    await fireEvent.change(container.querySelector('input[type="date"]')!, {
+      target: { value: '1993-06-05' },
+    });
     await fireEvent.change(screen.getByLabelText('Ville *'), {
       target: { value: userMock.city },
     });
@@ -192,8 +209,8 @@ describe('<SignUpForm />', () => {
     await fireEvent.click(screen.getByTestId('tos2'));
     await fireEvent.click(screen.getByText('Envoyer'));
     await waitFor(() => {
-      // // submit
       expect(axios.create).toHaveBeenCalledTimes(1);
+      expect(container.querySelector('input[type="date"]')!).toHaveDisplayValue('1993-06-05')
       expect(onSubmitCallback).toHaveBeenCalledTimes(1);
     });
   });

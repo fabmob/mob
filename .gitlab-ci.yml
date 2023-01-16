@@ -19,7 +19,7 @@ stages:
   - image
   # # First level of testing e.g. unit tests
   - test
-  # Prepare additional deployment descriptors e.g. K8s manifests, Helm charts, etc.
+  # Prepare additional deployment descriptors e.g. K8s manifests, Helm charts, etc..
   #- bundle
   - verify
   - verify-all

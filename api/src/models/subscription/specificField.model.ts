@@ -46,6 +46,14 @@ export class SpecificField {
   })
   inputFormat: string;
 
+  @property({
+    description: `champ spécifique obligatoire`,
+    jsonSchema: {
+      example: true,
+    },
+  })
+  isRequired: boolean;
+
   @property(ChoiceList)
   choiceList?: ChoiceList;
 

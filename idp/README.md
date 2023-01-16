@@ -19,14 +19,16 @@ Un template MCM a aussi été créé.
 
 ```sh
 docker run -d --name postgres-mcm -p 5432:5432 -e POSTGRES_ROOT_PASSWORD=${ROOT_PASSWORD} -e POSTGRES_DB=idp_db -e POSTGRES_USER=${DB_USER} -e POSTGRES_PASSWORD=${DB_PASSWORD} -d postgres:13.6
-# Exectuer une commande pour modifier le schema public
+# Executer une commande pour modifier le schema public
 docker exec -it postgres-mcm psql -U admin -a idp_db -c 'ALTER SCHEMA public RENAME TO idp_db;'
+# Exectuer une commande pour changer le type du champs value dans la table user_attribute
+docker exec -it postgres-mcm psql -U admin -a idp_db -c 'ALTER TABLE idp_db.user_attribute ALTER COLUMN value TYPE TEXT;'
 ```
 
 ## Keycloak
 
 ```sh
-docker run -d --link postgres-mcm --name keycloak -p 9000:8080 -e KEYCLOAK_USER=${USER} -e KEYCLOAK_PASSWORD=${PASSWORD} -e DB_VENDOR=postgres -e DB_ADDR=postgres-mcm -e DB_PORT=5432 -e DB_DATABASE=idp_db -e DB_SCHEMA=idp_db -e DB_USER=${DB_USER} -e DB_PASSWORD=${DB_PASSWORD} jboss/keycloak:16.1.1
+docker run -d --link postgres-mcm --name keycloak -p 9000:8080 -e KEYCLOAK_USER=${USER} -e KEYCLOAK_PASSWORD=${PASSWORD} -e DB_VENDOR=postgres -e DB_ADDR=postgres-mcm -e DB_PORT=5432 -e DB_DATABASE=idp_db -e DB_SCHEMA=idp_db -e DB_USER=${DB_USER} -e DB_PASSWORD=${DB_PASSWORD} -e JAVA_OPTS_APPEND="-Dkeycloak.profile.feature.scripts=enabled" jboss/keycloak:16.1.1
 ```
 
 ### Configuration du container KC
@@ -53,6 +55,8 @@ Sortir du container (exit) et executer la commande suivante
 
 ```sh
 docker cp ./platform/idp/password-blacklists/blacklist.txt <CONTAINER ID>:/opt/jboss/keycloak/standalone/data/password-blacklists
+
+docker cp ./platform/idp/mcm_template <CONTAINER ID>:/opt/jboss/keycloak/themes/mcm_template
 ```
 
 Récupérer le fichier overlays/realms/mcm-realm.json
@@ -108,6 +112,18 @@ Vérifier que les informations de l'Identity Provider France connect sont bien r
 
 Sur un environnement local ou de test, il est possible de s'appuyer sur le démonstrateur FranceConnect(https://fournisseur-de-service.dev-franceconnect.fr/).
 
+## Javascript Providers
+
+[Keycloak Javascript Provider](https://www.keycloak.org/docs/16.1/server_development/#_script_providers)
+
+Pour pouvoir executer des actions supplémentaires sur les flows d'authentification KC, des javascripts providers ont été mis en place.
+
+```sh
+docker cp ./platform/idp/scripts/scripts.jar <CONTAINER ID>:/opt/jboss/keycloak/standalone/deployments/scripts.jar
+```
+
+Si une modification est faite sur ces scripts, il faudra regénerer le fichier scripts.jar
+
 ## URL / Port
 
 Portail d'admin :
@@ -126,6 +142,8 @@ Si une mise à jour du realm est nécessaire, vous pouvez lancer la pipeline ave
 Le deploiement en preview permet de déployer un second Keycloak sur une bdd H2 permettant de tester des connexions inter-IDP.
 
 Un script est lancé au déploiement de la bdd pgsql permettant d'aller altérer le schema et de créer l'utilisateur de service nécessaire pour l'api. (databaseConfig/createServiceUser.sh)
+
+Un job est lancé au déploiement de la bdd pgsql permettant d'aller altérer le type du champ value de la table user_attributes.
 
 ## Testing
 

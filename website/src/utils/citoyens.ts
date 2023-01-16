@@ -11,17 +11,28 @@ export interface Citizen {
   status: string;
   tos1: boolean;
   tos2: boolean;
-  affiliation: {
-    enterpriseId: string;
-    enterpriseEmail: string;
-    affiliationStatus: AFFILIATION_STATUS;
-  };
+  affiliation: Affiliation;
+}
+export interface CitizenUpdate {
+  city: string;
+  postcode: string;
+  status: string;
+  affiliation: Affiliation;
+}
+
+export interface Affiliation {
+  id: string;
+  citizenId: string;
+  enterpriseId: string;
+  enterpriseEmail: string;
+  status: AFFILIATION_STATUS;
 }
 
 export enum AFFILIATION_STATUS {
   TO_AFFILIATE = 'A_AFFILIER',
   AFFILIATED = 'AFFILIE',
   DISAFFILIATED = 'DESAFFILIE',
+  UNKNOWN = 'UNKNOWN',
 }
 
 // Added this for furhter use

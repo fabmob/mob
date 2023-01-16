@@ -72,7 +72,7 @@ const FormStep: FC<FormStepProps> = ({
                   label={`${element.title}`}
                   {...register(element.name)}
                   name={element.name}
-                  required
+                  required={element.isRequired}
                   control={control}
                   setValue={setValue}
                   errors={errors?.[element.name]}
@@ -93,7 +93,7 @@ const FormStep: FC<FormStepProps> = ({
                   )}
                   errors={errors}
                   control={control}
-                  required
+                  required={element.isRequired}
                   isMulti
                   maxLimit={element?.choiceList?.possibleChoicesNumber}
                 />
@@ -105,7 +105,7 @@ const FormStep: FC<FormStepProps> = ({
                 <TextField
                   id={element.title}
                   key={index + '-' + element.name}
-                  label={`${element.title} *`}
+                  label={`${element.title} ${element.isRequired ? '*' : ''}`}
                   name={element.name}
                   type="text"
                   errors={errors}

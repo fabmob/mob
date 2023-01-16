@@ -1,4 +1,4 @@
-import {SUBSCRIPTION_STATUS, EVENT_MESSAGE, FUNDER_TYPE, GENDER} from '.';
+import {SUBSCRIPTION_STATUS, EVENT_MESSAGE, FUNDER_TYPE, GENDER, StatusCode} from '.';
 
 import {SubscriptionRejection, SubscriptionValidation} from '../models';
 import {PersonalInformation} from '../models/citizen/personalInformation.model';
@@ -188,3 +188,49 @@ export interface User {
   identity?: Identity;
   personalInformation?: PersonalInformation;
 }
+
+type shortDistance = 'short';
+type longDistance = 'long';
+
+export interface ShortDistanceData {
+  journey_type: shortDistance;
+  driving_license: string;
+  last_name_trunc: string;
+  operator_journey_id: string;
+  application_timestamp: string;
+}
+
+export interface LongDistanceData {
+  journey_type: longDistance;
+  driving_license: string;
+  last_name_trunc: string;
+  phone_trunc: string;
+  datetime: string;
+  application_timestamp: string;
+}
+
+export type OperatorData = ShortDistanceData | LongDistanceData;
+
+export interface CeeResponseOnSuccess {
+  datetime: string;
+  uuid: string;
+  token: string;
+  journey_id?: number;
+  status?: string;
+}
+
+export interface CeeResponseOnConflict {
+  datetime: string;
+  uuid: string;
+}
+
+export interface RpcReturnedData {
+  status: 'error' | 'success';
+  code?: StatusCode;
+  data?: CeeResponseOnSuccess | CeeResponseOnConflict;
+  message?: string;
+}
+
+export type AdditionalProps = {
+  [key: string]: string;
+};

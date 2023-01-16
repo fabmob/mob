@@ -1,4 +1,4 @@
-import faker from '@faker-js/faker';
+import faker from "@faker-js/faker";
 
 /*
 function checkRequest :
@@ -75,34 +75,48 @@ Fills each element of the register form and submits.
 Cypress.Commands.add("createUser", (user, randomUserEmail) => {
   // impossible to get the Select element "Statut professionnel", Cypress Studio solution :
   /* ==== Generated with Cypress Studio ==== */
-  cy.get(':nth-child(1) > #mcm-select > .mcm-select__control > .mcm-select__value-container > .mcm-select__placeholder').click({ force: true });
-  cy.get(':nth-child(1) > #mcm-select > .mcm-select__control > .mcm-select__value-container > .mcm-select__placeholder').click();
-  cy.get('#react-select-4-option-1').click();
-  cy.get('.mcm-select__single-value').should('have.text', user.status);
+  // cy.get('#mcm-select').click();
+  // cy.wait(2000);
+  // cy.contains('[gender="Mr"]').click();
   /* ==== End Cypress Studio ==== */
 
-  cy.get('input[name="lastName"]').type(user.lastName);
-  cy.get('input[name="firstName"]').type(user.firstName);
-  cy.get('input[name="birthdate"]').type(user.birthdate);
-  cy.get('input[name="email"]').type(randomUserEmail);
-  cy.get('input[name="password"]').type(user.password);
-  cy.get('input[name="passwordConfirmation"]').type(user.passwordConfirmation);
-  cy.get('input[name="city"]').type(user.city);
-  cy.get('input[name="postcode"]').type(user.postcode);
-
-  cy.get('input[id=companyNotFound]').check({ force: true });
-  cy.get('input[id=hasNoEnterpriseEmail]').check({ force: true });
-
-  cy.get('input[id=tos1]').check({ force: true });
-  cy.get('input[id=tos2]').check({ force: true });
+  cy.wait(10000);
+  cy.get(
+    ":nth-child(1) > .form__fields > :nth-child(1) > #mcm-select > .mcm-select__control > .mcm-select__value-container"
+  ).click();
+  cy.get("#react-select-5-option-1").click();
+  cy.get("#lastName").type(user.lastName);
+  cy.get("#firstName").type(user.firstName);
+  cy.get(".react-date-picker__inputGroup__day").click();
+  cy.get(".react-calendar__month-view__days > :nth-child(1) > abbr").click();
+  cy.get(".react-date-picker__inputGroup__year").click();
+  cy.get(".react-date-picker__inputGroup__day").clear();
+  cy.get(".react-date-picker__inputGroup__day").type("28");
+  cy.get(".react-date-picker__inputGroup__month").clear();
+  cy.get(".react-date-picker__inputGroup__month").type("12");
+  cy.get(".react-date-picker__inputGroup__year").clear();
+  cy.get(".react-date-picker__inputGroup__year").type("1990");
+  cy.get("#email").type(randomUserEmail);
+  cy.get("#password").type(user.password);
+  cy.get("#passwordConfirmation").type(user.passwordConfirmation);
+  cy.get("#city").type(user.city);
+  cy.get("#postcode").type(user.postcode);
+  cy.get(':nth-child(1) > #mcm-select > .mcm-select__control > .mcm-select__value-container > .mcm-select__placeholder').click();
+  cy.get('[id$=-option-0').click();
+  cy.get("input[id=companyNotFound]").check({ force: true });
+  cy.get("input[id=hasNoEnterpriseEmail]").check({ force: true });
+  cy.get("input[id=tos1]").check({ force: true });
+  cy.get("input[id=tos2]").check({ force: true });
   cy.get('button[type="submit"]').click();
+  cy.wait(5000);
 });
-
 
 /*
 Asserts the welcome email has been recieved and is in Mailhog
 */
+
 Cypress.Commands.add('assertEmailReceptionMailHog', (userEmail) => {
+
   cy.get('.col-sm-4').contains(userEmail);
 });
 
@@ -117,6 +131,7 @@ Cypress.Commands.add('injectUser', (user) => {
       'X-API-KEY': `${Cypress.env("API_KEY")}`
     },
     body: {
+      gender: faker.name.gender(true),
       email: user.email,
       firstName: faker.name.lastName(),
       lastName: faker.name.firstName(),

@@ -10,6 +10,7 @@ import {
   RestBindings,
   post,
   HttpErrors,
+  patch,
 } from '@loopback/rest';
 import {authorize} from '@loopback/authorization';
 import {authenticate} from '@loopback/authentication';
@@ -23,7 +24,6 @@ import {
   SubscriptionRepository,
   UserRepository,
   MetadataRepository,
-  CitizenRepository,
 } from '../repositories';
 import {
   SubscriptionService,
@@ -92,8 +92,6 @@ export class SubscriptionController {
     private metadataRepository: MetadataRepository,
     @service(UserRepository)
     private userRepository: UserRepository,
-    @service(CitizenRepository)
-    private citizenRepository: CitizenRepository,
     @inject(SecurityBindings.USER)
     private currentUser: IUser,
     @inject(RestBindings.Http.RESPONSE) private response: Response,
@@ -229,7 +227,7 @@ export class SubscriptionController {
     }
 
     if (lastName) {
-      withParams.push({lastName: lastName});
+      withParams.push({lastName: new RegExp('.*' + lastName + '.*', 'i')});
     }
 
     if (citizenId) {
@@ -913,5 +911,149 @@ export class SubscriptionController {
     } catch (error) {
       return validationErrorExternalHandler(error);
     }
+  }
+
+  @authorize({allowedRoles: [Roles.MAAS], voters: [checkMaas]})
+  @intercept(AffiliationInterceptor.BINDING_KEY)
+  @intercept(SubscriptionInterceptor.BINDING_KEY)
+  @patch('/v1/subscriptions/{subscriptionId}', {
+    'x-controller-name': 'Subscriptions',
+    summary: 'Modifie une souscription',
+    security: SECURITY_SPEC_JWT,
+    responses: {
+      [StatusCode.NoContent]: {
+        description: 'Modification de la souscription réussie',
+      },
+      [StatusCode.Unauthorized]: {
+        description: "L'utilisateur est non connecté",
+        content: {
+          'application/json': {
+            schema: getModelSchemaRef(Error),
+            example: {
+              error: {
+                statusCode: 401,
+                name: 'Error',
+                message: 'Authorization header not found',
+                path: '/authorization',
+              },
+            },
+          },
+        },
+      },
+      [StatusCode.Forbidden]: {
+        description: "L'utilisateur n'a pas les droits pour modifier la souscription",
+        content: {
+          'application/json': {
+            schema: getModelSchemaRef(Error),
+            example: {
+              error: {
+                statusCode: 403,
+                name: 'Error',
+                message: 'Access denied',
+              },
+            },
+          },
+        },
+      },
+      [StatusCode.NotFound]: {
+        description: "La souscription ou l'aide n'existe pas",
+        content: {
+          'application/json': {
+            schema: getModelSchemaRef(Error),
+            example: {
+              error: {
+                statusCode: 404,
+                name: 'Error',
+                message: 'Subscription not found',
+                path: '/subscriptionNotFound',
+                resourceName: 'Subscription',
+              },
+            },
+          },
+        },
+      },
+      [StatusCode.PreconditionFailed]: {
+        description: "Aucun champ spécifique n'a été fourni",
+        content: {
+          'application/json': {
+            schema: getModelSchemaRef(Error),
+            example: {
+              error: {
+                statusCode: 412,
+                name: 'Error',
+                message: 'At least one specific field must be provided',
+                path: '/subscriptionWithoutData',
+                resourceName: 'Souscription',
+              },
+            },
+          },
+        },
+      },
+      [StatusCode.UnprocessableEntity]: {
+        description: 'Une erreur est survenue sur la modification de la souscription',
+        content: {
+          'application/json': {
+            schema: getModelSchemaRef(Error),
+            example: {
+              error: {
+                statusCode: 422,
+                name: 'Error',
+                message: 'Incentive without specific fields',
+                path: '/incentiveWithoutSpecificFields',
+                resourceName: 'Souscription',
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  async updateById(
+    @param.path.string('subscriptionId', {description: `L'identifiant de la demande`})
+    subscriptionId: string,
+    @requestBody({
+      description: "Des champs spécifiques attendus pour la souscription à l'aide",
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            properties: {
+              specificFieldString: {
+                type: 'string',
+                example: 'example',
+              },
+              specificFieldNumber: {
+                type: 'number',
+                example: 2,
+              },
+              specificFieldChoiceList: {
+                type: 'array',
+                items: {
+                  type: 'string',
+                },
+                example: ['example'],
+              },
+              specificFieldDate: {
+                type: 'string',
+                example: '2022-12-06',
+              },
+            },
+          },
+        },
+      },
+    })
+    rawSubscriptionSpecificFields: {[key: string]: string | number | string[] | Date},
+  ): Promise<void> {
+    const subscription: Subscription = await this.subscriptionRepository.findById(
+      subscriptionId,
+    );
+
+    // Update subscription specific fields
+    await this.subscriptionRepository.updateById(subscriptionId, {
+      specificFields: Object.assign(
+        subscription.specificFields!,
+        rawSubscriptionSpecificFields,
+      ),
+    });
   }
 }

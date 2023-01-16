@@ -13,3 +13,4 @@ export * from './citizen';
 export * from './error';
 export * from './cronJob';
 export * from './territory';
+export * from './subscriptionTimestamp';

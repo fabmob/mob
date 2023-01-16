@@ -6,9 +6,10 @@
   &__main {
     width: 100%;
     max-width: 1200px;
-    margin: 0 auto;
+    margin: 7em auto 0em auto;
     padding: 0 24px;
     &--fw {
+      margin-top: 7em;
       max-width: none;
       padding: 0;
     }

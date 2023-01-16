@@ -3,6 +3,7 @@ describe("Collectivity homepage", function () {
 	it("Test of the collectivity homepage", function () {
         cy.viewport(1440, 900); // Desktop mode
         cy.justVisit("WEBSITE_FQDN"); // Open website homepage
+		cy.wait(10000);
 
         /* ==== Tabs Banner */
         cy.get('.nav-links__item--active > a').should('have.text', 'Citoyen.ne'); // Citizen tab
@@ -14,7 +15,7 @@ describe("Collectivity homepage", function () {
         // TODO default citizen tab & mobile : tabs slide
 
         /* ==== Page title ==== */
-        cy.get('.page-container > .mt-m').should('have.text', 'MOB vous accompagne dans le déploiement des offres de mobilité sur votre territoire, en calibrant au mieux votre politique d’aides.'); // Text
+        cy.get('.page-container > .mt-m').contains('Avec moB je peux promouvoir et gérer mes dispositifs d’aides à la mobilité durable à travers un guichet unique.'); // Text
         cy.get('#collectivite-contact > .button').should('have.text', 'Nous contacter');
 
         /* ==== Video Section ==== */
@@ -42,27 +43,27 @@ describe("Collectivity homepage", function () {
 
 		/* ==== Toolbox Section ==== */
 		cy.get('.mcm-section-with-support--mac__image > .img-wrapper > .mcm-image.gatsby-image-wrapper > picture > img').should('have.attr', 'srcset', '/static/7dbc4a595f0dee946a877a9a28f025e1/fd013/support-mac.jpg 200w,\n/static/7dbc4a595f0dee946a877a9a28f025e1/25252/support-mac.jpg 400w,\n/static/7dbc4a595f0dee946a877a9a28f025e1/2f1b1/support-mac.jpg 800w,\n/static/7dbc4a595f0dee946a877a9a28f025e1/0ff54/support-mac.jpg 1200w,\n/static/7dbc4a595f0dee946a877a9a28f025e1/09428/support-mac.jpg 1449w'); // Image
-		cy.get('.mcm-section-with-support--mac__body > .mb-m').should('have.text', 'moB est un outil intégré qui vous accompagne dans chaque étape de votre processus.');
+		cy.get('.mcm-section-with-support--mac__body > .mb-m').should('have.text', 'moB met à disposition une plateforme de services pour gérer mes dispositifs d’incitations');
 		cy.get('.mcm-ordered-list > :nth-child(1)')
 		.should('have.class', 'mcm-ordered-list__item') // Bullet point 1/3
-		.should('have.text', 'Comprendre la mobilité des citoyen.ne.s de votre territoire.'); // Text 1/3
+		.should('have.text', "Promouvoir mes aides pour encourager l'usage des mobilités durables"); // Text 1/3
 		cy.get('.mcm-ordered-list > :nth-child(2)')
 		.should('have.class', 'mcm-ordered-list__item') // Bullet point 2/3
-		.should('have.text', 'Adapter sa politique d’aides afin qu’elle réponde aux aspirations des citoyen.ne.s.'); // Text 2/3
+		.should('have.text', 'Comprendre les déplacements des usagers et adapter ma politique d’aides selon leurs aspirations'); // Text 2/3
 		cy.get('.mcm-ordered-list > :nth-child(3)')
 		.should('have.class', 'mcm-ordered-list__item') // Bullet point 3/3
-		.should('have.text', 'Associer les parties prenantes (entreprises, opérateurs de mobilité, citoyen.ne.s) autour de votre projet.'); // Text 3/3
+		.contains('Suivre et piloter mes dispositifs d’incitation par la mise à disposition d’indicateurs'); // Text 3/3
 		cy.viewport(365, 568); // Switch to mobile mode for responsive
-		cy.get('.mcm-section-with-support--mac__body > .mb-m').should('have.text', 'MOB est un outil intégré qui vous accompagne dans chaque étape de votre processus.');
+		cy.get('.mcm-section-with-support--mac__body > .mb-m').should('have.text', 'moB met à disposition une plateforme de services pour gérer mes dispositifs d’incitations');
 		cy.get('.mcm-ordered-list > :nth-child(1)')
 		.should('have.class', 'mcm-ordered-list__item') // Bullet point 1/3
-		.should('have.text', 'Comprendre la mobilité des citoyen.ne.s de votre territoire.'); // Text 1/3
+		.should('have.text', "Promouvoir mes aides pour encourager l'usage des mobilités durables"); // Text 1/3
 		cy.get('.mcm-ordered-list > :nth-child(2)')
 		.should('have.class', 'mcm-ordered-list__item') // Bullet point 2/3
-		.should('have.text', 'Adapter sa politique d’aides afin qu’elle réponde aux aspirations des citoyen.ne.s.'); // Text 2/3
+		.should('have.text', 'Comprendre les déplacements des usagers et adapter ma politique d’aides selon leurs aspirations'); // Text 2/3
 		cy.get('.mcm-ordered-list > :nth-child(3)')
 		.should('have.class', 'mcm-ordered-list__item') // Bullet point 3/3
-		.should('have.text', 'Associer les parties prenantes (entreprises, opérateurs de mobilité, citoyen.ne.s) autour de votre projet.'); // Text 3/3
+		.contains('Suivre et piloter mes dispositifs d’incitation par la mise à disposition d’indicateurs'); // Text 3/3
 
 		/* ==== moB banner Section ==== */
 		cy.get('.mob-pattern__svg').should('be.visible');  // Logo image (mobile)
@@ -72,8 +73,8 @@ describe("Collectivity homepage", function () {
 		/* ==== Why join moB? Section ==== */
 		cy.get('.mcm-section-with-image__image > .img-wrapper > .mcm-image > picture > img').should('have.attr', 'srcset', '/static/58caf28cdccd720d1d0983acb72c511e/fd013/dame-veste-corail.jpg 200w,\n/static/58caf28cdccd720d1d0983acb72c511e/25252/dame-veste-corail.jpg 400w,\n/static/58caf28cdccd720d1d0983acb72c511e/2f1b1/dame-veste-corail.jpg 800w,\n/static/58caf28cdccd720d1d0983acb72c511e/768f4/dame-veste-corail.jpg 1160w');// Image TODO right-aligned
 		cy.get('h2.mb-s').should('have.text', 'Pourquoi rejoindre moB ?'); // Title
-		cy.get('.mb-xs').should('have.text', 'Rejoindre Mon Compte MOB vous permettra d’intégrer un écosystème constitué d’employeurs, d’opérateurs de la mobilité ainsi que d’autres Autorités Organisatrices de la Mobilité.'); // Text 1/2
-		cy.get('p.mb-s').should('have.text', 'Vous aurez ainsi l’opportunité de créer des relations avec de nouveaux opérateurs de mobilité ou des employeurs pour ainsi proposer des aides plus innovantes et adaptées aux besoins de vos citoyens.'); // Text 2/2
+		cy.get('.mb-xs').should('have.text', 'En rejoignant moB j’intègre un écosystème constitué d’employeurs, d’opérateurs de la mobilité ainsi que d’autres Autorités Organisatrices de la Mobilité.'); // Text 1/2
+		cy.get('p.mb-s').should('have.text', 'En me connectant avec les acteurs de la mobilité, j’ai la possibilité de créer des incitatifs adaptés pour les usagers et ainsi maximiser leur adoption.'); // Text
 		cy.get('#collectivite-contact2 > .button')
 		  .should('have.text', 'Nous contacter') // Button text
 		  .click(); // Button text
@@ -108,7 +109,7 @@ describe("Collectivity homepage", function () {
           .then((href) => {
 			  cy.request(href).its('status').should('eq', 200);
         });
-		cy.get(':nth-child(3) > a > .mcm-image').should('have.attr', 'src', '/static/66e7dd5e7118c2530d603c629276e063/logo-fabmob.png'); // Image 3/7
+		cy.get(':nth-child(3) > a > .mcm-image > picture > img').should('have.attr', 'src', '/static/2ffe5b8f543e3351b0d4063f40713791/bc8e0/logo-fabmob.png'); // Image 3/7
 		cy.get('.partner-list > :nth-child(3) > a')
           .should('have.attr', 'target', '_blank')
           .should('have.attr', 'href')
@@ -116,7 +117,7 @@ describe("Collectivity homepage", function () {
           .then((href) => {
 			  cy.request(href).its('status').should('eq', 200);
         });
-		cy.get(':nth-child(4) > a > .mcm-image > picture > img').should('have.attr', 'srcset', '/static/86b6820a622b2cd351c5631eaac00851/8ac63/logo-igart.png 200w,\n/static/86b6820a622b2cd351c5631eaac00851/8bf6f/logo-igart.png 352w'); // Image 4/7
+		cy.get(':nth-child(4) > a > .mcm-image > picture > img').should('have.attr', 'srcset', '/static/d47b24489ff8df5a19b3f9b74977a2ec/8ac63/logo-igart.png 200w,\n/static/d47b24489ff8df5a19b3f9b74977a2ec/ca83a/logo-igart.png 342w'); // Image 4/7
 		cy.get('.partner-list > :nth-child(4) > a')
           .should('have.attr', 'target', '_blank')
           .should('have.attr', 'href')
@@ -136,7 +137,7 @@ describe("Collectivity homepage", function () {
 		cy.get('.partner-list > :nth-child(6) > a')
           .should('have.attr', 'target', '_blank')
           .should('have.attr', 'href')
-          .and('eq', 'https://www.capgemini.com/fr-fr/mon-compte-mobilite/')
+          .and('eq', 'https://www.capgemini.com/fr-fr/actualites/communiques-de-presse/premiere-experimentation-mon-compte-mobilite-avec-ile-de-france-mobilites-et-dans-agglomeration-mulhousienne/')
           .then((href) => {
 			  cy.request(href).its('status').should('eq', 200);
         });

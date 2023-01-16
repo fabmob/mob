@@ -4,7 +4,7 @@
   "subscription.stepper.first.step": "Informations",
   "subscription.stepper.second.step": "Justificatif",
   "subscription.stepper.third.step": "Récapitulatif",
-  "subscription.first.step.description": "Merci de bien vouloir compléter les informations demandées ci-dessous. Ces informations seront traitées par le fournisseur afin de définir votre éligibilité à un financement. Prenez le temps de vérifier les informations personnelles de votre profil avant de souscrire.",  
+  "subscription.first.step.description": "Merci de bien vouloir compléter les informations demandées ci-dessous. Ces informations seront traitées par le fournisseur afin de définir votre éligibilité à un financement. Prenez le temps de vérifier les informations personnelles de votre profil avant de souscrire.",
   "subscription.second.step.description": "Afin d'étudier votre demande, nous avons besoin des justificatifs suivants. Ces documents nous permettront une analyse complète de votre dossier afin de vous adresser une réponse définitive.",
   "subscription.first.step.additional.informations": "Informations complémentaires",
   "subscription.first.step.label.community": "Votre communauté d'appartenance",

@@ -1,15 +1,15 @@
 <%- include('css/style'); %> <%- include('commons/header'); %>
 
-<table style="margin-bottom: 40px;max-width: 640px;width: 640px;">
+<table style="max-width: 640px;width: 640px;">
   <tr>
     <td>
-    <div>
+    <div style="margin-bottom: 40px">
       <div>
         <p>Bonjour <%= username %>,</p>
       </div>
       <div>
         <p>
-          Votre demande d’aide <%- incentiveTitle %> en date du <%- date %> a été refusée
+          Votre demande d’aide "<%- incentiveTitle %>" en date du <%- date %> a été refusée
           par votre gestionnaire pour le motif suivant : <%- motif %>
         </p>
       </div>
@@ -21,7 +21,7 @@
       <div>
         <p>
           Retrouvez l’ensemble de vos demandes et corrigez votre demande d’aide
-          directement depuis votre Compte Mobilité
+          directement depuis votre Compte Mobilité.
         </p>
       </div>
       <div class="btn">

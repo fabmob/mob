@@ -41,7 +41,6 @@ export enum Roles {
   PLATFORM = 'platform', // used to determine user from website
   API_KEY = 'api-key',
   CITIZENS = 'citoyens',
-  CITIZENS_FC = 'citoyens_fc', // France connect Citizen
   VAULT_BACKEND = 'service_vault',
 }
 
@@ -65,6 +64,17 @@ export enum TRANSPORTS {
   ELECTRIC = 'electrique',
   CAR_SHARING = 'autopartage',
   CARPOOLING = 'covoiturage',
+}
+
+export enum SUBSCRIPTION_CHECK_MODE {
+  MANUAL = 'MANUEL',
+  AUTOMATIC = 'AUTOMATIQUE',
+}
+
+export enum ELIGIBILITY_CHECKS_LABEL {
+  FRANCE_CONNECT = 'FranceConnectID',
+  EXCLUSION = 'ExcludeIncentives',
+  RPC_CEE_REQUEST = 'RPCCEERequest',
 }
 
 /** CONTACT */
@@ -113,6 +123,9 @@ export enum REJECTION_REASON {
   CONDITION = 'ConditionsNonRespectees',
   MISSING_PROOF = 'JustificatifManquant',
   INVALID_PROOF = 'JustificatifInvalide',
+  NOT_FRANCECONNECT = 'CompteNonFranceConnect',
+  INVALID_RPC_CEE_REQUEST = 'RPCCEEDemandeInvalide',
+  VALID_SUBSCRIPTION_EXISTS = 'SouscriptionValideeExistante',
   OTHER = 'Autre',
 }
 
@@ -150,6 +163,9 @@ export enum REASON_REJECT_TEXT {
   CONDITION = "Conditions d'éligibilité non respectées",
   MISSING_PROOF = 'Justificatif manquant',
   INVALID_PROOF = 'Justificatif invalide ou non lisible',
+  NOT_FRANCECONNECT = 'Compte du conducteur non FranceConnecté',
+  INVALID_RPC_CEE_REQUEST = 'Demande RPC CEE rejetée',
+  VALID_SUBSCRIPTION_EXISTS = `Autre Demande d'aide déjà accordée`,
 }
 
 export enum SEND_MODE {
@@ -178,6 +194,12 @@ export enum GENDER_TYPE {
   FEMALE = 2,
   NOT_APPLICABLE = 9,
 }
+
 export enum SCOPES {
   FUNDERS_CLIENTS = 'funders-clients',
+}
+
+export enum SOURCES {
+  FRANCE_CONNECT = 'franceconnect.gouv.fr',
+  MOB = 'moncomptemobilite.fr',
 }

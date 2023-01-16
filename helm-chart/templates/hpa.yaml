@@ -1,0 +1,23 @@
+{{- if .Values.autoscaling }}
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  annotations:
+  {{- with .Values.autoscaling.metadata.annotations }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+  {{- with .Values.autoscaling.metadata.labels }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+  name: {{ .Values.autoscaling.metadata.name }}
+spec:
+  scaleTargetRef:
+    {{- toYaml .Values.autoscaling.spec.scaleTargetRef | nindent 4 }}
+  minReplicas: {{ .Values.autoscaling.spec.minReplicas }}
+  maxReplicas: {{ .Values.autoscaling.spec.maxReplicas }}
+  metrics:
+    {{- toYaml .Values.autoscaling.spec.metrics | nindent 4 }}
+  behavior:
+    {{- toYaml .Values.autoscaling.spec.behavior | nindent 4 }}
+{{- end }}

@@ -35,14 +35,41 @@ const incentiveResultMock = {
     {
       title: 'Champ text',
       inputFormat: 'Texte',
+      isRequired: true,
+    },
+    {
+      title: 'optional text',
+      inputFormat: 'Texte',
+      isRequired: false,
     },
     {
       title: 'champ date',
       inputFormat: 'Date',
+      isRequired: true,
+    },
+    {
+      title: 'multichoix ',
+      inputFormat: 'listeChoix',
+      isRequired: true,
+      choiceList: {
+        possibleChoicesNumber: 1,
+        inputChoiceList: [
+          {
+            inputChoice: 'choix 1',
+          },
+          {
+            inputChoice: 'choix 2',
+          },
+          {
+            inputChoice: 'choix 3',
+          },
+        ],
+      },
     },
     {
       title: 'Champ numerique',
       inputFormat: 'Numerique',
+      isRequired: true,
     },
   ],
   createdAt: '2022-02-24T20:18:42.427Z',
@@ -96,7 +123,7 @@ const userContext = {
     affiliation: {
       enterpriseId: '12345',
       enterpriseEmail: 'roger@capgemini.com',
-      affiliationStatus: 'A_AFFILIER',
+      status: 'A_AFFILIER',
     },
   },
 };

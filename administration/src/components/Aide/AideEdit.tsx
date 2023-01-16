@@ -1,3 +1,4 @@
+/* eslint-disable no-param-reassign */
 import * as React from 'react';
 import { FC } from 'react';
 import {
@@ -11,6 +12,7 @@ import {
 import { errorFetching } from '../../utils/constant';
 import AideForm from './AideEditForm';
 import AidesMessages from '../../utils/Aide/fr.json';
+import { getFormData } from '../../utils/helpers';
 
 const AideEdit: FC<EditProps> = (props) => {
   const notify = useNotify();
@@ -36,10 +38,18 @@ const AideEdit: FC<EditProps> = (props) => {
   };
 
   const transform = (data): Record => {
+    let newData = { ...data };
     if (!data.isMCMStaff) {
       return { ...data, specificFields: undefined };
     }
-    return { ...data, subscriptionLink: data.subscriptionLink };
+    if (data.eligibilityChecks && data.eligibilityChecks.length > 0) {
+      newData = getFormData(newData);
+    }
+    if (data.specificFields && !data.specificFields.length) {
+      delete data.specificFields;
+    }
+
+    return { ...newData, subscriptionLink: data.subscriptionLink };
   };
 
   return (

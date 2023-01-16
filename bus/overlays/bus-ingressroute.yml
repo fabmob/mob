@@ -8,6 +8,9 @@ spec:
   routes:
     - match: Host(`${ADMIN_BUS_FQDN}`)
       kind: Rule
+      middlewares:
+        - name: custom-error-middleware
+          namespace: traefik-int
       services:
         - kind: Service
           name: bus

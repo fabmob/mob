@@ -95,22 +95,20 @@ export const isFirstElementGreater = (
 };
 
 /**
- * Returns list of emails and funderType based on incentive type
+ * Returns list of emails
  */
-export const getFunderTypeAndListEmails = (subscription: Subscription) => {
+export const getListEmails = (subscription: Subscription) => {
   const listEmails: string[] = [subscription.email];
 
-  let funderType: FUNDER_TYPE;
-
   if (subscription.incentiveType === INCENTIVE_TYPE.EMPLOYER_INCENTIVE) {
-    funderType = FUNDER_TYPE.enterprise;
-    if (subscription.enterpriseEmail) {
+    if (
+      subscription.enterpriseEmail &&
+      subscription.email !== subscription.enterpriseEmail
+    ) {
       listEmails.push(subscription.enterpriseEmail);
     }
-  } else if (subscription.incentiveType === INCENTIVE_TYPE.TERRITORY_INCENTIVE) {
-    funderType = FUNDER_TYPE.collectivity;
   }
-  return {listEmails: listEmails, funderType: funderType!};
+  return {listEmails: listEmails};
 };
 
 /**
@@ -124,4 +122,43 @@ export const removeWhiteSpace = (word: string): string => {
   const removeSpacesRegex: RegExp = new RegExp('^\\s+|\\s+$|\\s+(?=\\s)', 'g');
   const newWord: string = word.replace(removeSpacesRegex, '');
   return newWord;
+};
+
+/**
+ * Returns the three first letters from name with white spaces if necessary
+ */
+export const truncateName = (name: string) => {
+  let prenom = name.toUpperCase().substring(0, 3); // Get the first three letters of the name
+
+  // Complete with spaces until the name got 3 letters
+  while (prenom.length < 3) {
+    prenom += ' ';
+  }
+  return prenom;
+};
+
+/**
+ * Checks if the phone Number is on the ITU-T E.164 format for France
+ */
+export const isE164ForFrance = (phoneNumber: string): Boolean => {
+  const pattern = /^\+33[0-9]{6,10}$/;
+  return pattern.test(phoneNumber);
+};
+
+/**
+ * Check if phone number is already converted
+ * IF NOT convert it to the ITU-T E.164 format for France
+ * At the end, Check if the area code is starting with 0, if yes remove it
+ * Then slice the 10 caracters
+ */
+export const convertPhoneNumber = (phoneNumber: string): string => {
+  if (isE164ForFrance(phoneNumber)) {
+    const formattedNumber = phoneNumber.replace(/^\+33(0)/, '+33');
+    return formattedNumber.substring(0, 10);
+  } else if (/^[0].{7,9}$/.test(phoneNumber)) {
+    const formattedNumber = '+33' + phoneNumber.substring(1);
+    return formattedNumber.substring(0, 10);
+  } else {
+    return phoneNumber;
+  }
 };

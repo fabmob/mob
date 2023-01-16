@@ -7,12 +7,15 @@ import {
 import {securityId} from '@loopback/security';
 
 import {
-  CitizenRepository,
+  AffiliationRepository,
   CommunityRepository,
   EnterpriseRepository,
+  IncentiveRepository,
   MetadataRepository,
   SubscriptionRepository,
   UserRepository,
+  SubscriptionTimestampRepository,
+  UserEntityRepository,
 } from '../../repositories';
 import {SubscriptionController} from '../../controllers';
 import {
@@ -26,7 +29,14 @@ import {
   CommonRejection,
   OtherReason,
 } from '../../models';
-import {S3Service, SubscriptionService, FunderService, MailService} from '../../services';
+import {
+  S3Service,
+  SubscriptionService,
+  FunderService,
+  MailService,
+  KeycloakService,
+  CitizenService,
+} from '../../services';
 import {ValidationError} from '../../validationError';
 import {
   CITIZEN_STATUS,
@@ -39,18 +49,22 @@ import {
 } from '../../utils';
 
 describe('SubscriptionController', () => {
-  let repository: StubbedInstanceWithSinonAccessor<SubscriptionRepository>,
-    s3Service: StubbedInstanceWithSinonAccessor<S3Service>,
+  let s3Service: StubbedInstanceWithSinonAccessor<S3Service>,
     subscriptionService: SubscriptionService,
     controller: SubscriptionController,
     funderService: StubbedInstanceWithSinonAccessor<FunderService>,
     communityRepository: StubbedInstanceWithSinonAccessor<CommunityRepository>,
+    subscriptionTimestampRepository: StubbedInstanceWithSinonAccessor<SubscriptionTimestampRepository>,
     userRepository: StubbedInstanceWithSinonAccessor<UserRepository>,
     subscriptionRepository: StubbedInstanceWithSinonAccessor<SubscriptionRepository>,
     metadataRepository: StubbedInstanceWithSinonAccessor<MetadataRepository>,
-    citizenRepository: StubbedInstanceWithSinonAccessor<CitizenRepository>,
     enterpriseRepository: StubbedInstanceWithSinonAccessor<EnterpriseRepository>,
+    affiliationRepository: StubbedInstanceWithSinonAccessor<AffiliationRepository>,
+    incentiveRepository: StubbedInstanceWithSinonAccessor<IncentiveRepository>,
     mailService: MailService,
+    keycloakService: KeycloakService,
+    citizenService: StubbedInstanceWithSinonAccessor<CitizenService>,
+    userEntityRepository: StubbedInstanceWithSinonAccessor<UserEntityRepository>,
     spy: any,
     input: any,
     input1: any,
@@ -72,21 +86,25 @@ describe('SubscriptionController', () => {
     subscriptionService = new SubscriptionService(
       s3Service,
       subscriptionRepository,
-      citizenRepository,
-      mailService,
+      subscriptionTimestampRepository,
       communityRepository,
       enterpriseRepository,
+      affiliationRepository,
+      userEntityRepository,
+      mailService,
+      citizenService,
+      keycloakService,
+      incentiveRepository,
     );
     spy = sinon.spy(subscriptionService);
     controller = new SubscriptionController(
-      repository,
+      subscriptionRepository,
       s3Service,
       spy,
       funderService,
       communityRepository,
       metadataRepository,
       userRepository,
-      citizenRepository,
       currentUser,
       response,
       mailService,
@@ -97,7 +115,7 @@ describe('SubscriptionController', () => {
   });
 
   it('SubscriptionController find : successful', async () => {
-    repository.stubs.find.resolves([input]);
+    subscriptionRepository.stubs.find.resolves([input]);
     userRepository.stubs.findOne.resolves(user);
     funderService.stubs.getFunderByName.resolves({
       name: 'funderName',
@@ -123,7 +141,7 @@ describe('SubscriptionController', () => {
   });
 
   it('SubscriptionController find with citizenId: successful', async () => {
-    repository.stubs.find.resolves([input]);
+    subscriptionRepository.stubs.find.resolves([input]);
     userRepository.stubs.findOne.resolves(user);
     funderService.stubs.getFunderByName.resolves({
       name: 'funderName',
@@ -155,7 +173,7 @@ describe('SubscriptionController', () => {
   });
 
   it('SubscriptionController find : community mismatch', async () => {
-    repository.stubs.find.resolves([input]);
+    subscriptionRepository.stubs.find.resolves([input]);
     userRepository.stubs.findOne.resolves(user);
     funderService.stubs.getFunderByName.resolves({
       name: 'funderName',
@@ -170,7 +188,7 @@ describe('SubscriptionController', () => {
   });
 
   it('SubscriptionController findById : successful', async () => {
-    repository.stubs.findById.resolves(input);
+    subscriptionRepository.stubs.findById.resolves(input);
     const result = await controller.findById('someRandomId');
 
     expect(result).to.deepEqual(input);
@@ -178,7 +196,7 @@ describe('SubscriptionController', () => {
 
   it('SubscriptionController validate : error', async () => {
     // Stub method
-    repository.stubs.findById.withArgs('randomInputId1').resolves(input1);
+    subscriptionRepository.stubs.findById.withArgs('randomInputId1').resolves(input1);
     // Invokes business
     try {
       await controller.validate('randomInputId1', {
@@ -188,7 +206,7 @@ describe('SubscriptionController', () => {
       sinon.assert.fail();
     } catch (error) {
       // Checks
-      expect(repository.stubs.updateById.notCalled).true();
+      expect(subscriptionRepository.stubs.updateById.notCalled).true();
       expect(spy.checkPayment.calledOnce).false();
       expect(error.message).to.equal(expectedError.message);
       expect(error.path).to.equal(expectedError.path);
@@ -197,9 +215,10 @@ describe('SubscriptionController', () => {
 
   it('SubscriptionController validate with funderType=Enterprise : successful', async () => {
     // Stub method
-    repository.stubs.findById.withArgs('randomInputId').resolves(input);
-    citizenRepository.stubs.findById.resolves(citizen);
+    subscriptionRepository.stubs.findById.withArgs('randomInputId').resolves(input);
+    citizenService.stubs.getCitizenWithAffiliationById.resolves(citizen);
 
+    incentiveRepository.stubs.findById.resolves(input);
     // Invokes business
     const payment = {
       mode: 'unique',
@@ -214,8 +233,8 @@ describe('SubscriptionController', () => {
 
   it('SubscriptionController validate with funderType=Collectivity : successful', async () => {
     // Stub method
-    repository.stubs.findById.withArgs('randomInputId').resolves(input2);
-
+    subscriptionRepository.stubs.findById.withArgs('randomInputId').resolves(input2);
+    incentiveRepository.stubs.findById.resolves(input);
     // Invokes business
     const payment = {
       mode: 'unique',
@@ -230,7 +249,7 @@ describe('SubscriptionController', () => {
 
   it('SubscriptionController reject : error', async () => {
     // Stub method
-    repository.stubs.findById.withArgs('randomInputId1').resolves(input1);
+    subscriptionRepository.stubs.findById.withArgs('randomInputId1').resolves(input1);
     // Invokes business
 
     try {
@@ -240,7 +259,7 @@ describe('SubscriptionController', () => {
       sinon.assert.fail();
     } catch (error) {
       // Checks
-      expect(repository.stubs.updateById.notCalled).true();
+      expect(subscriptionRepository.stubs.updateById.notCalled).true();
       expect(spy.checkRefusMotif.calledOnce).false();
       expect(error.message).to.equal(expectedError.message);
     }
@@ -248,9 +267,10 @@ describe('SubscriptionController', () => {
 
   it('SubscriptionController reject with funder=Enterprise && reason=Condition : successful', async () => {
     // Stub method
-    repository.stubs.findById.withArgs('randomInputId').resolves(input);
-    citizenRepository.stubs.findById.resolves(citizen);
+    subscriptionRepository.stubs.findById.withArgs('randomInputId').resolves(input);
+    citizenService.stubs.getCitizenWithAffiliationById.resolves(citizen);
 
+    incentiveRepository.stubs.findById.resolves(input);
     // Invokes business
     const reason = {
       type: REJECTION_REASON.CONDITION,
@@ -266,8 +286,8 @@ describe('SubscriptionController', () => {
 
   it('SubscriptionController reject with funder=Collectivity && invalid proof : successful', async () => {
     // Stub method
-    repository.stubs.findById.withArgs('randomInputId').resolves(input2);
-
+    subscriptionRepository.stubs.findById.withArgs('randomInputId').resolves(input2);
+    incentiveRepository.stubs.findById.resolves(input);
     // Invokes business
     const reason = {
       type: REJECTION_REASON.INVALID_PROOF,
@@ -283,8 +303,8 @@ describe('SubscriptionController', () => {
 
   it('SubscriptionController reject with rejectionReason=Missing proof : successful', async () => {
     // Stub method
-    repository.stubs.findById.withArgs('randomInputId').resolves(input2);
-
+    subscriptionRepository.stubs.findById.withArgs('randomInputId').resolves(input2);
+    incentiveRepository.stubs.findById.resolves(input);
     // Invokes business
     const reason = {
       type: REJECTION_REASON.MISSING_PROOF,
@@ -300,8 +320,8 @@ describe('SubscriptionController', () => {
 
   it('SubscriptionController reject with rejectionReason=Other : successful', async () => {
     // Stub method
-    repository.stubs.findById.withArgs('randomInputId').resolves(input2);
-
+    subscriptionRepository.stubs.findById.withArgs('randomInputId').resolves(input2);
+    incentiveRepository.stubs.findById.resolves(input);
     // Invokes business
     const reason = {
       type: REJECTION_REASON.OTHER,
@@ -318,7 +338,7 @@ describe('SubscriptionController', () => {
 
   it('SubscriptionController getSubscriptionFileByName : successful', async () => {
     // Stub method
-    repository.stubs.findById.withArgs('randomInputId').resolves(input);
+    subscriptionRepository.stubs.findById.withArgs('randomInputId').resolves(input);
     s3Service.stubs.downloadFileBuffer.resolves({});
 
     const result = await controller.getSubscriptionFileByName(
@@ -337,7 +357,7 @@ describe('SubscriptionController', () => {
 
   it('SubscriptionController getSubscriptionFileByName : error', async () => {
     // Stub method
-    repository.stubs.findById.withArgs('randomInputId').resolves(input);
+    subscriptionRepository.stubs.findById.withArgs('randomInputId').resolves(input);
     try {
       s3Service.stubs.downloadFileBuffer.rejects({});
       await controller.getSubscriptionFileByName('randomInputId', 'helloworld.jpg');
@@ -351,7 +371,7 @@ describe('SubscriptionController', () => {
     // Stub method
     try {
       userRepository.stubs.findOne.resolves(user);
-      subscriptionRepository.stubs.find.resolves([initInput]);
+      subscriptionRepository.stubs.find.resolves([]);
       const response: any = {};
       await controller.generateExcel(response);
     } catch (error) {
@@ -389,18 +409,27 @@ describe('SubscriptionController', () => {
     }
   });
 
+  it('SubscriptionController updateById : success', async () => {
+    subscriptionRepository.stubs.findById
+      .withArgs('id')
+      .resolves(new Subscription({id: 'id', specificFields: {TextField: 'toto'}}));
+    subscriptionRepository.stubs.updateById.resolves();
+    await controller.updateById('id', {TextField: 'text', DateField: '02/06/2022'});
+  });
+
   function givenStubbedRepository() {
-    repository = createStubInstance(SubscriptionRepository);
     communityRepository = createStubInstance(CommunityRepository);
     userRepository = createStubInstance(UserRepository);
     subscriptionRepository = createStubInstance(SubscriptionRepository);
-    citizenRepository = createStubInstance(CitizenRepository);
     metadataRepository = createStubInstance(MetadataRepository);
+    affiliationRepository = createStubInstance(AffiliationRepository);
+    incentiveRepository = createStubInstance(IncentiveRepository);
   }
 
   function givenStubbedService() {
     s3Service = createStubInstance(S3Service);
     funderService = createStubInstance(FunderService);
+    citizenService = createStubInstance(CitizenService);
   }
 });
 
@@ -491,7 +520,7 @@ const mismatchCommunityError = new ValidationError(
 );
 
 const downloadError = new ValidationError(
-  'Le téléchargement a échoué, veuillez réessayer',
+  'Aucune demande validée à télécharger',
   '/downloadXlsx',
   StatusCode.UnprocessableEntity,
   ResourceName.Subscription,

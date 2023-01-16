@@ -42,4 +42,5 @@ export enum ResourceName {
   UniqueProfessionalEmail = 'Unique Professional Email',
   AffiliationBadStatus = 'Affiliation Already Treated',
   Territory = 'Territoire',
+  IncentiveEligibilityChecks = 'Contrôle',
 }

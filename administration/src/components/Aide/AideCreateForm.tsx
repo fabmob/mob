@@ -14,7 +14,7 @@ import {
   FormDataConsumer,
   useNotify,
 } from 'react-admin';
-import { useForm } from 'react-final-form';
+import { useForm, useFormState } from 'react-final-form';
 import { CardContent, Box } from '@material-ui/core';
 import { useQuery } from 'react-query';
 
@@ -33,18 +33,24 @@ import { validateUrl } from '../../utils/Aide/formHelper';
 import CustomAddButton from '../common/CustomAddButton';
 import { getFunders } from '../../api/financeurs';
 import FinanceurMessages from '../../utils/Financeur/fr.json';
+import AidesMessages from '../../utils/Aide/fr.json';
 
 import '../styles/DynamicForm.css';
 import TerritoriesDropDown from '../common/TerritoriesDropDown';
+import SubscriptionModeForm from '../common/SubscriptionModeForm';
 
 const AideCreateForm = (save, record) => {
   const notify = useNotify();
   const form = useForm();
-
+  
+  const [selectFinanceur, setSelectFinanceur] = useState('AideNationale');
+  const { values } = useFormState();
   const [FUNDER_CHOICE, setFunderChoice] = useState<
     { name: string; label: string }[]
   >([]);
   const [isMobilityChecked, setIsMobilityChecked] = React.useState(false);
+  const [isCertifiedTimestampChecked, setIsCertifiedTimestampChecked] =
+    React.useState(false);
 
   const { data: funders } = useQuery(
     'funders',
@@ -76,7 +82,19 @@ const AideCreateForm = (save, record) => {
   const handleShowMobilityInputs = () => {
     form.change('subscriptionLink', undefined);
     form.change('specificFields', undefined);
+    form.change('subscriptionCheckMode', undefined);
+    form.change('eligibilityChecks', undefined);
     setIsMobilityChecked(!isMobilityChecked);
+  };
+
+  const validateFunder = (value): string | undefined => {
+    if (isMobilityChecked && value) {
+      const existFunder = funders.find((element) => element.name === value);
+      return existFunder?.id
+        ? undefined
+        : AidesMessages['incentives.error.funderid.notfound'];
+    }
+    return undefined;
   };
 
   return (
@@ -105,27 +123,59 @@ const AideCreateForm = (save, record) => {
                   fullWidth
                   validate={[required()]}
                   choices={INCENTIVE_TYPE_CHOICE}
+                  onChange={(event) => setSelectFinanceur(event.target.value)}
                 />
                 <TerritoriesDropDown />
-                <AutocompleteInput
-                  source="funderName"
-                  label="Nom du financeur"
-                  fullWidth
-                  onCreate={(value) => {
-                    if (value) {
-                      const newFunder = { name: value, label: value };
-                      FUNDER_CHOICE.push(newFunder);
-                      return newFunder;
+                {selectFinanceur === 'AideNationale' ? (
+                  <AutocompleteInput
+                    source="funderName"
+                    label="Nom du financeur"
+                    fullWidth
+                    onCreate={(value) => {
+                      if (value) {
+                        const newFunder = { name: value, label: value };
+                        FUNDER_CHOICE.push(newFunder);
+                        return newFunder;
+                      }
+                    }}
+                    validate={[required(), validateFunder]}
+                    choices={FUNDER_CHOICE}
+                    optionText={(choice) =>
+                      choice
+                        ? choice.label
+                          ? choice.label
+                          : choice.name
+                        : null
                     }
-                  }}
-                  validate={[required()]}
-                  choices={FUNDER_CHOICE}
-                  optionText={(choice) =>
-                    choice ? (choice.label ? choice.label : choice.name) : null
-                  }
-                  optionValue="name"
-                  translateChoice={false}
-                />
+                    optionValue={'name'}
+                    translateChoice={false}
+                    onInputValueChange={(_, data) => {
+                      if (
+                        data.selectedItem?.id &&
+                        data?.selectedItem?.id !== '@@ra-create'
+                      ) {
+                        values.funderId = data?.selectedItem?.id;
+                      }
+                    }}
+                  />
+                ) : (
+                  <AutocompleteInput
+                    source="funderName"
+                    label="Nom du financeur"
+                    fullWidth
+                    validate={[required(), validateFunder]}
+                    choices={FUNDER_CHOICE}
+                    optionText={(choice) =>
+                      choice
+                        ? choice.label
+                          ? choice.label
+                          : choice.name
+                        : null
+                    }
+                    optionValue="name"
+                    translateChoice={false}
+                  />
+                )}
                 <TextInput
                   source="conditions"
                   label="Condition d'obtention"
@@ -204,6 +254,33 @@ const AideCreateForm = (save, record) => {
                   format={getDate}
                 />
               </Box>
+              <hr style={{ width: '695px', margin: '0px' }} />
+              <h3>Horodatage</h3>
+              <div style={{ marginTop: '10px', marginLeft: '10px' }}>
+                <span>Description :</span>
+                <p
+                  style={{
+                    fontSize: '12px',
+                    color: '#464cd0',
+                    top: '-20px',
+                  }}
+                >
+                  Horodatage des souscriptions
+                </p>
+                <Box display="flex">
+                  <BooleanInput
+                    checked={isCertifiedTimestampChecked}
+                    onChange={() =>
+                      setIsCertifiedTimestampChecked(
+                        !isCertifiedTimestampChecked
+                      )
+                    }
+                    source="isCertifiedTimestampRequired"
+                    label="Actif"
+                  />
+                </Box>
+              </div>
+              <hr style={{ width: '695px', margin: '0px' }} />
               <Box display="flex">
                 <BooleanInput
                   checked={isMobilityChecked}
@@ -225,72 +302,90 @@ const AideCreateForm = (save, record) => {
                 />
               </Box>
               {isMobilityChecked && (
-                <Box
-                  mt={2}
-                  display="flex"
-                  maxWidth={700}
-                  flexWrap="wrap"
-                  justifyContent="space-between"
-                >
-                  <ArrayInput source="specificFields" label="">
-                    <SimpleFormIterator
-                      className="simpleForm1"
-                      addButton={
-                        <CustomAddButton
-                          label={'Ajouter un champ spécifique'}
-                        />
-                      }
-                    >
-                      <TextInput
-                        source="title"
-                        label="Champ libre"
-                        fullWidth
-                        validate={[required()]}
-                      />
-                      <SelectInput
-                        source="inputFormat"
-                        label="Format"
-                        fullWidth
-                        validate={[required()]}
-                        choices={INPUT_FORMAT_CHOICE}
-                      />
-                      <FormDataConsumer>
-                        {({
-                          formData, // The whole form data
-                          scopedFormData, // The data for this item of the ArrayInput
-                          getSource, // A function to get the valid source inside an ArrayInput
-                          ...rest
-                        }) =>
-                          scopedFormData?.inputFormat === 'listeChoix' ? (
-                            <>
-                              <NumberInput
-                                source={getSource(
-                                  'choiceList.possibleChoicesNumber'
-                                )}
-                                label="Nombre de choix possible"
-                                min={0}
-                                validate={[required()]}
-                              />
-                              <ArrayInput
-                                source={getSource('choiceList.inputChoiceList')}
-                                label=""
-                              >
-                                <SimpleFormIterator className="simpleForm2">
-                                  <TextInput
-                                    source="inputChoice"
-                                    label="Nom du champ"
-                                    fullWidth
-                                    validate={[required()]}
-                                  />
-                                </SimpleFormIterator>
-                              </ArrayInput>
-                            </>
-                          ) : null
+                <>
+                  <Box
+                    mt={2}
+                    display="flex"
+                    maxWidth={700}
+                    flexWrap="wrap"
+                    justifyContent="space-between"
+                  >
+                    <ArrayInput source="specificFields" label="">
+                      <SimpleFormIterator
+                        className="simpleForm1"
+                        addButton={
+                          <CustomAddButton
+                            label={'Ajouter un champ spécifique'}
+                          />
                         }
-                      </FormDataConsumer>
-                    </SimpleFormIterator>
-                  </ArrayInput>
-                </Box>
+                      >
+                        <TextInput
+                          source="title"
+                          label="Champ libre"
+                          fullWidth
+                          validate={[required()]}
+                        />
+                        <SelectInput
+                          source="inputFormat"
+                          label="Format"
+                          fullWidth
+                          validate={[required()]}
+                          choices={INPUT_FORMAT_CHOICE}
+                        />
+                        <FormDataConsumer>
+                          {({
+                            formData, // The whole form data
+                            scopedFormData, // The data for this item of the ArrayInput
+                            getSource, // A function to get the valid source inside an ArrayInput
+                            ...rest
+                          }) =>
+                            scopedFormData?.inputFormat === 'listeChoix' ? (
+                              <>
+                                <NumberInput
+                                  source={getSource(
+                                    'choiceList.possibleChoicesNumber'
+                                  )}
+                                  label="Nombre de choix possible"
+                                  min={0}
+                                  validate={[required()]}
+                                />
+                                <ArrayInput
+                                  source={getSource(
+                                    'choiceList.inputChoiceList'
+                                  )}
+                                  label=""
+                                >
+                                  <SimpleFormIterator className="simpleForm2">
+                                    <TextInput
+                                      source="inputChoice"
+                                      label="Nom du champ"
+                                      fullWidth
+                                      validate={[required()]}
+                                    />
+                                  </SimpleFormIterator>
+                                </ArrayInput>
+                              </>
+                            ) : null
+                          }
+                        </FormDataConsumer>
+                        <BooleanInput
+                          source="isRequired"
+                          label="Champ obligatoire"
+                          initialValue={false}
+                        />
+                      </SimpleFormIterator>
+                    </ArrayInput>
+                  </Box>
+                  <SubscriptionModeForm />
+                  <Box display="flex">
+                    <BooleanInput
+                      checked={false}
+                      source="isCitizenNotificationsDisabled"
+                      label="Désactiver l'envoi des notifications au citoyen"
+                      initialValue={false}
+                    />
+                  </Box>
+                </>
               )}
             </Box>
           </Box>

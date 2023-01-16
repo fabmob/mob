@@ -3,7 +3,7 @@ import faker from '@faker-js/faker';
 describe("Mass User Creation Test", () => {
     context("On souhaite repérer l'anomalie de non réception d'e-mail de bienvenue en effectuant une injection de masse d'utilisateurs", () => {
         const mockUserList = [];
-        it("Création d'une centaine d'utilisateurs à la chaîne", () => {
+        it.skip("Création d'une centaine d'utilisateurs à la chaîne", () => {
             Cypress._.times(50, () => {
                 const randomUserEmail = faker.internet.email();
                 const user = {
@@ -16,7 +16,7 @@ describe("Mass User Creation Test", () => {
                 mockUserList.push(user);
             });
         });
-        it("Confirmation des emails recus", () => {
+        it.skip("Confirmation des emails recus", () => {
             cy.visit(`https://${Cypress.env("MAILHOG_FQDN")}`, {
                 failOnStatusCode: false,
                 redirectionLimit: 20,

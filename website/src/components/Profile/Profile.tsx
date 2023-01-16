@@ -36,10 +36,16 @@ import {
   firstCharUpper,
 } from '@utils/helpers';
 import { useGetFunder, useFromFranceConnect } from '@utils/keycloakUtils';
-import { Citizen, Consent } from '@utils/citoyens';
+import {
+  Citizen,
+  Consent,
+  AFFILIATION_STATUS,
+  CitizenUpdate,
+  CmsType,
+} from '@utils/citoyens';
 import { isManager, isSupervisor, Community } from '@utils/funders';
 
-import { AffiliationStatus, UrlFc, URL_LOGOUT_FC } from '@constants';
+import { UrlFc, URL_LOGOUT_FC } from '@constants';
 import { useSession, useUser } from '../../context';
 
 import Strings from './locale/fr.json';
@@ -49,7 +55,7 @@ import { environment } from '@environment';
 
 import './_profile.scss';
 import { matomoPageTracker, matomoTrackEvent } from '@utils/matomo';
-import { CmsType } from 'src/utils/citoyens';
+
 export interface User {
   gender: string;
   birthdate: string;
@@ -71,9 +77,11 @@ export interface User {
   communitiesPhrase: string;
   consents?: Consent[];
   affiliation: {
+    id: string;
+    citizenId: string;
     enterpriseId: string;
     enterpriseEmail: string;
-    affiliationStatus: AffiliationStatus;
+    status: AFFILIATION_STATUS;
     companyNotFound: boolean;
     hasNoEnterpriseEmail: boolean;
   };
@@ -104,11 +112,12 @@ interface EditProfileFormInput {
   statusPhrase: string;
   affiliationStatusPhrase: string;
   affiliation: {
+    citizenId: string;
     enterpriseId: string | null | undefined;
     enterpriseEmail: string | null;
     companyNotFound: boolean;
     hasNoEnterpriseEmail: boolean;
-    affiliationStatus?: AffiliationStatus;
+    status?: AFFILIATION_STATUS;
   };
 }
 
@@ -149,8 +158,9 @@ const Profile: FC<ProfileProps> = ({ crumbs }) => {
   const isFromFranceConnect = useFromFranceConnect();
 
   const [userData, setUserData] = useState<User | undefined>(undefined);
-  const [profileFormData, setProfileFormData] =
-    useState<EditProfileFormInput>(null);
+  const [profileFormData, setProfileFormData] = useState<CitizenUpdate | null>(
+    null
+  );
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [companyOptions, setCompanyOptions] = useState<CompanyOption[]>([]);
   const [isShowModal, setShowModal] = useState<boolean>(false);
@@ -184,22 +194,21 @@ const Profile: FC<ProfileProps> = ({ crumbs }) => {
   });
 
   let enterpriseTipPhrase: string | null = null;
-  if (
-    userData?.affiliation?.affiliationStatus === AffiliationStatus.TO_AFFILIATE
-  )
+  if (userData?.affiliation?.status === AFFILIATION_STATUS.TO_AFFILIATE)
     enterpriseTipPhrase = Strings['profile.affiliation.to.affiliate.tip.text'];
 
-  if (userData?.affiliation?.affiliationStatus === AffiliationStatus.AFFILIATED)
+  if (userData?.affiliation?.status === AFFILIATION_STATUS.AFFILIATED)
     enterpriseTipPhrase = Strings['profile.affiliation.affiliated.tip.text'];
 
-  if (
-    userData?.affiliation?.affiliationStatus === AffiliationStatus.DISAFFILIATED
-  )
+  if (userData?.affiliation?.status === AFFILIATION_STATUS.DISAFFILIATED)
     enterpriseTipPhrase = Strings[
       'profile.affiliation.disaffiliated.tip.text'
     ].replace('{0}', userData.funderName);
 
-  if (userData?.affiliation?.affiliationStatus === AffiliationStatus.UNKNOWN)
+  if (
+    userData?.affiliation?.status === AFFILIATION_STATUS.UNKNOWN ||
+    !userData?.affiliation
+  )
     enterpriseTipPhrase = Strings['profile.affiliation.unknown.tip.text'];
 
   // handle the affiliation email request
@@ -244,9 +253,11 @@ const Profile: FC<ProfileProps> = ({ crumbs }) => {
           postcode: userData?.postcode,
           status: userData?.status,
           affiliation: {
+            id: userData?.affiliation.id,
+            citizenId: userData?.id,
             enterpriseId: userData?.affiliation?.enterpriseId,
             enterpriseEmail: userData?.affiliation?.enterpriseEmail,
-            affiliationStatus: AffiliationStatus.TO_AFFILIATE,
+            status: AFFILIATION_STATUS.TO_AFFILIATE,
           },
         };
 
@@ -335,8 +346,8 @@ const Profile: FC<ProfileProps> = ({ crumbs }) => {
       json: 'affiliationStatusPhrase',
       type: 'text',
       actionList:
-        userData?.affiliation?.affiliationStatus ===
-        AffiliationStatus.TO_AFFILIATE
+        userData?.affiliation?.status === AFFILIATION_STATUS.TO_AFFILIATE &&
+        userData?.affiliation?.enterpriseEmail
           ? actionList
           : null,
       actionId: 1,
@@ -348,7 +359,8 @@ const Profile: FC<ProfileProps> = ({ crumbs }) => {
     const consentsData = await getConsentsById(saniCitizen.id);
     const enterprisesList = await getEntreprisesList<EntrepriseName[]>();
     const company = enterprisesList.find(
-      (item: { id: string }) => item.id === saniCitizen.affiliation.enterpriseId
+      (item: { id: string }) =>
+        item.id === saniCitizen.affiliation?.enterpriseId
     );
     const companies: object[] = setCompaniesList(enterprisesList);
     setCompanyOptions(companies);
@@ -366,28 +378,33 @@ const Profile: FC<ProfileProps> = ({ crumbs }) => {
     sanitizedCitizenData.birthdate =
       sanitizedCitizenData.identity.birthDate.value;
     sanitizedCitizenData.email = saniCitizen.personalInformation.email.value;
-
-    sanitizedCitizenData.statusPhrase =
-      UserStatus[saniCitizen.status as keyof typeof UserStatus];
+    sanitizedCitizenData.city = sanitizedCitizenData.city || '-';
+    sanitizedCitizenData.postcode = sanitizedCitizenData.postcode || '-';
+    sanitizedCitizenData.statusPhrase = sanitizedCitizenData.status
+      ? UserStatus[saniCitizen.status as keyof typeof UserStatus]
+      : '-';
     sanitizedCitizenData.funderName = company?.name || '-';
     sanitizedCitizenData.enterpriseEmailValue =
       saniCitizen.affiliation?.enterpriseEmail || '-';
     sanitizedCitizenData.affiliationStatusPhrase =
-      saniCitizen.affiliation?.affiliationStatus === 'A_AFFILIER' ? (
-        <>
-          {UserAffiliationStatus.A_AFFILIER}
-          <div className="profile-icon statut-icon">
-            <TooltipInfoIcon
-              tooltipContent={Strings['profile.tooltip.refresh.page']}
-              iconName="information"
-              iconSize={20}
-            />
-          </div>
-        </>
+      saniCitizen.affiliation?.status === 'A_AFFILIER' ? (
+        saniCitizen.affiliation?.enterpriseEmail ? (
+          <>
+            {UserAffiliationStatus.A_AFFILIER}
+            <div className="profile-icon statut-icon">
+              <TooltipInfoIcon
+                tooltipContent={Strings['profile.tooltip.refresh.page']}
+                iconName="information"
+                iconSize={20}
+              />
+            </div>
+          </>
+        ) : (
+          Strings['profile.phrase.not.affiliated']
+        )
       ) : (
         UserAffiliationStatus[
-          saniCitizen.affiliation
-            ?.affiliationStatus as keyof typeof UserAffiliationStatus
+          saniCitizen.affiliation?.status as keyof typeof UserAffiliationStatus
         ] || Strings['profile.phrase.not.affiliated']
       );
 
@@ -425,7 +442,7 @@ const Profile: FC<ProfileProps> = ({ crumbs }) => {
    * use the react query mutation tu handle the request state
    */
   const updateCitizenMutation = useMutation(
-    (citizenData: Partial<User>) => {
+    (citizenData: CitizenUpdate) => {
       return updateCitizenById(citizen?.id, citizenData);
     },
     {
@@ -463,23 +480,8 @@ const Profile: FC<ProfileProps> = ({ crumbs }) => {
   /**
    * handle the form submit action
    */
-  const onSubmit = async (userFormData: object): Promise<void> => {
-    /**
-     * init the variables
-     */
-    const newProfileData = profileFormData || userFormData;
-
-    /**
-     * set the last patch payload
-     */
-    const profileUpdatePayload = {
-      ...newProfileData,
-      status: newProfileData?.status,
-    };
-    /**
-     * submit the form data
-     */
-    updateCitizenMutation.mutate(profileUpdatePayload);
+  const onSubmit = async (userFormData: CitizenUpdate): Promise<void> => {
+    updateCitizenMutation.mutate(userFormData);
     setProfileFormData(null);
   };
 
@@ -489,70 +491,64 @@ const Profile: FC<ProfileProps> = ({ crumbs }) => {
    */
   const preSubmitForm = (formData: EditProfileFormInput) => {
     if (isDirty) {
-      const newFormData = formData;
-      const currentEnterprise = userData?.affiliation.enterpriseId;
-      const currentProEmail = userData?.affiliation.enterpriseEmail;
-
       const company = companyOptions.find(
         (item: { value: string }) =>
           item.value === formData.affiliation.enterpriseId
       );
-
-      newFormData.affiliation.enterpriseId = company?.id;
+      const updatedCitizen: CitizenUpdate = {
+        ...formData,
+        postcode: formData.postcode.toString(),
+        affiliation: {
+          id: userData!.affiliation?.id,
+          citizenId: userData!.id,
+          status: userData!.affiliation?.status || AFFILIATION_STATUS.UNKNOWN,
+          enterpriseEmail: formData.affiliation.enterpriseEmail || '',
+          enterpriseId: company?.id || '',
+        },
+      };
+      const currentEnterprise = userData?.affiliation?.enterpriseId || '';
+      const currentProEmail = userData?.affiliation?.enterpriseEmail || '';
 
       const hasEnterpriseIdChange =
-        currentEnterprise !== newFormData.affiliation.enterpriseId;
+        currentEnterprise !== updatedCitizen.affiliation.enterpriseId;
       const hasEnterpriseEmailChange =
-        currentProEmail !== newFormData.affiliation.enterpriseEmail;
-
-      if (newFormData.affiliation.companyNotFound) {
-        newFormData.affiliation.enterpriseId = '';
-      }
-
-      if (newFormData.affiliation.hasNoEnterpriseEmail) {
-        newFormData.affiliation.enterpriseEmail = '';
-      }
-      newFormData.affiliation.affiliationStatus =
-        userData?.affiliation.affiliationStatus;
-      delete newFormData.affiliation.companyNotFound;
-      delete newFormData.affiliation.hasNoEnterpriseEmail;
-      setProfileFormData(newFormData);
+        currentProEmail !== updatedCitizen.affiliation.enterpriseEmail;
 
       if (hasEnterpriseIdChange || hasEnterpriseEmailChange) {
         if (
-          newFormData.affiliation.enterpriseEmail !== '' &&
-          newFormData.affiliation.enterpriseId !== ''
+          updatedCitizen.affiliation.enterpriseEmail !== '' &&
+          updatedCitizen.affiliation.enterpriseId !== ''
         ) {
           if (
-            newFormData.affiliation.affiliationStatus ===
-            AffiliationStatus.UNKNOWN
+            updatedCitizen.affiliation.status === AFFILIATION_STATUS.UNKNOWN
           ) {
-            newFormData.affiliation.affiliationStatus =
-              AffiliationStatus.TO_AFFILIATE;
-            setProfileFormData(newFormData);
-            onSubmit(newFormData);
+            updatedCitizen.affiliation.status = AFFILIATION_STATUS.TO_AFFILIATE;
+            setProfileFormData(updatedCitizen);
+            onSubmit(updatedCitizen);
           } else {
-            newFormData.affiliation.affiliationStatus =
-              AffiliationStatus.TO_AFFILIATE;
-            setProfileFormData(newFormData);
-            onSetModalParams('affiliation');
+            updatedCitizen.affiliation.status = AFFILIATION_STATUS.TO_AFFILIATE;
+            setProfileFormData(updatedCitizen);
+            userData?.affiliation
+              ? onSetModalParams('affiliation')
+              : onSubmit(updatedCitizen);
           }
         } else {
           if (
-            newFormData.affiliation.affiliationStatus !==
-            AffiliationStatus.UNKNOWN
+            updatedCitizen.affiliation.status !== AFFILIATION_STATUS.UNKNOWN
           ) {
-            newFormData.affiliation.affiliationStatus =
-              AffiliationStatus.UNKNOWN;
-            setProfileFormData(newFormData);
-            onSetModalParams('affiliation');
+            updatedCitizen.affiliation.status = AFFILIATION_STATUS.UNKNOWN;
+            setProfileFormData(updatedCitizen);
+            userData?.affiliation
+              ? onSetModalParams('affiliation')
+              : onSubmit(updatedCitizen);
           } else {
-            onSubmit(newFormData);
+            setProfileFormData(updatedCitizen);
+            onSubmit(updatedCitizen);
           }
         }
       } else {
-        delete newFormData.affiliation;
-        onSubmit(newFormData);
+        setProfileFormData(updatedCitizen);
+        onSubmit(updatedCitizen);
       }
     }
   };
@@ -745,8 +741,8 @@ const Profile: FC<ProfileProps> = ({ crumbs }) => {
       /**
        * set the form values
        */
-      setValue('city', userData.city);
-      setValue('postcode', userData.postcode);
+      setValue('city', userData.city !== '-' ? userData.city : '');
+      setValue('postcode', userData.postcode !== '-' ? userData.postcode : '');
       setValue('status', statusKeyName);
       setValue(
         'affiliation.enterpriseId',

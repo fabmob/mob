@@ -31,15 +31,17 @@ import {
   EncryptionKey,
   Collectivity,
   Enterprise,
+  IncentiveEligibilityChecks,
+  CommonRejection,
 } from '../../models';
 import {
   IncentiveRepository,
-  CitizenRepository,
   SubscriptionRepository,
   CommunityRepository,
   EnterpriseRepository,
   MetadataRepository,
   CollectivityRepository,
+  IncentiveEligibilityChecksRepository,
 } from '../../repositories';
 import {
   checkMaas,
@@ -47,6 +49,7 @@ import {
   S3Service,
   RabbitmqService,
   SubscriptionService,
+  CitizenService,
 } from '../../services';
 import {validationErrorExternalHandler} from '../../validationErrorExternal';
 import {
@@ -58,9 +61,17 @@ import {
   AUTH_STRATEGY,
   MaasSubscriptionList,
   IUser,
+  AdditionalProps,
+  logger,
 } from '../../utils';
 import {generatePdfInvoices} from '../../utils/invoice';
-import {INCENTIVE_TYPE} from '../../utils/enum';
+import {
+  ELIGIBILITY_CHECKS_LABEL,
+  INCENTIVE_TYPE,
+  PAYMENT_MODE,
+  REJECTION_REASON,
+  SUBSCRIPTION_CHECK_MODE,
+} from '../../utils/enum';
 import {encryptFileHybrid, generateAESKey, encryptAESKey} from '../../utils/encryption';
 
 const multerInterceptor = toInterceptor(multer({storage: multer.memoryStorage()}).any());
@@ -71,14 +82,16 @@ export class SubscriptionV1Controller {
     public subscriptionRepository: SubscriptionRepository,
     @repository(IncentiveRepository)
     public incentiveRepository: IncentiveRepository,
-    @repository(CitizenRepository)
-    public citizenRepository: CitizenRepository,
     @repository(MetadataRepository)
     public metadataRepository: MetadataRepository,
     @repository(EnterpriseRepository)
     public enterpriseRepository: EnterpriseRepository,
     @repository(CommunityRepository)
     public communityRepository: CommunityRepository,
+    @repository(CollectivityRepository)
+    public collectivityRepository: CollectivityRepository,
+    @repository(IncentiveEligibilityChecksRepository)
+    public incentiveEligibilityChecksRepository: IncentiveEligibilityChecksRepository,
     @service(RabbitmqService)
     public rabbitmqService: RabbitmqService,
     @service(S3Service)
@@ -89,8 +102,8 @@ export class SubscriptionV1Controller {
     private currentUser: IUser,
     @service(SubscriptionService)
     public subscriptionService: SubscriptionService,
-    @repository(CollectivityRepository)
-    public collectivityRepository: CollectivityRepository,
+    @service(CitizenService)
+    public citizenService: CitizenService,
   ) {}
 
   @authorize({allowedRoles: [Roles.MAAS, Roles.PLATFORM], voters: [checkMaas]})
@@ -140,8 +153,12 @@ export class SubscriptionV1Controller {
     subscription: CreateSubscription,
   ): Promise<{id: string} | HttpErrors.HttpError> {
     try {
-      const incentive = await this.incentiveRepository.findById(subscription.incentiveId);
-      const citizen = await this.citizenRepository.findById(this.currentUser.id);
+      const incentive: Incentive = await this.incentiveRepository.findById(
+        subscription.incentiveId,
+      );
+      const citizen: Citizen = await this.citizenService.getCitizenWithAffiliationById(
+        this.currentUser.id,
+      );
       const newSubscription = new Subscription({
         ...subscription,
         incentiveTitle: incentive.title,
@@ -166,6 +183,10 @@ export class SubscriptionV1Controller {
       }
 
       const result = await this.subscriptionRepository.create(newSubscription);
+      // timestamped subscription
+      if (incentive?.isCertifiedTimestampRequired) {
+        await this.subscriptionService.createSubscriptionTimestamp(result);
+      }
       return {id: result.id};
     } catch (error) {
       return validationErrorExternalHandler(error);
@@ -293,7 +314,9 @@ export class SubscriptionV1Controller {
       const metadataId: string | undefined = attachmentData.body.data
         ? JSON.parse(attachmentData.body.data)?.metadataId
         : undefined;
-      const citizen: Citizen = await this.citizenRepository.findById(this.currentUser.id);
+      const citizen: Citizen = await this.citizenService.getCitizenWithAffiliationById(
+        this.currentUser.id,
+      );
       let formattedSubscriptionAttachments: AttachmentType[] = [];
       let invoicesPdf: Express.Multer.File[] = [];
       let createSubscriptionAttachments: Express.Multer.File[] = [];
@@ -415,38 +438,180 @@ export class SubscriptionV1Controller {
   async finalizeSubscription(
     @param.path.string('subscriptionId', {description: `L'identifiant de la demande`})
     subscriptionId: string,
-  ): Promise<{id: string} | HttpErrors.HttpError> {
+  ): Promise<
+    | {
+        id: string;
+        status: SUBSCRIPTION_STATUS;
+        rejectionReason?: REJECTION_REASON;
+        comment?: string;
+      }
+    | HttpErrors.HttpError
+  > {
     try {
       const subscription = await this.subscriptionRepository.findById(subscriptionId);
-      // Change subscription status
-      await this.subscriptionRepository.updateById(subscriptionId, {
-        status: SUBSCRIPTION_STATUS.TO_PROCESS,
-      });
-      // check if the funder is entreprise and if its HRIS to publish msg to rabbitmq
-      if (subscription?.incentiveType === INCENTIVE_TYPE.EMPLOYER_INCENTIVE) {
-        const enterprise = await this.enterpriseRepository.findById(
-          subscription?.funderId,
-        );
-        if (enterprise?.isHris) {
-          const payload = await this.subscriptionService.preparePayLoad(subscription);
-          // Publish to rabbitmq
-          await this.rabbitmqService.publishMessage(payload, enterprise?.name);
+      const incentive: Incentive = await this.incentiveRepository.findById(
+        subscription.incentiveId,
+      );
+
+      let comment: string | undefined, // This returns the message to send.
+        rejectionReason: REJECTION_REASON | undefined, // This returns the first rejection reason encountred.
+        status: SUBSCRIPTION_STATUS; // This returns the subscription status
+
+      /**
+       * Check if the subscription verification mode is automatic
+       */
+      if (incentive.subscriptionCheckMode === SUBSCRIPTION_CHECK_MODE.AUTOMATIC) {
+        // Set date for application_timestamp property for CEE api and updatedAt mcm bdd
+        const application_timestamp: string = new Date().toISOString();
+
+        /**
+         * Retrieve eligibilityChecks IDs if active=true
+         */
+        const controlsActiveIds: string[] | undefined = incentive?.eligibilityChecks
+          ?.filter(item => item.active)
+          .map(item => item.id);
+
+        /**
+         * Get the array of controls
+         */
+        const eligibilityChecks: IncentiveEligibilityChecks[] =
+          await this.incentiveEligibilityChecksRepository.find({
+            where: {
+              id: {inq: controlsActiveIds},
+            },
+          });
+
+        /**
+         * Returns a map of functions that correspond to each eligibility check
+         */
+        const eligibilityChecksMap: {
+          [key in ELIGIBILITY_CHECKS_LABEL]: () => Promise<any>;
+        } = {
+          [ELIGIBILITY_CHECKS_LABEL.FRANCE_CONNECT]: () =>
+            this.subscriptionService.checkFranceConnectIdentity(this.currentUser.id),
+          [ELIGIBILITY_CHECKS_LABEL.RPC_CEE_REQUEST]: () =>
+            this.subscriptionService.checkCEEValidity(
+              incentive,
+              subscription,
+              application_timestamp,
+            ),
+          [ELIGIBILITY_CHECKS_LABEL.EXCLUSION]: () =>
+            this.subscriptionService.checkOfferExclusitivity(),
+        };
+
+        let isEligible: Boolean = false; // This returns a Boolean indicating the eligibility check.
+        let additionalProps: AdditionalProps | undefined; // This returns the additional properties for Validation/Rejection.
+
+        /**
+         * Iterate over the controls and calls the corresponding function for each check.
+         * Depending of the result, Populate the variables above.
+         * If invalid, set isEligible to false and exit the loop.
+         * */
+        for (const control of eligibilityChecks) {
+          const result = await eligibilityChecksMap[control.label]();
+          additionalProps = result?.data;
+
+          if (result === true || result.status === 'success') {
+            isEligible = true;
+          }
+          if (result === false || result.status === 'error') {
+            isEligible = false;
+            comment = result?.message;
+            if (result.code) {
+              comment = 'HTTP ' + result.code + (' - ' + comment || '');
+            }
+            if (control.motifRejet) {
+              rejectionReason = control.motifRejet as REJECTION_REASON;
+            }
+            break;
+          }
+        }
+
+        /**
+         * If all controls are OK, Perform the validation process
+         * Otherwise Perform the rejection process
+         * */
+
+        if (isEligible) {
+          // Validate subscription
+          await this.subscriptionService.validateSubscription(
+            {additionalProperties: additionalProps, mode: PAYMENT_MODE.NONE},
+            subscription,
+            application_timestamp,
+          );
+          status = SUBSCRIPTION_STATUS.VALIDATED;
+        } else {
+          // Reject subscription
+          await this.subscriptionService.rejectSubscription(
+            {
+              additionalProperties: additionalProps,
+              type: rejectionReason,
+              comments: comment,
+            } as CommonRejection,
+            subscription,
+            application_timestamp,
+          );
+          status = SUBSCRIPTION_STATUS.REJECTED;
+        }
+      } else {
+        // Change subscription status
+        await this.subscriptionRepository.updateById(subscriptionId, {
+          status: SUBSCRIPTION_STATUS.TO_PROCESS,
+        });
+        status = SUBSCRIPTION_STATUS.TO_PROCESS;
+
+        /**
+         * get the incentive notification boolean
+         */
+        const isCitizenNotificationsDisabled: Boolean =
+          incentive?.isCitizenNotificationsDisabled;
+        // Send a notification as an email
+        if (!isCitizenNotificationsDisabled) {
+          const dashboardLink = `${WEBSITE_FQDN}/mon-dashboard`;
+          await this.mailService.sendMailAsHtml(
+            subscription.email,
+            'Confirmation d’envoi de la demande',
+            'requests-to-process',
+            {
+              username: capitalize(subscription.firstName),
+              funderName: subscription.funderName,
+              dashboardLink: dashboardLink,
+            },
+          );
+        }
+
+        // check if the funder is entreprise and if its HRIS to publish msg to rabbitmq
+        if (subscription?.incentiveType === INCENTIVE_TYPE.EMPLOYER_INCENTIVE) {
+          const enterprise = await this.enterpriseRepository.findById(
+            subscription?.funderId,
+          );
+          if (enterprise?.isHris) {
+            const payload = await this.subscriptionService.preparePayLoad(subscription);
+            // Publish to rabbitmq
+            await this.rabbitmqService.publishMessage(payload, enterprise?.name);
+          }
         }
       }
-      // Send a notification as an email
-      const dashboardLink = `${WEBSITE_FQDN}/mon-dashboard`;
-      await this.mailService.sendMailAsHtml(
-        subscription.email,
-        'Confirmation d’envoi de la demande',
-        'requests-to-process',
-        {
-          username: capitalize(subscription.firstName),
-          funderName: subscription.funderName,
-          dashboardLink: dashboardLink,
-        },
-      );
-      return {id: subscriptionId};
+
+      // timestamped subscription
+      if (incentive?.isCertifiedTimestampRequired) {
+        const updatedSubscription: Subscription =
+          await this.subscriptionRepository.findById(subscriptionId);
+        await this.subscriptionService.createSubscriptionTimestamp(updatedSubscription);
+      }
+
+      return {
+        id: subscriptionId,
+        status: status,
+        rejectionReason: rejectionReason,
+        comment: comment,
+      };
     } catch (error) {
+      logger.error(
+        `${SubscriptionV1Controller.name} -${
+          this.finalizeSubscription.name
+        }  error : ${error.message!}`,
+      );
       return validationErrorExternalHandler(error);
     }
   }

@@ -17,7 +17,7 @@ describe('affiliation functions', () => {
     const affiliation = new Affiliation(
       Object.assign({enterpriseId: 'funderId', enterpriseEmail: 'test@test.com'}),
     );
-    affiliation.affiliationStatus = AFFILIATION_STATUS.AFFILIATED;
+    affiliation.status = AFFILIATION_STATUS.AFFILIATED;
 
     const citizen = new Citizen({
       affiliation,

@@ -8,11 +8,13 @@ import {
   useNotify,
   useRedirect,
   useRefresh,
+  Record,
 } from 'react-admin';
 
 import AideCreateForm from './AideCreateForm';
 import AidesMessages from '../../utils/Aide/fr.json';
 import { errorFetching } from '../../utils/constant';
+import { validateIncentiveForm, getFormData } from '../../utils/helpers';
 
 const AideCreate: FC<CreateProps> = (props) => {
   const { save, record } = useCreateContext();
@@ -38,14 +40,27 @@ const AideCreate: FC<CreateProps> = (props) => {
     notify(result, 'error');
   };
 
+  const transform = (data): Record => {
+    if (data.eligibilityChecks && data.eligibilityChecks.length > 0) {
+      return getFormData(data);
+    }
+
+    if (data.specificFields && !data.specificFields.length ) {
+      delete data.specificFields
+    }
+
+    return { ...data };
+  };
+
   return (
     <Create
       title={AidesMessages['aides.create.title']}
       {...props}
       onSuccess={onSuccess}
       onFailure={onFailure}
+      transform={transform}
     >
-      <SimpleForm>
+      <SimpleForm validate={validateIncentiveForm}>
         <AideCreateForm save={save} record={record} />
       </SimpleForm>
     </Create>

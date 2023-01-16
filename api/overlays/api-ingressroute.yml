@@ -12,6 +12,8 @@ spec:
         - name: api-headers-middleware
         # - name: api-ratelimit-middleware
         - name: api-inflightreq-middleware
+        - name: custom-error-middleware
+          namespace: traefik-int
       kind: Rule
       services:
         - kind: Service

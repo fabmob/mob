@@ -6,16 +6,12 @@ import Heading from '../../../../components/Heading/Heading';
 import Image from '../../../../components/Image/Image';
 
 import { firstCharUpper } from '@utils/helpers';
+import { Affiliation } from '@utils/citoyens';
 
 import Strings from './locale/fr.json';
 
 import './_citizen-card.scss';
 
-export interface Affiliation {
-  enterpriseId?: string;
-  enterpriseEmail?: string;
-  affiliationStatus?: string;
-}
 export interface IdentityRessourceProps {
   firstName?: string;
   lastName?: string;
@@ -88,9 +84,8 @@ function renderIdentitySection(identity: IdentityRessourceProps) {
             Strings['section.item.birthday'],
             format(new Date(birthdate), 'dd/MM/yyyy')
           )}
-        {city && renderSectionItem(Strings['section.item.label.ville'], city)}
-        {postcode &&
-          renderSectionItem(
+        {renderSectionItem(Strings['section.item.label.ville'], city)}
+        {renderSectionItem(
             Strings['section.item.label.postal.code'],
             postcode
           )}
@@ -115,13 +110,13 @@ function renderIdentitySection(identity: IdentityRessourceProps) {
 
 function renderSectionItem(
   label: string,
-  value: ReactText,
+  value: string | number | undefined,
   valueColor?: string
 ) {
   return (
     <>
       <dt>{label}</dt>
-      <dd style={{ color: valueColor }}>{value}</dd>
+      <dd style={{ color: valueColor }}>{value || '-'}</dd>
     </>
   );
 }

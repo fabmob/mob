@@ -6,7 +6,7 @@ import {GENDER_TYPE} from '../utils/enum';
 export class CommonFields extends Entity {
   @property({
     type: 'string',
-    description: 'Name of the service requested to certify data',
+    description: 'Nom du service certifiant les données',
     jsonSchema: {
       example: 'franceconnect.gouv.fr',
     },
@@ -15,7 +15,7 @@ export class CommonFields extends Entity {
 
   @property({
     type: 'date',
-    description: 'Last certification date',
+    description: 'Date de dernière certification',
     jsonSchema: {
       example: '2022-06-17T14:22:01Z',
     },
@@ -49,7 +49,7 @@ export class StringType extends CommonFields {
   @property({
     type: 'string',
     required: true,
-    description: 'String value',
+    description: 'Valeur au format chaîne de caractères',
     jsonSchema: {
       example: 'test',
       minLength: 2,
@@ -67,7 +67,7 @@ export class IntegerType extends CommonFields {
   @property({
     type: 'number',
     required: true,
-    description: 'Integer value',
+    description: 'Valeur au format entier',
     jsonSchema: {
       example: 10,
       format: 'int32',
@@ -85,7 +85,7 @@ export class NumberType extends CommonFields {
   @property({
     type: 'number',
     required: true,
-    description: 'Number value',
+    description: 'Valeur au format nombre',
     jsonSchema: {
       example: 12345,
     },
@@ -102,7 +102,7 @@ export class DateType extends CommonFields {
   @property({
     type: 'date',
     required: true,
-    description: 'Date value',
+    description: 'Valeur au format date',
     jsonSchema: {
       example: '2022-06-17',
       format: 'date',
@@ -120,7 +120,7 @@ export class EmailType extends CommonFields {
   @property({
     type: 'string',
     required: true,
-    description: 'Email address',
+    description: 'Email personnel du citoyen',
     jsonSchema: {
       example: 'bob@yopmail.com',
       format: 'email',
@@ -139,7 +139,7 @@ export class PostalAddressValue extends Model {
   @property({
     type: 'string',
     required: true,
-    description: 'Address - Line 1',
+    description: 'Adresse au format AFNOR NF Z 10-011 - Ligne 1',
     jsonSchema: {
       example: 'M Dr Jean Dupont',
       maxLength: 38,
@@ -149,7 +149,7 @@ export class PostalAddressValue extends Model {
 
   @property({
     type: 'string',
-    description: 'Address - Line 2',
+    description: 'Adresse au format AFNOR NF Z 10-011 - Ligne 2',
     jsonSchema: {
       example: 'Etage 1',
       maxLength: 38,
@@ -159,7 +159,7 @@ export class PostalAddressValue extends Model {
 
   @property({
     type: 'string',
-    description: 'Address - Line 3',
+    description: 'Adresse au format AFNOR NF Z 10-011 - Ligne 3',
     jsonSchema: {
       example: 'Bâtiment A',
       maxLength: 38,
@@ -169,7 +169,7 @@ export class PostalAddressValue extends Model {
 
   @property({
     type: 'string',
-    description: 'Address - Line 4',
+    description: 'Adresse au format AFNOR NF Z 10-011 - Ligne 4',
     jsonSchema: {
       example: '7 Rue Claude Chappe',
       maxLength: 38,
@@ -179,7 +179,7 @@ export class PostalAddressValue extends Model {
 
   @property({
     type: 'string',
-    description: 'Address - Line 5',
+    description: 'Adresse au format AFNOR NF Z 10-011 - Ligne 5',
     jsonSchema: {
       example: 'Rennes Atalante Champs Blancs CS 67746',
       maxLength: 38,
@@ -189,7 +189,7 @@ export class PostalAddressValue extends Model {
 
   @property({
     type: 'string',
-    description: 'Address - Line 6',
+    description: 'Adresse au format AFNOR NF Z 10-011 - Ligne 6',
     jsonSchema: {
       example: '35510 Cesson-Sévigné',
       maxLength: 38,
@@ -199,7 +199,7 @@ export class PostalAddressValue extends Model {
 
   @property({
     type: 'string',
-    description: 'Address - Line 7',
+    description: 'Adresse au format AFNOR NF Z 10-011 - Ligne 7',
     jsonSchema: {
       example: 'FRANCE',
       maxLength: 38,
@@ -231,7 +231,7 @@ export class PhoneNumber extends CommonFields {
   @property({
     type: 'string',
     required: true,
-    description: 'International Phone number',
+    description: 'Numéro de téléphone au format international',
     jsonSchema: {
       example: '+33123456789',
       pattern: '^\\+[1-9]\\d{1,14}$',
@@ -241,7 +241,7 @@ export class PhoneNumber extends CommonFields {
 
   @property({
     type: 'boolean',
-    description: 'Is a mobile phone number',
+    description: 'Le numéro de téléphone correspond à un mobile',
     jsonSchema: {
       example: false,
     },
@@ -258,7 +258,7 @@ export class Gender extends CommonFields {
   @property({
     type: 'number',
     required: true,
-    description: 'Gender ISO/IEC 5218 value',
+    description: 'Civilité au format ISO/IEC 5218',
     jsonSchema: {
       example: GENDER_TYPE.MALE,
       enum: Object.values(GENDER_TYPE).filter(x => typeof x === 'number'),
@@ -276,7 +276,7 @@ export class Gender extends CommonFields {
 export class Country extends CommonFields {
   @property({
     type: 'string',
-    description: 'Country name',
+    description: 'Nom du pays',
     jsonSchema: {
       example: 'France',
     },
@@ -285,7 +285,7 @@ export class Country extends CommonFields {
 
   @property({
     type: 'string',
-    description: 'Country ISO 3166-1 alpha-3 value',
+    description: 'Pays au format ISO 3166-1 alpha-3',
     jsonSchema: {
       example: 'FRA',
     },
@@ -301,7 +301,7 @@ export class Country extends CommonFields {
 export class City extends CommonFields {
   @property({
     type: 'string',
-    description: 'City INSEE value',
+    description: 'Ville au format INSEE',
     jsonSchema: {
       example: '',
     },
@@ -310,7 +310,7 @@ export class City extends CommonFields {
 
   @property({
     type: 'string',
-    description: 'Name of the city',
+    description: 'Nom de la ville',
     jsonSchema: {
       example: 'Paris',
     },

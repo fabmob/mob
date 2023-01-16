@@ -268,9 +268,6 @@ describe('UserController (unit)', () => {
 
       expect(result).to.deepEqual({
         id: user.id,
-        email: user.email,
-        lastName: user.lastName,
-        firstName: user.firstName,
       });
       funderService.stubs.getFunders.restore();
       keycloakGroupRepository.stubs.getSubGroupFunderRoles.restore();
@@ -331,9 +328,6 @@ describe('UserController (unit)', () => {
 
       expect(result).to.deepEqual({
         id: userSupervisor.id,
-        email: userSupervisor.email,
-        lastName: userSupervisor.lastName,
-        firstName: userSupervisor.firstName,
       });
       funderService.stubs.getFunders.restore();
       keycloakGroupRepository.stubs.getSubGroupFunderRoles.restore();
@@ -427,12 +421,16 @@ describe('UserController (unit)', () => {
 
     it('UserController updateById: successful ', async () => {
       userRepository.stubs.findById.resolves(users);
+      kcService.stubs.updateUserKC.resolves();
       kcService.stubs.updateUserGroupsKc.resolves();
       const result = await controller.updateById(
         'a0e48494-1bfb-4142-951b-16ec6d9c8e1d',
         usersUpdated,
       );
-      expect(result).to.deepEqual({id: 'a0e48494-1bfb-4142-951b-16ec6d9c8e1d'});
+
+      expect(kcService.stubs.updateUserGroupsKc.called).true();
+      expect(kcService.stubs.updateUserKC.called).true();
+      expect(userRepository.stubs.updateById.called).true();
       userRepository.stubs.findById.restore();
       kcService.stubs.updateUserGroupsKc.restore();
     });

@@ -79,21 +79,6 @@ export const updateCitizenById = async (
   await https.patch<Citizen>(`v1/citizens/${id}`, JSON.stringify(citizenData));
 };
 
-/**
- * Create citizen linked to FC by id
- * @param id id of citizen
- * @param citizenData schema
- */
-export const createCitizenFcById = async (
-  id: string,
-  citizenData: Partial<Citizen>
-): Promise<void> => {
-  await https.post<Citizen>(
-    `/v1/citizens/${id}/complete`,
-    JSON.stringify(citizenData)
-  );
-};
-
 export const putCitizenAffiliation = async (
   citizenId: string,
   token = ''

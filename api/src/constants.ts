@@ -49,3 +49,5 @@ export const credentials: Credentials = {
     ? `${process.env.CLIENT_SECRET_KEY_KEYCLOAK_API}`
     : '${IDP_API_CLIENT_SECRET}',
 };
+
+export const datePattern = /^(0?[1-9]|[12][0-9]|3[01])[-/](0?[1-9]|1[012])[-/]\d{4}$/;

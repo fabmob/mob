@@ -1,5 +1,6 @@
+export * from './affiliation.repository';
 export * from './incentive.repository';
-export * from './citizen.repository';
+export * from './incentiveEligibilityChecks.repository';
 export * from './collectivity.repository';
 export * from './enterprise.repository';
 export * from './subscription.repository';
@@ -10,3 +11,5 @@ export * from './idp';
 export * from './cronJob.repository';
 export * from './territory.repository';
 export * from './citizenMigration.repository';
+export * from './incentiveEligibilityChecks.repository';
+export * from './subscriptionTimestamp.repository';

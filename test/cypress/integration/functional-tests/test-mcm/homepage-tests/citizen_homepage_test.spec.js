@@ -3,6 +3,7 @@ describe("Citizen homepage", function () {
 	it("Test of the citizen homepage", function () {
         cy.viewport(1440, 900); // Desktop mode
         cy.justVisit("WEBSITE_FQDN"); // Open website homepage
+        cy.wait(10000);
 
         /* ==== Tabs Banner */
         cy.get('.nav-links__item--active > a').should('have.text', 'Citoyen.ne'); // Citizen tab
@@ -40,10 +41,10 @@ describe("Citizen homepage", function () {
             'srcset',
             '/static/a121f1570b7b10709bf14f6a60b3b971/fd013/woman-yellow-coat.jpg 200w,\n/static/a121f1570b7b10709bf14f6a60b3b971/25252/woman-yellow-coat.jpg 400w,\n/static/a121f1570b7b10709bf14f6a60b3b971/2f1b1/woman-yellow-coat.jpg 800w,\n/static/a121f1570b7b10709bf14f6a60b3b971/0ff54/woman-yellow-coat.jpg 1200w,\n/static/a121f1570b7b10709bf14f6a60b3b971/06655/woman-yellow-coat.jpg 1600w,\n/static/a121f1570b7b10709bf14f6a60b3b971/7731d/woman-yellow-coat.jpg 1808w'
         );
-        cy.get('.mcm-section-with-image--image-left > .mcm-section-with-image__body > h2.mb-s').should('have.text', 'Rechercher facilement des aides éco-responsables pour financer vos déplacements'); // Title
-        cy.get('.mcm-section-with-image--image-left > .mcm-section-with-image__body > p.mb-s').should('have.text', 'Profitez de tous les avantages mis à disposition par votre collectivité ou votre entreprise pour des déplacements plus simples et plus durables au quotidien. MOB, c’est un compte unique et personnel qui rassemble tout ce dont vous avez besoin pour mieux vous déplacer et profiter de vos aides.'); // Text
+        cy.get('.mcm-section-with-image--image-left > .mcm-section-with-image__body > h2.mb-s').should('have.text', 'Rechercher facilement des aides à la mobilité pour financer mes déplacements'); // Title
+        cy.get('.mcm-section-with-image--image-left > .mcm-section-with-image__body > p.mb-s').should('have.text', 'Profiter des dispositifs mis à disposition par ma collectivité ou mon entreprise pour des déplacements plus simples et plus durables au quotidien. moB, c’est un compte unique et personnel qui rassemble tout ce dont j’ai besoin pour mieux me déplacer et profiter de mes aides.'); // Text
         cy.get('.mcm-section-with-image--image-left > .mcm-section-with-image__body > a > .button')
-		  .should('have.text', 'Rechercher une aide ') // Button text
+		  .should('have.text', 'Trouver une aide') // Button text
           .click(); // Redirect
         cy.url().should("match", /recherche/); // Search page
         cy.go(-1); // Go back to homepage
@@ -63,8 +64,8 @@ describe("Citizen homepage", function () {
 			'/static/608102772e219ed9d765051143a1f289/fd013/trees.jpg 200w,\n/static/608102772e219ed9d765051143a1f289/25252/trees.jpg 400w,\n/static/608102772e219ed9d765051143a1f289/2f1b1/trees.jpg 800w,\n/static/608102772e219ed9d765051143a1f289/0ff54/trees.jpg 1200w,\n/static/608102772e219ed9d765051143a1f289/06655/trees.jpg 1600w,\n/static/608102772e219ed9d765051143a1f289/7731d/trees.jpg 1808w'
 		);
 		cy.get(':nth-child(4) > .mcm-section-with-image__body > h2.mb-s').should('have.text', 'Un projet collaboratif'); // Title
-		cy.get('.mb-xs').should('have.text', 'Ce projet d’intérêt général ouvert et collaboratif, financé dans le cadre de l’appel à programmes des certificats d’économies d’énergie lancé par le ministère de la Transition écologique et solidaire.'); // Text 1/2
-		cy.get(':nth-child(4) > .mcm-section-with-image__body > p.mb-s').should('have.text', 'Son développement sera incrémental et expérimenté sur 3 territoires pilotes en 2021 et 2022, en partenariat avec plusieurs collectivités, employeurs et acteurs de la mobilité. Il sera ensuite porté par un acteur neutre, tiers de confiance.'); // Text 2/2
+		cy.get('.mb-xs').should('have.text', 'Lauréat de l’Appel à Programme des certificats d’économies d’énergies (APP CEE), moB est un projet d’intérêt général ouvert et collaboratif qui a pour ambition d’œuvrer au report modal en facilitant l’accès aux aides à la mobilité.'); // Text 1/2
+		cy.get(':nth-child(4) > .mcm-section-with-image__body > p.mb-s').should('have.text', 'Avec moB je crée mon compte unique de mobilité et visualise sur une même plateforme l’ensemble des dispositifs d’aide à la mobilité (nationaux, de mon territoire et de mon entreprise). moB me permet de simplifier la souscription et le suivi de mes demandes et ainsi de réduire mon empreinte carbone.'); // Text 2/2
 		cy.get('[href="/contact"] > .button')
 		  .should('have.text', 'Nous contacter') // Button text
 		  .click(); // Redirect
@@ -99,7 +100,7 @@ describe("Citizen homepage", function () {
           .then((href) => {
 			  cy.request(href).its('status').should('eq', 200);
         });
-		cy.get(':nth-child(3) > a > .mcm-image').should('have.attr', 'src', '/static/66e7dd5e7118c2530d603c629276e063/logo-fabmob.png'); // Image 3/7
+		cy.get(':nth-child(3) > a > .mcm-image > picture > img').should('have.attr', 'src', '/static/2ffe5b8f543e3351b0d4063f40713791/bc8e0/logo-fabmob.png'); // Image 3/7
 		cy.get('.partner-list > :nth-child(3) > a')
           .should('have.attr', 'target', '_blank')
           .should('have.attr', 'href')
@@ -107,7 +108,7 @@ describe("Citizen homepage", function () {
           .then((href) => {
 			  cy.request(href).its('status').should('eq', 200);
         });
-		cy.get(':nth-child(4) > a > .mcm-image > picture > img').should('have.attr', 'srcset', '/static/86b6820a622b2cd351c5631eaac00851/8ac63/logo-igart.png 200w,\n/static/86b6820a622b2cd351c5631eaac00851/8bf6f/logo-igart.png 352w'); // Image 4/7
+		cy.get(':nth-child(4) > a > .mcm-image > picture > img').should('have.attr', 'srcset', '/static/d47b24489ff8df5a19b3f9b74977a2ec/8ac63/logo-igart.png 200w,\n/static/d47b24489ff8df5a19b3f9b74977a2ec/ca83a/logo-igart.png 342w'); // Image 4/7
 		cy.get('.partner-list > :nth-child(4) > a')
           .should('have.attr', 'target', '_blank')
           .should('have.attr', 'href')
@@ -127,7 +128,7 @@ describe("Citizen homepage", function () {
 		cy.get('.partner-list > :nth-child(6) > a')
           .should('have.attr', 'target', '_blank')
           .should('have.attr', 'href')
-          .and('eq', 'https://www.capgemini.com/fr-fr/mon-compte-mobilite/')
+          .and('eq', 'https://www.capgemini.com/fr-fr/actualites/communiques-de-presse/premiere-experimentation-mon-compte-mobilite-avec-ile-de-france-mobilites-et-dans-agglomeration-mulhousienne/')
           .then((href) => {
 			  cy.request(href).its('status').should('eq', 200);
         });

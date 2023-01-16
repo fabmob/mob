@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="utf-8">
+    <title>moB | Mon Compte Mobilité</title>
+    <link rel="icon" type="image/x-icon" href="https://static.moncomptemobilite.fr/assets/mob-favicon.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            --color-blue-petrol: #464cd0;
+            --font-family: 'sofia-pro', sans-serif;
+        }
+
+        body {
+            margin: 0;
+            height: 100vh;
+            font-family: var(--font-family);
+            font-weight: 400;
+            overflow: hidden;
+        }
+
+        h1, h2 {
+            color: var(--color-blue-petrol);
+            font-size: 2.5em;
+        }
+        
+
+        .mcm-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+
+        .mcm-header {
+            display: flex;
+            justify-content: center;
+            padding-top: 5%;
+        }
+
+        .mcm-header>img {
+            width: 250px;
+        }
+
+
+        .mcm-container-text {
+            width: 30%;
+            text-align: center;
+        }
+
+        .mcm-container-text>img {
+            width: 50%;
+        }
+
+        .mcm-footer {
+            width: 100%;
+            background: url("https://static.moncomptemobilite.fr/assets/mob-pattern.svg") repeat-x;
+            background-size: contain;
+            height: 20%;
+            margin-bottom: -4%;
+        }
+
+        @media screen and (max-width: 1024px) {
+            h1, h2 {
+                font-size: 4em;
+            }
+
+            .mcm-header {
+                padding-top: 20%;
+            }
+
+            .mcm-header>img {
+                width: 400px;
+            }
+
+            .mcm-container-text {
+                width: 100%;
+            }
+
+            .mcm-footer {
+                height: 15%;
+                margin-bottom: 0%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="mcm-container">
+        <div class="mcm-header">
+            <img src="https://static.moncomptemobilite.fr/assets/logo-with-baseline.svg" alt="mob-logo" />
+        </div>
+        <div class="mcm-container-text">
+            <h1>Désolé,</h1>
+            <h2>Mon Compte Mobilité est temporairement indisponible.</h2>
+            <img src="https://static.moncomptemobilite.fr/assets/madame-a-velo.gif" alt="velo" />
+        </div>
+        <div class="mcm-footer"></div>
+    </div>
+</body>
+
+</html>

@@ -56,6 +56,7 @@ export class SubscriptionV1Interceptor implements Provider<Interceptor> {
     const {jsonSchema, funderId, isMCMStaff} = await this.incentiveRepository.findById(
       subscriptionIncentiveData?.incentiveId,
     );
+    const incentiveSchema: any = {...jsonSchema};
     if (!isMCMStaff)
       throw new ValidationError('Access denied', '/authorization', StatusCode.Forbidden);
 
@@ -81,7 +82,6 @@ export class SubscriptionV1Interceptor implements Provider<Interceptor> {
     const validator = new Validator();
     const {incentiveId, consent, communityId, ...specificFieldsToCompare} =
       subscriptionIncentiveData;
-
     // If no incentive.json schema, compare with createSubscription model and no additional properties
     const resultCompare = validator.validate(
       jsonSchema ? specificFieldsToCompare : subscriptionIncentiveData,
@@ -101,7 +101,11 @@ export class SubscriptionV1Interceptor implements Provider<Interceptor> {
       Object.keys(resultCompare.schema.properties as Object).forEach(element => {
         let value = subscriptionIncentiveData?.[element];
         // Format date
-        if (resultCompare.schema.properties?.[element]?.format === 'date') {
+        if (
+          resultCompare.schema.properties?.[element].format === 'date' ||
+          (resultCompare.schema.properties?.[element].oneOf?.[0].format === 'date' &&
+            value)
+        ) {
           value = format(new Date(value), 'dd/MM/yyyy');
         }
         Object.assign(specificFields, {[element]: value});

@@ -32,13 +32,6 @@ const InscriptionIndex = () => {
         component={<InscriptionPageForm />}
         publicOnly
       />
-      <AuthorizationRoute
-        path={COMPLETION_ROUTE}
-        component={<InscriptionPageForm />}
-        allowedRoles={[Roles.CITIZENS_FC]}
-        forbiddenRoles={[Roles.CITIZENS]}
-        authenticatedOnly
-      />
     </MyRouter>
   );
 };

@@ -116,19 +116,11 @@ const schema = yup.object().shape({
   }),
   tos1: yup.bool().oneOf([true], Strings['citizens.error.tos1.false']),
   tos2: yup.bool().oneOf([true], Strings['citizens.error.tos2.false']),
-  password: yup.string().when('$exist', {
-    is: (exist: boolean) => exist,
-    then: yup.string().required(defaultRequiredMessage),
-    otherwise: yup.string(),
-  }),
-  passwordConfirmation: yup.string().when('$exist', {
-    is: (exist: boolean) => exist,
-    then: yup
-      .string()
-      .required(defaultRequiredMessage)
-      .oneOf([yup.ref('password')], Strings['citizens.error.confirmPassword']),
-    otherwise: yup.string(),
-  }),
+  password: yup.string().required(defaultRequiredMessage),
+  passwordConfirmation: yup
+    .string()
+    .required(defaultRequiredMessage)
+    .oneOf([yup.ref('password')], Strings['citizens.error.confirmPassword']),
 });
 
 export default schema;

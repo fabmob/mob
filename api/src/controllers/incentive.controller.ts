@@ -23,20 +23,34 @@ import {authenticate} from '@loopback/authentication';
 import {authorize} from '@loopback/authorization';
 import {SecurityBindings} from '@loopback/security';
 
-import {Incentive, Link, SpecificField, Error, Citizen, Territory} from '../models';
+import {
+  Incentive,
+  Link,
+  SpecificField,
+  Error,
+  Citizen,
+  Territory,
+  EligibilityCheck,
+  IncentiveEligibilityChecks,
+} from '../models';
 import {
   IncentiveRepository,
   CollectivityRepository,
   EnterpriseRepository,
-  CitizenRepository,
   TerritoryRepository,
+  IncentiveEligibilityChecksRepository,
 } from '../repositories';
 import {
   IncentiveInterceptor,
   AffiliationInterceptor,
   AffiliationPublicInterceptor,
 } from '../interceptors';
-import {FunderService, IncentiveService} from '../services';
+import {
+  CitizenService,
+  FunderService,
+  IncentiveService,
+  TerritoryService,
+} from '../services';
 import {ValidationError} from '../validationError';
 import {
   INCENTIVE_TYPE,
@@ -54,13 +68,14 @@ import {
   IScore,
   IUpdateAt,
   IUser,
+  ELIGIBILITY_CHECKS_LABEL,
 } from '../utils';
 import {TAG_MAAS, WEBSITE_FQDN} from '../constants';
 import {
   incentiveExample,
   incentiveContentDifferentExample,
 } from './utils/incentiveExample';
-import {TerritoryService} from '../services/territory.service';
+
 @intercept(IncentiveInterceptor.BINDING_KEY)
 export class IncentiveController {
   constructor(
@@ -70,16 +85,18 @@ export class IncentiveController {
     public collectivityRepository: CollectivityRepository,
     @repository(EnterpriseRepository)
     public enterpriseRepository: EnterpriseRepository,
-    @repository(CitizenRepository)
-    public citizenRepository: CitizenRepository,
     @repository(TerritoryRepository)
     public territoryRepository: TerritoryRepository,
+    @repository(IncentiveEligibilityChecksRepository)
+    public incentiveEligibilityChecksRepository: IncentiveEligibilityChecksRepository,
     @inject('services.IncentiveService')
     public incentiveService: IncentiveService,
     @service(FunderService)
     public funderService: FunderService,
     @service(TerritoryService)
     public territoryService: TerritoryService,
+    @service(CitizenService)
+    public citizenService: CitizenService,
     @inject(SecurityBindings.USER, {optional: true})
     private currentUser?: IUser,
   ) {}
@@ -111,7 +128,7 @@ export class IncentiveController {
     })
     incentive: Incentive,
   ): Promise<Incentive> {
-    let createdTerritory: Territory;
+    let createdTerritory: Territory, createdIncentive: Incentive;
     try {
       /**
        * Check if the territory ID is provided.
@@ -177,10 +194,47 @@ export class IncentiveController {
           incentive.specificFields,
         );
       }
-      return await this.incentiveRepository.create(incentive);
+      createdIncentive = await this.incentiveRepository.create(incentive);
+
+      const exclusionControl: IncentiveEligibilityChecks | null =
+        await this.incentiveEligibilityChecksRepository.findOne({
+          where: {label: ELIGIBILITY_CHECKS_LABEL.EXCLUSION},
+        });
+      const currentIncentiveExclusionControl: EligibilityCheck | undefined =
+        incentive.eligibilityChecks?.find(check => {
+          return check.id === exclusionControl!.id;
+        });
+
+      const exclusionsToAdd: string[] = currentIncentiveExclusionControl?.value || [];
+      if (exclusionsToAdd.length > 0) {
+        const incentivesToAdd: Incentive[] = await this.incentiveRepository.find({
+          where: {id: {inq: exclusionsToAdd}},
+        });
+
+        // Apply exclusion for all incentives listed in the exclusion control value array
+        await Promise.all([
+          incentivesToAdd.map(async incentiveToAdd => {
+            const updatedEligibilityChecks: EligibilityCheck[] =
+              this.incentiveService.addIncentiveToExclusions(
+                incentiveToAdd.eligibilityChecks,
+                createdIncentive,
+                exclusionControl!.id,
+                currentIncentiveExclusionControl!.active,
+              );
+            await this.incentiveRepository.updateById(incentiveToAdd.id, {
+              eligibilityChecks: updatedEligibilityChecks,
+            });
+          }),
+        ]);
+      }
+
+      return createdIncentive;
     } catch (error) {
       if (createdTerritory!) {
         await this.territoryRepository.deleteById(createdTerritory.id);
+      }
+      if (createdIncentive!) {
+        await this.incentiveRepository.deleteById(createdIncentive.id);
       }
       throw error;
     }
@@ -351,6 +405,7 @@ export class IncentiveController {
         updatedAt: true,
         description: true,
         isMCMStaff: true,
+        isCertifiedTimestampRequired: true,
         territory: true,
         territoryName: true,
       },
@@ -376,11 +431,11 @@ export class IncentiveController {
     }
 
     if (roles && roles.includes(Roles.MAAS)) {
-      const citizen: Citizen | null = await this.citizenRepository.findOne({where: {id}});
+      const citizen: Citizen | null =
+        await this.citizenService.getCitizenWithAffiliationById(id);
       const citizenFunderId: string | null | undefined =
         citizen?.affiliation?.enterpriseId;
-      const citizenStatus: string | null | undefined =
-        citizen?.affiliation?.affiliationStatus;
+      const citizenStatus: string | null | undefined = citizen?.affiliation?.status;
 
       if (citizenFunderId && citizenStatus === AFFILIATION_STATUS.AFFILIATED) {
         const incentiveEnterpriseList: Incentive[] = await this.incentiveRepository.find({
@@ -598,7 +653,38 @@ export class IncentiveController {
     security: SECURITY_SPEC_KC_PASSWORD,
     responses: {
       [StatusCode.NoContent]: {
-        description: 'Incentives put success',
+        description: "Modification de l'aide réussie",
+      },
+      [StatusCode.Unauthorized]: {
+        description: "L'utilisateur est non connecté",
+        content: {
+          'application/json': {
+            schema: getModelSchemaRef(Error),
+            example: {
+              error: {
+                statusCode: StatusCode.Unauthorized,
+                name: 'Error',
+                message: 'Authorization header not found',
+                path: '/authorization',
+              },
+            },
+          },
+        },
+      },
+      [StatusCode.Forbidden]: {
+        description: "L'utilisateur n'a pas les droits pour modifier cette aide",
+        content: {
+          'application/json': {
+            schema: getModelSchemaRef(Error),
+            example: {
+              error: {
+                statusCode: StatusCode.Forbidden,
+                name: 'Error',
+                message: 'Access denied',
+              },
+            },
+          },
+        },
       },
       [StatusCode.NotFound]: {
         description: "Cette aide n'existe pas",
@@ -607,11 +693,62 @@ export class IncentiveController {
             schema: getModelSchemaRef(Error),
             example: {
               error: {
-                statusCode: 404,
+                statusCode: StatusCode.NotFound,
                 name: 'Error',
                 message: 'Incentive not found',
                 path: '/incentiveNotFound',
                 resourceName: 'Incentive',
+              },
+            },
+          },
+        },
+      },
+      [StatusCode.Conflict]: {
+        description: 'Une aide existe déjà avec ce nom',
+        content: {
+          'application/json': {
+            schema: getModelSchemaRef(Error),
+            example: {
+              error: {
+                statusCode: StatusCode.Conflict,
+                name: 'Error',
+                message: 'incentives.error.title.alreadyUsedForFunder',
+                path: '/incentiveTitleAlreadyUsed',
+                resourceName: 'Incentive',
+              },
+            },
+          },
+        },
+      },
+      [StatusCode.PreconditionFailed]: {
+        description: "Le territoire n'est pas connu",
+        content: {
+          'application/json': {
+            schema: getModelSchemaRef(Error),
+            example: {
+              error: {
+                statusCode: StatusCode.PreconditionFailed,
+                name: 'Error',
+                message: 'territory.id.undefined',
+                path: '/territory',
+                resourceName: 'Territory',
+              },
+            },
+          },
+        },
+      },
+      [StatusCode.UnprocessableEntity]: {
+        description: "Une erreur est survenue sur la modification de l'aide",
+        content: {
+          'application/json': {
+            schema: getModelSchemaRef(Error),
+            example: {
+              error: {
+                statusCode: StatusCode.UnprocessableEntity,
+                name: 'Error',
+                message: 'territory.name.mismatch',
+                path: '/territory',
+                resourceName: 'Territory',
               },
             },
           },
@@ -633,7 +770,7 @@ export class IncentiveController {
       },
     })
     incentive: Incentive,
-  ): Promise<Incentive> {
+  ): Promise<void> {
     // Remove contact from incentive object
     if (!incentive.contact) {
       delete incentive.contact;
@@ -646,6 +783,13 @@ export class IncentiveController {
       delete incentive.validityDuration;
       await this.incentiveRepository.updateById(incentiveId, {
         $unset: {validityDuration: ''},
+      } as any);
+    }
+    // Remove funderId from incentive object
+    if (incentive.funderId === '@@ra-create') {
+      delete incentive.funderId;
+      await this.incentiveRepository.updateById(incentiveId, {
+        $unset: {funderId: ''},
       } as any);
     }
     // Remove additionalInfos from incentive object
@@ -728,9 +872,86 @@ export class IncentiveController {
         $unset: {specificFields: '', jsonSchema: ''},
       } as any);
     }
+
+    // Get Exclusion EligibilityCheck
+    const exclusionControl: IncentiveEligibilityChecks | null =
+      await this.incentiveEligibilityChecksRepository.findOne({
+        where: {label: ELIGIBILITY_CHECKS_LABEL.EXCLUSION},
+      });
+
+    // Get current and updated exclusion list
+    const currentIncentive: Incentive = await this.incentiveRepository.findById(
+      incentiveId,
+    );
+
+    const currentIncentiveExclusionControl: EligibilityCheck | undefined =
+      currentIncentive.eligibilityChecks?.find(check => {
+        return check.id === exclusionControl!.id;
+      });
+    const updatedExclusionControl: EligibilityCheck | undefined =
+      incentive.eligibilityChecks?.find(check => {
+        return check.id === exclusionControl!.id;
+      });
+
+    const exclusionsToDelete: string[] = this.incentiveService.getIncentiveIdsToDelete(
+      currentIncentiveExclusionControl?.value || [],
+      updatedExclusionControl?.value || [],
+    );
+    const exclusionsToAdd: string[] = this.incentiveService.getIncentiveIdsToAdd(
+      currentIncentiveExclusionControl?.value || [],
+      updatedExclusionControl?.value || [],
+    );
+
+    if (exclusionsToAdd && exclusionsToAdd.length > 0) {
+      const incentivesToAdd: Incentive[] = await this.incentiveRepository.find({
+        where: {id: {inq: exclusionsToAdd}},
+      });
+
+      // Add Current Incentive to All Incentives added in Exclusion List
+      await Promise.all([
+        incentivesToAdd.map(async incentiveToAdd => {
+          const updatedEligibilityChecks: EligibilityCheck[] =
+            this.incentiveService.addIncentiveToExclusions(
+              incentiveToAdd.eligibilityChecks,
+              currentIncentive,
+              exclusionControl!.id,
+              updatedExclusionControl!.active,
+            );
+
+          await this.incentiveRepository.updateById(incentiveToAdd.id, {
+            eligibilityChecks: updatedEligibilityChecks,
+          });
+        }),
+      ]);
+    }
+
+    if (exclusionsToDelete && exclusionsToDelete.length > 0) {
+      const incentivesToDelete: Incentive[] = await this.incentiveRepository.find({
+        where: {id: {inq: exclusionsToDelete}},
+      });
+
+      // Delete Current Incentive from All Incentives deleted from Exclusion List
+      await Promise.all([
+        incentivesToDelete.map(async incentiveToDelete => {
+          incentiveToDelete = this.incentiveService.removeIncentiveFromExclusions(
+            incentiveToDelete,
+            currentIncentive,
+            exclusionControl!.id,
+          );
+          if (incentiveToDelete.eligibilityChecks) {
+            await this.incentiveRepository.updateById(incentiveToDelete.id, {
+              eligibilityChecks: incentiveToDelete.eligibilityChecks,
+            });
+          } else {
+            await this.incentiveRepository.updateById(incentiveToDelete.id, {
+              $unset: {eligibilityChecks: []},
+            } as any);
+          }
+        }),
+      ]);
+    }
+
     await this.incentiveRepository.updateById(incentiveId, incentive);
-    incentive.id = incentiveId;
-    return incentive;
   }
 
   @authenticate(AUTH_STRATEGY.KEYCLOAK)

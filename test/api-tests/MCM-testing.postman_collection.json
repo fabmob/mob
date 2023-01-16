@@ -554,6 +554,262 @@
                 }
               },
               "response": []
+            },
+            {
+              "name": "Création Aide Nationale RPC (Long)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Create aide RPC Long test: OK\", function () {\r",
+                      "    pm.response.to.have.status(200);\r",
+                      "    pm.response.to.not.have.jsonBody(\"error\");\r",
+                      "    const response = pm.response.json();\r",
+                      "    pm.environment.set(\"ID Aide Nationale RPC Long\", response.id);\r",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "protocolProfileBehavior": {
+                "disabledSystemHeaders": {}
+              },
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "text/plain",
+                    "type": "default",
+                    "disabled": true
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"title\": \"OPERATOR - Bonus for first-time carpoolers (long journeys) {{rcVersionSlug}}\",\r\n  \"description\": \"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum\",\r\n  \"incentiveType\": \"AideNationale\",\r\n  \"territory\": {\r\n    \"id\": \"{{TerritoryId}}\",\r\n    \"name\": \"Mulhouse\"\r\n  },\r\n  \"funderName\": \"Mulhouse\",\r\n  \"conditions\": \"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum\",\r\n  \"paymentMethod\": \"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum\",\r\n  \"allocatedAmount\": \"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum\",\r\n  \"minAmount\": \"100 *\",\r\n  \"transportList\": [\"velo\"],\r\n  \"isMCMStaff\": true,\r\n  \"specificFields\": [\r\n    {\r\n      \"title\": \"Numéro de permis de conduire\",\r\n      \"inputFormat\": \"Texte\",\r\n      \"isRequired\": true\r\n    },\r\n    {\r\n      \"title\": \"Type de trajet\",\r\n      \"inputFormat\": \"listeChoix\",\r\n      \"choiceList\": {\r\n        \"possibleChoicesNumber\": 1,\r\n        \"inputChoiceList\": [\r\n          {\r\n            \"inputChoice\": \"Long\"\r\n          }\r\n        ]\r\n      },\r\n      \"isRequired\": true\r\n    },\r\n    {\r\n      \"title\": \"Numéro de téléphone\",\r\n      \"inputFormat\": \"Texte\",\r\n      \"isRequired\": true\r\n    },\r\n    {\r\n      \"title\": \"Date de partage des frais\",\r\n      \"inputFormat\": \"Date\",\r\n      \"isRequired\": true\r\n    }\r\n  ]\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{api_base_url}}/v1/incentives",
+                  "host": ["{{api_base_url}}"],
+                  "path": ["v1", "incentives"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get aide id",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"GET aide test: OK\", function () {\r",
+                      "    pm.response.to.have.status(200);\r",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{api_base_url}}/v1/incentives/{{ID Aide Nationale RPC Long}}",
+                  "host": ["{{api_base_url}}"],
+                  "path": ["v1", "incentives", "{{ID Aide Nationale RPC Long}}"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Création Aide Nationale RPC (Short)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Create aide RPC Short  test: OK\", function () {\r",
+                      "    pm.response.to.have.status(200);\r",
+                      "    pm.response.to.not.have.jsonBody(\"error\");\r",
+                      "    const response = pm.response.json();\r",
+                      "    pm.environment.set(\"ID Aide Nationale RPC Short\", response.id);\r",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "protocolProfileBehavior": {
+                "disabledSystemHeaders": {}
+              },
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "text/plain",
+                    "type": "default",
+                    "disabled": true
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"title\": \"OPERATOR - Bonus for first-time carpoolers (short journeys) {{rcVersionSlug}}\",\r\n  \"description\": \"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum\",\r\n  \"incentiveType\": \"AideNationale\",\r\n  \"territory\": {\r\n    \"id\": \"{{TerritoryId}}\",\r\n    \"name\": \"Mulhouse\"\r\n  },\r\n  \"funderName\": \"Mulhouse\",\r\n  \"conditions\": \"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum\",\r\n  \"paymentMethod\": \"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum\",\r\n  \"allocatedAmount\": \"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum\",\r\n  \"minAmount\": \"100 *\",\r\n  \"transportList\": [\"velo\"],\r\n  \"isMCMStaff\": true,\r\n  \"specificFields\": [\r\n    {\r\n      \"title\": \"Numéro de permis de conduire\",\r\n      \"inputFormat\": \"Texte\",\r\n      \"isRequired\": true\r\n    },\r\n    {\r\n      \"title\": \"Type de trajet\",\r\n      \"inputFormat\": \"listeChoix\",\r\n      \"choiceList\": {\r\n        \"possibleChoicesNumber\": 1,\r\n        \"inputChoiceList\": [\r\n          {\r\n            \"inputChoice\": \"Court\"\r\n          }\r\n        ]\r\n      },\r\n      \"isRequired\": true\r\n    },\r\n    {\r\n      \"title\": \"Identifiant du trajet\",\r\n      \"inputFormat\": \"Texte\",\r\n      \"isRequired\": false\r\n    }\r\n  ]\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{api_base_url}}/v1/incentives",
+                  "host": ["{{api_base_url}}"],
+                  "path": ["v1", "incentives"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get aide id",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"GET aide test: OK\", function () {\r",
+                      "    pm.response.to.have.status(200);\r",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{api_base_url}}/v1/incentives/{{ID Aide Nationale RPC Short}}",
+                  "host": ["{{api_base_url}}"],
+                  "path": [
+                    "v1",
+                    "incentives",
+                    "{{ID Aide Nationale RPC Short}}"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Création Aide Territoire avec Champs spec optionnel",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Create aide 3 test: OK\", function () {\r",
+                      "    pm.response.to.have.status(200);\r",
+                      "    pm.response.to.not.have.jsonBody(\"error\");\r",
+                      "    const response = pm.response.json();\r",
+                      "    pm.environment.set(\"ID Aide Nationale 3\", response.id);\r",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "protocolProfileBehavior": {
+                "disabledSystemHeaders": {}
+              },
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "text/plain",
+                    "type": "default",
+                    "disabled": true
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"title\": \"Aide avec des champs spec {{rcVersionSlug}}\",\r\n  \"description\": \"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum\",\r\n  \"incentiveType\": \"AideTerritoire\",\r\n  \"territory\": {\r\n    \"id\": \"{{TerritoryId}}\",\r\n    \"name\": \"Mulhouse\"\r\n  },\r\n  \"funderName\": \"Mulhouse\",\r\n  \"conditions\": \"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum\",\r\n  \"paymentMethod\": \"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum\",\r\n  \"allocatedAmount\": \"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum\",\r\n  \"minAmount\": \"100 *\",\r\n  \"transportList\": [\"velo\"],\r\n  \"isMCMStaff\": true,\r\n  \"specificFields\": [\r\n    {\r\n      \"title\": \"Champs text\",\r\n      \"inputFormat\": \"Texte\",\r\n      \"isRequired\": true\r\n    },\r\n    {\r\n      \"title\": \"Champs text optionnel\",\r\n      \"inputFormat\": \"Texte\",\r\n      \"isRequired\": false\r\n    },\r\n    {\r\n      \"title\": \"multichoix \",\r\n      \"inputFormat\": \"listeChoix\",\r\n      \"choiceList\": {\r\n        \"possibleChoicesNumber\": 1,\r\n        \"inputChoiceList\": [\r\n          {\r\n            \"inputChoice\": \"choix 1\"\r\n          },\r\n          {\r\n            \"inputChoice\": \"choix 2\"\r\n          },\r\n          {\r\n            \"inputChoice\": \"choix 3\"\r\n          }\r\n        ]\r\n      },\r\n      \"isRequired\": true\r\n    },\r\n    {\r\n      \"title\": \"multichoix optionnel\",\r\n      \"inputFormat\": \"listeChoix\",\r\n      \"choiceList\": {\r\n        \"possibleChoicesNumber\": 1,\r\n        \"inputChoiceList\": [\r\n          {\r\n            \"inputChoice\": \"choix 1\"\r\n          },\r\n          {\r\n            \"inputChoice\": \"choix 2\"\r\n          },\r\n          {\r\n            \"inputChoice\": \"choix 3\"\r\n          }\r\n        ]\r\n      },\r\n      \"isRequired\": false\r\n    },\r\n    {\r\n      \"title\": \"Champs Number\",\r\n      \"inputFormat\": \"Numerique\",\r\n      \"isRequired\": true\r\n    },\r\n    {\r\n      \"title\": \"Champs Number optionnel\",\r\n      \"inputFormat\": \"Numerique\",\r\n      \"isRequired\": false\r\n    },\r\n    {\r\n      \"title\": \"Date\",\r\n      \"inputFormat\": \"Date\",\r\n      \"isRequired\": true\r\n    },\r\n    {\r\n      \"title\": \"Date optionnel\",\r\n      \"inputFormat\": \"Date\",\r\n      \"isRequired\": false\r\n    }\r\n  ]\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{api_base_url}}/v1/incentives",
+                  "host": ["{{api_base_url}}"],
+                  "path": ["v1", "incentives"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get aide id",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"GET aide test: OK\", function () {\r",
+                      "    pm.response.to.have.status(200);\r",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{api_base_url}}/v1/incentives/{{ID Aide Nationale 3}}",
+                  "host": ["{{api_base_url}}"],
+                  "path": ["v1", "incentives", "{{ID Aide Nationale 3}}"]
+                }
+              },
+              "response": []
             }
           ],
           "auth": {
