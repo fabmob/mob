@@ -1,14 +1,13 @@
 import {expect} from '@loopback/testlab';
 
-import {Affiliation, Citizen} from '../../models';
-import {AFFILIATION_STATUS, FUNDER_TYPE, isEnterpriseAffilitation} from '../../utils';
+import {Affiliation, Citizen, Enterprise} from '../../models';
+import {AFFILIATION_STATUS, isEnterpriseAffilitation} from '../../utils';
 
 describe('affiliation functions', () => {
   it('isEnterpriseAffilitation: KO : citizen not found', async () => {
     const result = isEnterpriseAffilitation({
-      inputFunderId: 'dunderId',
       citizen: null,
-      funderMatch: {funderType: FUNDER_TYPE.collectivity, name: 'maasName'},
+      enterprise: new Enterprise({name: 'maasName'}),
     });
     expect(result).to.equal(false);
   });
@@ -23,9 +22,8 @@ describe('affiliation functions', () => {
       affiliation,
     });
     const result = isEnterpriseAffilitation({
-      inputFunderId: 'funderId',
       citizen,
-      funderMatch: {funderType: FUNDER_TYPE.enterprise, name: 'maasName'},
+      enterprise: new Enterprise({id: 'funderId', name: 'maasName'}),
     });
 
     expect(result).to.equal(true);

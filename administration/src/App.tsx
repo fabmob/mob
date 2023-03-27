@@ -1,8 +1,19 @@
 /* eslint-disable */
-import { Admin, Resource, resolveBrowserLocale } from 'react-admin';
+import {
+  Admin,
+  Resource,
+  resolveBrowserLocale
+} from 'react-admin';
 import polyglotI18nProvider from 'ra-i18n-polyglot';
 import frenchMessages from 'ra-language-french';
 import { QueryClient, QueryClientProvider } from 'react-query';
+import {
+  Person,
+  PeopleTwoTone,
+  BusinessCenter,
+  NoteOutlined,
+  Map,
+} from '@material-ui/icons';
 
 import dataProvider from './api/provider/dataProvider';
 import AuthProvider from './modules/Auth/authProvider';
@@ -10,14 +21,12 @@ import { KeycloakProviderInit } from './components/Keycloak/KeycloakProviderInit
 import LogoutButton from './components/LoginForm/LogoutButton';
 import Dashboard from './components/Dashboard/Dashboard';
 import AccessRole from './components/Access/AccessRole';
-import EntrepriseForm from './components/Entreprises';
-import CollectiviteForm from './components/Collectivites/CollectiviteForm';
-import CollectiviteList from './components/Collectivites/CollectiviteList';
-import CommunateForm from './components/Communautes';
 import Aide from './components/Aide';
 import UtilisateurForm from './components/utilisateurs';
 import customTheme from './components/customTheme/customTheme';
 import TerritoryForm from './components/Territories';
+import FunderForm from './components/Funders';
+import CommunityForm from './components/Communities';
 
 const queryClient = new QueryClient();
 
@@ -44,31 +53,34 @@ function App(): JSX.Element {
             theme={customTheme}
           >
             <Resource
-              name="collectivites"
-              options={{ label: 'Collectivités' }}
-              list={CollectiviteList}
-              create={CollectiviteForm}
+              name="territoires"
+              options={{ label: 'Territoires' }}
+              icon={Map}
+              {...TerritoryForm}
             />
             <Resource
-              name="entreprises"
-              options={{ label: 'Entreprises' }}
-              {...EntrepriseForm}
+              name="financeurs"
+              options={{ label: 'Financeurs' }}
+              icon={BusinessCenter}
+              {...FunderForm}
             />
-            <Resource name="aides" options={{ label: 'Aides' }} {...Aide} />
             <Resource
               name="communautes"
               options={{ label: 'Communautés' }}
-              {...CommunateForm}
+              icon={PeopleTwoTone}
+              {...CommunityForm}
             />
             <Resource
               name="utilisateurs"
-              options={{ label: 'Utilisateurs financeur' }}
+              options={{ label: 'Utilisateurs financeurs' }}
+              icon={Person}
               {...UtilisateurForm}
             />
             <Resource
-              name="territoires"
-              options={{ label: 'Territoires' }}
-              {...TerritoryForm}
+              name="aides"
+              options={{ label: 'Aides' }}
+              icon={NoteOutlined}
+              {...Aide}
             />
           </Admin>
         </AccessRole>

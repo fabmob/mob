@@ -1,7 +1,7 @@
 import {expect, sinon} from '@loopback/testlab';
 import pdf from 'html-pdf';
 import ejs from 'ejs';
-import {generatePdfBufferFromHtml, generateTemplateAsHtml} from '../../utils';
+import {generatePdfBufferFromHtml, generateTemplateAsHtml, StatusCode} from '../../utils';
 import {Invoice} from '../../models';
 import {formatDateInTimezone} from '../../utils/date';
 
@@ -63,22 +63,19 @@ describe('File conversion functions', () => {
     expect(html).to.containEql(mockInvoice.customer.customerSurname);
     expect(html).to.containEql(mockInvoice.enterprise.enterpriseName);
     expect(html).to.containEql(mockInvoice.enterprise.siretNumber);
-    expect(html).to.containEql(
-      (mockInvoice.transaction.amountInclTaxes / 100).toFixed(2),
-    );
+    expect(html).to.containEql((mockInvoice.transaction.amountInclTaxes / 100).toFixed(2));
     expect(html).to.containEql(mockInvoice.transaction.orderId);
-    expect(html).to.containEql(
-      formatDateInTimezone(mockInvoice.transaction.purchaseDate, 'dd/MM/yyyy'),
-    );
+    expect(html).to.containEql(formatDateInTimezone(mockInvoice.transaction.purchaseDate, 'dd/MM/yyyy'));
     expect(html).to.containEql(mockInvoice.products[0].productName);
   });
 
   it('generateTemplateAsHtml should throw error', async () => {
-    const ejsStub = sinon.stub(ejs, 'renderFile').rejects('HtmlTemplateError');
+    const ejsStub = sinon.stub(ejs, 'renderFile').rejects('Error');
     try {
       await generateTemplateAsHtml('invoice');
     } catch (error) {
-      expect(error.message).to.equal('HtmlTemplateError');
+      expect(error.message).to.equal('Error');
+      expect(error.statusCode).to.equal(StatusCode.InternalServerError);
     }
     ejsStub.restore();
   });
@@ -96,14 +93,15 @@ describe('File conversion functions', () => {
 
   it('generatePdfBufferFromHtml should throw error', async () => {
     const pdfStub = sinon.stub(pdf, 'create').returns({
-      toBuffer: sinon.stub().yields('generatePdfError', null),
+      toBuffer: sinon.stub().yields(new Error('err'), null),
       toFile: sinon.stub().returnsThis(),
       toStream: sinon.stub().returnsThis(),
     });
     try {
       await generatePdfBufferFromHtml(mockHtml);
     } catch (error) {
-      expect(error).to.equal('generatePdfError');
+      expect(error.message).to.equal('Error');
+      expect(error.statusCode).to.equal(StatusCode.InternalServerError);
     }
     pdfStub.restore();
   });

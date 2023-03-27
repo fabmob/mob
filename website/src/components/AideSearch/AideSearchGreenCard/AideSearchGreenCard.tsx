@@ -1,6 +1,5 @@
 import React, { FC } from 'react';
 
-import ArrowLink from '@components/ArrowLink/ArrowLink';
 import Card from '@components/Card/Card';
 
 import { AffiliationStatus } from '../../../../src/constants';
@@ -10,43 +9,74 @@ import { navigate } from '@reach/router';
 import Strings from './locale/fr.json';
 
 const AideSearchGreenCard: FC = () => {
-  /**
-   * APP CONTEXT
-   *
-   */
+
   const { citizen, authenticated } = useUser();
   const { keycloak } = useSession();
 
-  /**
-   *
-   * isAffiliated condition
-   */
   const isAffiliated: boolean =
-    authenticated &&
-    citizen?.affiliation?.status !== AffiliationStatus.AFFILIATED;
+    citizen?.affiliation?.status === AffiliationStatus.AFFILIATED;
+
+  const hasPostalCodeAndCity: boolean =
+    citizen?.postcode && citizen?.city;
+
+  const renderValueElement: FC<any> = (values: string[]) => {
+    return (
+      <ul>
+        {values.map((value: string, index: number) => {
+          return <li key={index}>{value}</li>
+        })}
+      </ul>
+    )
+  }
+
+  const handleText: Function = (): { title: string, values?: string[] } => {
+    if (authenticated) {
+      if (!isAffiliated && !hasPostalCodeAndCity) {
+        return {
+          title: Strings['card.connected.notAffiliated.noProfileInfo.title'],
+          values: [Strings['card.connected.notAffiliated.noProfileInfo.value1'], Strings['card.connected.notAffiliated.noProfileInfo.value2']]
+        }
+      }
+      if (isAffiliated && !hasPostalCodeAndCity) {
+        return {
+          title: Strings['card.connected.affiliated.noProfileInfo.title'],
+        }
+      }
+      if (!isAffiliated && hasPostalCodeAndCity) {
+        return {
+          title: Strings['card.connected.notAffiliated.hasProfileInfo.title'],
+        }
+      }
+    }
+    return {
+      title: Strings['card.not.connected.title'],
+      values: [Strings['card.not.connected.value1'], Strings['card.not.connected.value2']]
+    }
+  }
+
+  const text: { title: string, values?: string } = handleText();
 
   return (
     <Card
       id="redirect-login-aide-page"
       buttonMode
       onClick={() =>
-        isAffiliated
+        authenticated
           ? navigate('/mon-profil/', { replace: true })
           : keycloak.login({
-              redirectUri: `${window.location.origin}/redirection/`,
-            })
+            redirectUri: `${window.location.origin}/redirection/`,
+          })
       }
       title={
-        isAffiliated ? Strings['card.employee.title'] : Strings['card.title']
+        text.title
+      }
+      valueElement={
+        text.values && renderValueElement(text.values)
       }
       footerElement={
-        <ArrowLink
-          label={
-            isAffiliated
-              ? Strings['icon.employee.label']
-              : Strings['icon.label']
-          }
-        />
+        <span>{authenticated
+          ? Strings['icon.connected.label']
+          : Strings['icon.label']}</span>
       }
       classNames="mcm-card--green mcm-card--pointer"
     />

@@ -90,27 +90,17 @@ const invoice2: Invoice = Object.assign(new Invoice(), {
 });
 
 const mockInvoices: Invoice[] = [invoice1, invoice2];
-const files: Record<string, any>[] = [
-  {key: 'file.txt'},
-  {key: 'file.txt'},
-  {key: 'file.txt'},
-];
+const files: Record<string, any>[] = [{key: 'file.txt'}, {key: 'file.txt'}, {key: 'file.txt'}];
 const mockHtml: string = `<html><body><div>Text Content</div></body></html>`;
 const mockBuffer: Buffer = Buffer.from(mockHtml);
 describe('Invoice', () => {
   it('generatePdfInvoices success', async () => {
     const ejsStub = sinon.stub(ejs, 'renderFile').resolves(mockHtml);
-    sinon
-      .stub(fileConversion, 'generatePdfBufferFromHtml')
-      .resolves(Buffer.from(await ejsStub('')));
+    sinon.stub(fileConversion, 'generatePdfBufferFromHtml').resolves(Buffer.from(await ejsStub('')));
     const invoicesPdf = await generatePdfInvoices(mockInvoices);
     expect(invoicesPdf.length).to.equal(2);
-    expect(invoicesPdf[0].originalname).to.equal(
-      '03-03-2021_Forfait_Navigo_Mois_Jean_NEYMAR.pdf',
-    );
-    expect(invoicesPdf[1].originalname).to.equal(
-      '03-03-2021_Forfait_Navigo_Mois_Alain_DELOIN.pdf',
-    );
+    expect(invoicesPdf[0].originalname).to.equal('03-03-2021_Forfait_Navigo_Mois_Jean_NEYMAR.pdf');
+    expect(invoicesPdf[1].originalname).to.equal('03-03-2021_Forfait_Navigo_Mois_Alain_DELOIN.pdf');
     expect(invoicesPdf[0].buffer).to.eql(mockBuffer);
   });
 });

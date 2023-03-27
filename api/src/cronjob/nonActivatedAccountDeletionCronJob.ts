@@ -4,13 +4,13 @@ import {CronJob, cronJob} from '@loopback/cron';
 import {CronJobService, CitizenService} from '../services';
 import {CronJob as CronJobModel} from '../models';
 
-import {CRON_TYPES, logger} from '../utils';
+import {CRON_TYPES, Logger} from '../utils';
 import {isAfterDate} from '../utils/date';
 
 @cronJob()
 export class NonActivatedAccountDeletionCronJob extends CronJob {
   // Cron's type
-  private cronType: string = CRON_TYPES.DELETE_SUBSCRIPTION;
+  private cronType: string = CRON_TYPES.DELETE_NON_ACTIVATED_ACCOUNT;
 
   constructor(
     @service(CronJobService)
@@ -21,10 +21,10 @@ export class NonActivatedAccountDeletionCronJob extends CronJob {
     super({
       name: 'nonActivatedAccountDeletion-job',
       onTick: async () => {
-        logger.info(`${NonActivatedAccountDeletionCronJob.name} - ticked`);
+        Logger.info(NonActivatedAccountDeletionCronJob.name, 'onTick', 'ticked');
         await this.performJob();
       },
-      cronTime: '0 3 * * *',
+      cronTime: '0 0 2 * * 0', // At 02:00 on Sunday
       start: false,
     });
   }
@@ -34,11 +34,12 @@ export class NonActivatedAccountDeletionCronJob extends CronJob {
     let createdCronId: CronJobModel | null = null;
     try {
       createdCronId = await this.cronJobService.createCronLog(this.cronType);
-      logger.info(`${NonActivatedAccountDeletionCronJob.name} created`);
+      Logger.info(NonActivatedAccountDeletionCronJob.name, this.createCron.name, 'created');
       await this.citizenService.accountDeletionService();
       await this.cronJobService.delCronLog(this.cronType);
-      logger.info(`${NonActivatedAccountDeletionCronJob.name} finished`);
+      Logger.info(NonActivatedAccountDeletionCronJob.name, this.createCron.name, 'finished');
     } catch (error) {
+      Logger.error(NonActivatedAccountDeletionCronJob.name, this.createCron.name, 'Error', error);
       if (createdCronId && createdCronId.id) {
         await this.cronJobService.delCronLogById(createdCronId.id);
       }
@@ -58,17 +59,15 @@ export class NonActivatedAccountDeletionCronJob extends CronJob {
       const cronAlreadyInUse: CronJobModel[] | [] = activeCronList.filter(
         (cron: CronJobModel) => cron.type === this.cronType,
       );
-      if (
-        cronAlreadyInUse?.[0]?.createdAt &&
-        isAfterDate(cronAlreadyInUse?.[0]?.createdAt, 2)
-      ) {
+      if (cronAlreadyInUse?.[0]?.createdAt && isAfterDate(cronAlreadyInUse?.[0]?.createdAt, 2)) {
         // Delete old log
         await this.cronJobService.delCronLog(this.cronType);
       }
 
       await this.createCron();
     } catch (err) {
-      logger.error(`${NonActivatedAccountDeletionCronJob.name}: ${err}`);
+      Logger.error('', NonActivatedAccountDeletionCronJob.name, 'Error', err);
+      throw err;
     }
   }
 }

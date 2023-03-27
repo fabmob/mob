@@ -140,8 +140,8 @@ const SubscriptionModeForm: FC = () => {
                 maxWidth={700}
                 height={60}
               >
-                <h3 className="eligibilityTitle">
-                  Vérifications d'éligibilité
+                <h3 className="subtitle">
+                  Vérifications d'éligibilité du citoyen
                 </h3>
 
                 <Tooltip title="Les contrôles ci-dessous seront exécutés par moB dans l'ordre d'affichage">
@@ -154,7 +154,7 @@ const SubscriptionModeForm: FC = () => {
                     className="simpleForm"
                     addButton={
                       <CustomAddButton
-                        label={'Ajouter un contrôle'}
+                        label={'Ajouter une vérification'}
                         disabled={
                           values?.eligibilityChecks?.length ===
                           incentiveChecks?.length

@@ -1,69 +1,33 @@
-import {injectable, /* inject, */ BindingScope} from '@loopback/core';
-import {repository} from '@loopback/repository';
-import {orderBy, head} from 'lodash';
+import {injectable, BindingScope} from '@loopback/core';
+import {getJsonSchema} from '@loopback/rest';
+import {Schema, ValidationError, Validator, ValidatorResult} from 'jsonschema';
 
-import {
-  Collectivity,
-  CollectivityRelations,
-  Enterprise,
-  EnterpriseRelations,
-} from '../models';
+import {Collectivity, EncryptionKey, Enterprise, Funder, NationalAdministration} from '../models';
+import {FUNDER_TYPE} from '../utils';
 
-import {CollectivityRepository} from '../repositories';
-import {EnterpriseRepository} from '../repositories';
-
-import {FUNDER_TYPE, IFunder} from '../utils';
-
+const FUNDER_TYPE_MODEL_VALIDATION = {
+  [FUNDER_TYPE.NATIONAL]: getJsonSchema(NationalAdministration),
+  [FUNDER_TYPE.ENTERPRISE]: getJsonSchema(Enterprise),
+  [FUNDER_TYPE.COLLECTIVITY]: getJsonSchema(Collectivity),
+};
 @injectable({scope: BindingScope.TRANSIENT})
 export class FunderService {
-  constructor(
-    @repository(CollectivityRepository)
-    public collectivityRepository: CollectivityRepository,
-    @repository(EnterpriseRepository)
-    public enterpriseRepository: EnterpriseRepository,
-  ) {}
-  async getFunders() {
-    const enterprises: IFunder[] = await this.enterpriseRepository.find({
-      fields: {name: true, id: true, emailFormat: true, hasManualAffiliation: true},
-    });
-    const colletivites: (Collectivity & CollectivityRelations)[] =
-      await this.collectivityRepository.find({
-        fields: {name: true, id: true},
-      });
+  constructor() {}
 
-    const funders = enterprises
-      .map((elt: IFunder) => ({...elt, funderType: FUNDER_TYPE.enterprise}))
-      .concat(
-        colletivites.map((elt: any) => ({
-          ...elt,
-          funderType: FUNDER_TYPE.collectivity,
-        })),
-      );
+  /**
+   * Validate funder against jsonSchema according to FUNDER_TYPE
+   * @param funderToValidate Funder
+   * @param funderType FUNDER_TYPE
+   * @returns ValidationError[]
+   */
+  validateSchema(funderToValidate: Funder, funderType: FUNDER_TYPE): ValidationError[] {
+    const validator = new Validator();
+    validator.addSchema(getJsonSchema(EncryptionKey) as Schema);
+    const resultCompare: ValidatorResult = validator.validate(funderToValidate, {
+      ...FUNDER_TYPE_MODEL_VALIDATION[funderType],
+      additionalProperties: false,
+    } as Schema);
 
-    return orderBy(funders, ['name', 'funderType'], ['asc']);
-  }
-
-  async getFunderByName(name: string, funderType: FUNDER_TYPE) {
-    if (funderType === FUNDER_TYPE.enterprise) {
-      const enterprises: any[] = (
-        await this.enterpriseRepository.find({
-          where: {name},
-          fields: {name: true, id: true, emailFormat: true},
-        })
-      ).map((elt: any) => ({...elt, funderType: FUNDER_TYPE.enterprise}));
-      return head(enterprises);
-    }
-
-    const colletivites: Collectivity[] | {funderType: FUNDER_TYPE}[] = (
-      await this.collectivityRepository.find({
-        where: {name},
-        fields: {name: true, id: true},
-      })
-    ).map((elt: Collectivity & CollectivityRelations) => ({
-      ...elt,
-      funderType: FUNDER_TYPE.collectivity,
-    }));
-
-    return head(colletivites);
+    return resultCompare.errors.length ? resultCompare.errors : [];
   }
 }

@@ -2,34 +2,8 @@
   margin-top: var(--spacing-xs);
   margin-bottom: var(--spacing-s);
 
-  @media screen and (min-width: 1024px) {
-    display: grid;
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    grid-gap: 0 24px;
-  }
-
   &__title {
     margin-top: var(--spacing-s);
-  }
-
-  &__first {
-    @media screen and (min-width: 1024px) {
-      // block starts at column 2 / must be 4 columns wide
-      grid-column: 2 / span 4;
-    }
-  }
-
-  &__second {
-    @media screen and (min-width: 1024px) {
-      // block starts at column 8 / must be 3 columns wide
-      grid-column: 8 / span 4;
-    }
-    @media screen and (min-width: 1366px) {
-      grid-column: 8 / span 3;
-    }
-    @media screen and (min-width: 1700px) {
-      grid-column: 8 / span 4;
-    }
   }
 
   &__image {
@@ -41,15 +15,6 @@
       border-top-left-radius: var(--radius-circle);
       border-bottom-left-radius: var(--radius-circle);
     }
-  }
-
-  // Separator between left / right sections
-  &::after {
-    content: '';
-    grid-row: 1;
-    grid-column: 6;
-    border-right: 1px solid var(--color-grey-light);
-    height: 100%;
   }
 
   &--login {
@@ -113,6 +78,47 @@
     }
   }
 
+  &--reconciliation {
+    position: relative;
+
+    .connexion-inscription__second {
+      @media screen and (min-width: 1024px) {
+        min-height: 500px;
+      }
+    }
+
+    .connexion-inscription__image {
+      right: calc(50% - 50vw);
+      height: 34vw;
+      width: 34vw;
+      max-height: 300px;
+      max-width: 300px;
+      @media screen and (max-width: 1024px) {
+        display: none;
+      }
+
+      .img-rounded-left {
+        height: 100%;
+        width: 100%;
+      }
+
+      .svg-letter-m {
+        position: absolute;
+        left: -5.21vw;
+        bottom: -2.08vw;
+        width: 17.91vw;
+        max-width: 344px;
+        @media screen and (max-width: 520px) {
+          display: none;
+        }
+      }
+
+      @media screen and (min-width: 1024px) {
+        display: block;
+      }
+    }
+  }
+
   &--question,
   &--confirmation {
     position: relative;
@@ -171,7 +177,30 @@
       margin-top: 7em;
 
       @media screen and (min-width: 1024px) {
-        grid-column: 1 / span 6;
+        display: block;
+      }
+
+      button.button--secondary {
+        margin-top: var(--spacing-s);
+        order: 4;
+        @media screen and (min-width: 1024px) {
+          margin-bottom: 0;
+          margin-right: var(--spacing-xs);
+        }
+      }
+    }
+
+    &::after {
+      content: none;
+    }
+  }
+
+  &--reconciliation {
+    .connexion-inscription__first {
+      display: flex;
+      flex-direction: column;
+
+      @media screen and (min-width: 1024px) {
         display: block;
       }
 
@@ -195,16 +224,7 @@
       content: none;
     }
 
-    .connexion-inscription__first {
-      grid-column: 1 / span 5;
-    }
-
     .connexion-inscription__second {
-      grid-column: 6 / span 7;
-      @media screen and (min-width: 1260px) {
-        grid-column: 7 / span 6;
-      }
-
       .signup-form {
         button.button {
           @media screen and (max-width: 1023px) {
@@ -221,7 +241,7 @@
     }
   }
 
-  &:not(.connexion-inscription--question):not(.connexion-inscription--confirmation) {
+  &:not(.connexion-inscription--question):not(.connexion-inscription--confirmation):not(.connexion-inscription--reconciliation) {
     .connexion-inscription__image {
       .svg-letter-m {
         display: none;
@@ -310,16 +330,8 @@
 }
 
 .fc_link:hover {
-  background: url('../../assets/svg/franceconnect-btn-hover.svg') no-repeat left top !important;
-}
-
-.separ-sections {
-  position: relative;
-  height: 2px;
-  margin: 40px 0 40px 0;
-  justify-content: center;
-  align-items: center;
-  background-color: var(--color-grey-light);
+  background: url('../../assets/svg/franceconnect-btn-hover.svg') no-repeat left
+    top !important;
 }
 
 .separ-sections .label {
@@ -337,5 +349,96 @@
   }
   @media screen and (max-width: 1024px) {
     left: 50%;
+  }
+}
+
+.registration-container {
+  display: flex;
+  width: 100%;
+
+  .FC-block {
+    max-width: 400px;
+    padding-right: 8%;
+    box-sizing: content-box;
+    height: fit-content;
+    position: relative;
+    padding-bottom: 50px;
+    padding-left: 0;
+
+    .connexion-inscription__first {
+      margin-bottom: 50px;
+    }
+
+    .separ-sections {
+      position: absolute;
+      background-color: var(--color-grey-light);
+      right: 0;
+      top: 0;
+      bottom: 0;
+      flex: 0 0 1px !important;
+      width: 1px;
+
+      p {
+        background-color: var(--color-white);
+        position: absolute;
+        top: 50%;
+        -webkit-transform: translate(-50%, -50%);
+        transform: translate(-50%, -50%);
+        width: 55px;
+        height: 25px;
+        line-height: 23px;
+        text-align: center;
+      }
+    }
+  }
+
+  .connexion-inscription__first {
+    margin-bottom: 50px;
+  }
+
+  .connexion-inscription--form {
+    padding-left: 8%;
+  }
+}
+
+.connexion-inscription--confirmation {
+  min-height: 500px;
+
+  .connexion-inscription__image {
+    top: 0;
+  }
+}
+
+@media only screen and (max-width: 768px) {
+  .registration-container {
+    flex-direction: column;
+    align-items: center;
+
+    .FC-block {
+      padding-right: 0;
+
+      .connexion-inscription__first {
+        text-align: center;
+      }
+
+      .fc_buttons_content {
+        align-items: center;
+      }
+
+      .separ-sections {
+        bottom: 0;
+        right: 0;
+        left: 0;
+        top: unset;
+        height: 1px;
+        width: 100%;
+      }
+    }
+
+    .connexion-inscription--form {
+      .connexion-inscription__first {
+        text-align: center;
+      }
+    }
   }
 }

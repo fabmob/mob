@@ -1,5 +1,5 @@
 import {Model, model, property} from '@loopback/repository';
-import {PrivateKeyAccess} from './privateKeyAccess.model';
+import {PrivateKeyAccess} from '.';
 
 @model({settings: {idInjection: false}})
 export class EncryptionKey extends Model {

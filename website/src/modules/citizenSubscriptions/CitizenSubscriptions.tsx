@@ -3,7 +3,8 @@ import { Breadcrumb } from 'gatsby-plugin-breadcrumb/';
 import { PageProps, navigate } from 'gatsby';
 
 import { subscriptionList } from '@api/DemandeService';
-import { getCitizenName } from '@api/CitizenService';
+import { getCitizenById } from '@api/CitizenService';
+
 import Layout from '@components/Layout/Layout';
 import Heading from '@components/Heading/Heading';
 import UserName from '@components/UserName/UserName';
@@ -88,12 +89,12 @@ const CitizenSubscriptions: FC<Props> = ({
    */
   const fetchCitizenName = async (): Promise<void> => {
     if (citizenId) {
-      await getCitizenName(citizenId)
+      await getCitizenById(citizenId, { fields: { identity: true } })
         .then((result: Citizen): void =>
           setCitizenName(
             `${firstCharUpper(
-              result.firstName
-            )} ${result.lastName.toUpperCase()} `
+              result.identity.firstName
+            )} ${result.identity.lastName.toUpperCase()} `
           )
         )
         .catch((err: any) => {

@@ -1,62 +1,53 @@
 import * as Excel from 'exceljs';
 import {cloneDeep} from 'lodash';
-import {
-  StubbedInstanceWithSinonAccessor,
-  createStubInstance,
-  expect,
-  sinon,
-} from '@loopback/testlab';
+import {StubbedInstanceWithSinonAccessor, createStubInstance, expect, sinon} from '@loopback/testlab';
 import {securityId, UserProfile} from '@loopback/security';
-import {
-  CitizenService,
-  JwtService,
-  MailService,
-  Tab,
-  KeycloakService,
-  AffiliationService,
-} from '../../services';
-import {ValidationError} from '../../validationError';
+import {CitizenService, JwtService, MailService, KeycloakService, AffiliationService} from '../../services';
 import {
   AFFILIATION_STATUS,
   CITIZEN_STATUS,
+  EmployeesQueryParams,
   GROUPS,
-  ResourceName,
+  Roles,
   StatusCode,
   SUBSCRIPTION_STATUS,
+  Tab,
 } from '../../utils';
 import {
   Incentive,
   Citizen,
-  Enterprise,
   Subscription,
   UserEntity,
   OfflineUserSession,
   OfflineClientSession,
   Client,
-  User,
-  Territory,
   UserAttribute,
   Affiliation,
+  Enterprise,
+  EnterpriseDetails,
+  KeycloakGroup,
+  User,
 } from '../../models';
 import {
   UserRepository,
-  EnterpriseRepository,
   SubscriptionRepository,
   UserEntityRepository,
   ClientRepository,
   OfflineClientSessionRepository,
   OfflineUserSessionRepository,
   AffiliationRepository,
+  FunderRepository,
+  UserAttributeRepository,
 } from '../../repositories';
 import {RequiredActionAlias} from 'keycloak-admin/lib/defs/requiredActionProviderRepresentation';
-import {createCitizen} from '../dataFactory';
 
 describe('Citizen services', () => {
   let citizenService: any = null;
-  let enterpriseRepository: StubbedInstanceWithSinonAccessor<EnterpriseRepository>,
+  let funderRepository: StubbedInstanceWithSinonAccessor<FunderRepository>,
     userRepository: StubbedInstanceWithSinonAccessor<UserRepository>,
     subscriptionRepository: StubbedInstanceWithSinonAccessor<SubscriptionRepository>,
     userEntityRepository: StubbedInstanceWithSinonAccessor<UserEntityRepository>,
+    userAttributeRepository: StubbedInstanceWithSinonAccessor<UserAttributeRepository>,
     clientRepository: StubbedInstanceWithSinonAccessor<ClientRepository>,
     offlineClientSessionRepository: StubbedInstanceWithSinonAccessor<OfflineClientSessionRepository>,
     offlineUserSessionRepository: StubbedInstanceWithSinonAccessor<OfflineUserSessionRepository>,
@@ -68,11 +59,13 @@ describe('Citizen services', () => {
     emailVerified: true,
     maas: undefined,
     membership: ['/entreprise/capgemini'],
-    roles: ['offline_access', 'uma_authorization'],
+    roles: ['offline_access', 'uma_authorization', 'citoyens'],
     incentiveType: 'AideEmployeur',
     funderName: 'funderName',
+    scopes: ['openid', 'profile'],
     [securityId]: 'idUser',
   };
+
   let mailService: any = null;
   let jwtService: any = null;
   let keycloakService: any = null;
@@ -124,11 +117,12 @@ describe('Citizen services', () => {
     mailService = createStubInstance(MailService);
     keycloakService = createStubInstance(KeycloakService);
     affiliationService = createStubInstance(AffiliationService);
-    enterpriseRepository = createStubInstance(EnterpriseRepository);
+    funderRepository = createStubInstance(FunderRepository);
     userRepository = createStubInstance(UserRepository);
     subscriptionRepository = createStubInstance(SubscriptionRepository);
     userRepository = createStubInstance(UserRepository);
     userEntityRepository = createStubInstance(UserEntityRepository);
+    userAttributeRepository = createStubInstance(UserAttributeRepository);
     clientRepository = createStubInstance(ClientRepository);
     offlineClientSessionRepository = createStubInstance(OfflineClientSessionRepository);
     offlineUserSessionRepository = createStubInstance(OfflineUserSessionRepository);
@@ -136,10 +130,11 @@ describe('Citizen services', () => {
 
     jwtService = new JwtService();
     citizenService = new CitizenService(
-      enterpriseRepository,
+      funderRepository,
       userRepository,
       subscriptionRepository,
       userEntityRepository,
+      userAttributeRepository,
       clientRepository,
       offlineClientSessionRepository,
       offlineUserSessionRepository,
@@ -161,17 +156,8 @@ describe('Citizen services', () => {
         'Statut',
         'specificField',
       ];
-      const excepted: string[] = [
-        '06/04/2021',
-        'incentiveTitle',
-        'funderName',
-        'à traiter',
-        'value',
-      ];
-      const result: string[] = await citizenService.generateRow(
-        mockDemandeWithSpecefiqueFields,
-        header,
-      );
+      const excepted: string[] = ['06/04/2021', 'incentiveTitle', 'funderName', 'à traiter', 'value'];
+      const result: string[] = await citizenService.generateRow(mockDemandeWithSpecefiqueFields, header);
       expect(result).to.deepEqual(excepted);
     } catch (error) {
       sinon.assert.fail();
@@ -187,18 +173,9 @@ describe('Citizen services', () => {
         'Statut',
         'Nom des justificatifs transmis',
       ];
-      const excepted: string[] = [
-        '06/04/2021',
-        'incentiveTitle',
-        'funderName',
-        'à traiter',
-        'originalName',
-      ];
+      const excepted: string[] = ['06/04/2021', 'incentiveTitle', 'funderName', 'à traiter', 'originalName'];
 
-      const result: string[] = await citizenService.generateRow(
-        mockDemandeWithJustificatifs,
-        header,
-      );
+      const result: string[] = await citizenService.generateRow(mockDemandeWithJustificatifs, header);
       expect(result).to.deepEqual(excepted);
     } catch (error) {
       sinon.assert.fail();
@@ -321,225 +298,10 @@ describe('Citizen services', () => {
     ).true();
   });
 
-  it('findEmployees: successful with affiliation', async () => {
-    const mockCitizenUserEntity = new UserEntity({
-      id: 'randomInputId',
-      userAttributes: [
-        new UserAttribute({
-          name: 'lastName',
-          value: 'lastName',
-        }),
-        new UserAttribute({
-          name: 'firstName',
-          value: 'firstName',
-        }),
-      ],
-    });
-
-    const affiliation: Affiliation = {
-      id: 'affiliationId',
-      citizenId: 'randomInputId',
-      enterpriseEmail: '',
-      enterpriseId: 'funderId',
-      status: AFFILIATION_STATUS.AFFILIATED,
-    } as Affiliation;
-
-    const citizenWithAffiliationResult: Citizen = Object.assign(new Citizen(), {
-      id: 'randomInputId',
-      lastName: 'lastName',
-      firstName: 'firstName',
-      identity: {},
-      personalInformation: {},
-      dgfipInformation: {},
-      affiliation: affiliation,
-    });
-
-    userRepository.stubs.findById.resolves(mockUserWithCom);
-    affiliationRepository.stubs.find.resolves([affiliation]);
-    userEntityRepository.stubs.searchUserWithAttributesByFilter.resolves([
-      mockCitizenUserEntity,
-    ]);
-    affiliationRepository.stubs.findOne.resolves(affiliation);
-    affiliationRepository.stubs.count.resolves({count: 1});
-
-    const result = await citizenService.findEmployees({
-      status: AFFILIATION_STATUS.AFFILIATED,
-      lastName: undefined,
-      skip: undefined,
-      limit: 10,
-    });
-    expect(result).to.deepEqual({
-      employees: [citizenWithAffiliationResult],
-      employeesCount: 1,
-    });
-
-    sinon.assert.calledWithExactly(
-      affiliationRepository.stubs.count,
-      sinon.match({enterpriseId: mockUserWithCom.funderId}),
-    );
-    sinon.assert.calledWithExactly(
-      affiliationRepository.stubs.find,
-      sinon.match({where: {enterpriseId: mockUserWithCom.funderId}}),
-    );
-    sinon.assert.calledWithExactly(
-      userEntityRepository.stubs.searchUserWithAttributesByFilter,
-      sinon.match({
-        order: ['lastName ASC'],
-        limit: 10,
-        where: {id: {inq: ['randomInputId']}},
-      }),
-      GROUPS.citizens,
-    );
-  });
-
-  it('findEmployees: successful with affiliation and skip', async () => {
-    const mockCitizenUserEntity = new UserEntity({
-      id: 'randomInputId',
-      userAttributes: [
-        new UserAttribute({
-          name: 'lastName',
-          value: 'lastName',
-        }),
-        new UserAttribute({
-          name: 'firstName',
-          value: 'firstName',
-        }),
-      ],
-    });
-
-    const affiliation: Affiliation = {
-      id: 'affiliationId',
-      citizenId: 'randomInputId',
-      enterpriseEmail: '',
-      enterpriseId: 'funderId',
-      status: AFFILIATION_STATUS.AFFILIATED,
-    } as Affiliation;
-
-    const citizenWithAffiliationResult: Citizen = Object.assign(new Citizen(), {
-      id: 'randomInputId',
-      lastName: 'lastName',
-      firstName: 'firstName',
-      identity: {},
-      personalInformation: {},
-      dgfipInformation: {},
-      affiliation: affiliation,
-    });
-
-    userRepository.stubs.findById.resolves(mockUserWithCom);
-    affiliationRepository.stubs.find.resolves([affiliation]);
-    userEntityRepository.stubs.searchUserWithAttributesByFilter.resolves([
-      mockCitizenUserEntity,
-    ]);
-    affiliationRepository.stubs.findOne.resolves(affiliation);
-    affiliationRepository.stubs.count.resolves({count: 1});
-
-    const result = await citizenService.findEmployees({
-      status: AFFILIATION_STATUS.AFFILIATED,
-      lastName: undefined,
-      skip: 10,
-      limit: 10,
-    });
-    expect(result).to.deepEqual({
-      employees: [citizenWithAffiliationResult],
-      employeesCount: 1,
-    });
-
-    sinon.assert.calledWithExactly(
-      affiliationRepository.stubs.count,
-      sinon.match({enterpriseId: mockUserWithCom.funderId}),
-    );
-    sinon.assert.calledWithExactly(
-      affiliationRepository.stubs.find,
-      sinon.match({where: {enterpriseId: mockUserWithCom.funderId}}),
-    );
-    sinon.assert.calledWithExactly(
-      userEntityRepository.stubs.searchUserWithAttributesByFilter,
-      sinon.match({
-        order: ['lastName ASC'],
-        skip: 10,
-        limit: 10,
-        where: {id: {inq: ['randomInputId']}},
-      }),
-      GROUPS.citizens,
-    );
-  });
-
-  it('findEmployees: successful with affiliation and search lastName', async () => {
-    const mockCitizenUserEntity = new UserEntity({
-      id: 'randomInputId',
-      userAttributes: [
-        new UserAttribute({
-          name: 'lastName',
-          value: 'lastName',
-        }),
-        new UserAttribute({
-          name: 'firstName',
-          value: 'firstName',
-        }),
-      ],
-    });
-
-    const affiliation: Affiliation = {
-      id: 'affiliationId',
-      citizenId: 'randomInputId',
-      enterpriseEmail: '',
-      enterpriseId: 'funderId',
-      status: AFFILIATION_STATUS.AFFILIATED,
-    } as Affiliation;
-
-    const citizenWithAffiliationResult: Citizen = Object.assign(new Citizen(), {
-      id: 'randomInputId',
-      lastName: 'lastName',
-      firstName: 'firstName',
-      identity: {},
-      personalInformation: {},
-      dgfipInformation: {},
-      affiliation: affiliation,
-    });
-
-    userRepository.stubs.findById.resolves(mockUserWithCom);
-    affiliationRepository.stubs.find.resolves([affiliation]);
-    userEntityRepository.stubs.searchUserWithAttributesByFilter.resolves([
-      mockCitizenUserEntity,
-    ]);
-    affiliationRepository.stubs.findOne.resolves(affiliation);
-    affiliationRepository.stubs.count.resolves({count: 1});
-
-    const result = await citizenService.findEmployees({
-      status: AFFILIATION_STATUS.AFFILIATED,
-      lastName: 'last',
-      skip: undefined,
-      limit: 10,
-    });
-    expect(result).to.deepEqual({
-      employees: [citizenWithAffiliationResult],
-      employeesCount: 1,
-    });
-    sinon.assert.notCalled(affiliationRepository.stubs.count);
-    sinon.assert.calledWithExactly(
-      affiliationRepository.stubs.find,
-      sinon.match({where: {enterpriseId: mockUserWithCom.funderId}}),
-    );
-    sinon.assert.calledWithExactly(
-      userEntityRepository.stubs.searchUserWithAttributesByFilter,
-      sinon.match({
-        order: ['lastName ASC'],
-        limit: 10,
-        where: {
-          id: {inq: ['randomInputId']},
-          lastName: new RegExp('.*' + 'last' + '.*', 'i'),
-        },
-      }),
-      GROUPS.citizens,
-    );
-  });
-
   it('check getClientList : success', async () => {
     clientRepository.stubs.find.resolves(clients);
     try {
-      const result: string[] = await citizenService.getClientList(
-        'simulation-maas-client',
-      );
+      const result: string[] = await citizenService.getClientList('simulation-maas-client');
       expect(result).to.deepEqual(clients);
     } catch (error) {
       sinon.assert.fail();
@@ -551,12 +313,17 @@ describe('Citizen services', () => {
     try {
       citizenService.getClientList('simulation');
     } catch (error) {
-      expect(error).to.deepEqual(expectedErrorClientId);
+      expect(error.message).to.equal('client.id.notFound');
+      expect(error.statusCode).to.equal(StatusCode.NotFound);
     }
   });
 
   it('sendNonActivatedAccountDeletionMail: successfull', () => {
-    citizenService.sendNonActivatedAccountDeletionMail(mailService, mockCitizen3);
+    citizenService.sendNonActivatedAccountDeletionMail(
+      mailService,
+      mockCitizen3.email,
+      mockCitizen3.firstName,
+    );
     mailService.stubs.sendMailAsHtml.resolves('success');
     expect(mailService.sendMailAsHtml.calledOnce).true();
     expect(
@@ -575,7 +342,7 @@ describe('Citizen services', () => {
       keycloakService.stubs.createUserKc.resolves({
         id: 'randomInputId',
       });
-      enterpriseRepository.stubs.findById.resolves(enterprise);
+      funderRepository.stubs.getEnterpriseById.resolves(enterprise);
       affiliationRepository.stubs.createAffiliation.rejects(errorRepository);
       affiliationRepository.stubs.findOne.resolves(
         Object.assign({
@@ -590,14 +357,14 @@ describe('Citizen services', () => {
     }
 
     keycloakService.stubs.createUserKc.restore();
-    enterpriseRepository.stubs.findById.restore();
+    funderRepository.stubs.getEnterpriseById.restore();
     affiliationRepository.stubs.createAffiliation.restore();
     affiliationRepository.stubs.findOne.restore();
     keycloakService.stubs.deleteUserKc.restore();
   });
 
   it('CreateCitizen Service create salarie : successful', async () => {
-    enterpriseRepository.stubs.findById.resolves(enterprise);
+    funderRepository.stubs.getEnterpriseById.resolves(enterprise);
     keycloakService.stubs.createUserKc.resolves({
       id: 'randomInputId',
     });
@@ -621,7 +388,7 @@ describe('Citizen services', () => {
     sinon.assert.calledWithExactly(
       affiliationRepository.stubs.createAffiliation,
       sinon.match(new Citizen(expectedSalarieToBeCalledWith)),
-      sinon.match(enterprise.hasManualAffiliation as Boolean),
+      sinon.match(enterprise.enterpriseDetails.hasManualAffiliation as Boolean),
     );
 
     sinon.assert.calledWithExactly(
@@ -631,14 +398,14 @@ describe('Citizen services', () => {
       sinon.match([RequiredActionAlias.VERIFY_EMAIL]),
     );
 
-    enterpriseRepository.stubs.findById.restore();
+    funderRepository.stubs.getEnterpriseById.restore();
     affiliationRepository.stubs.createAffiliation.restore();
     keycloakService.stubs.createUserKc.restore();
     keycloakService.stubs.sendExecuteActionsEmailUserKc.restore();
   });
 
   it('CreateCitizen Service create salarie with manual affiliation : successful', async () => {
-    enterpriseRepository.stubs.findById.resolves(mockEnterprise);
+    funderRepository.stubs.getEnterpriseById.resolves(mockEnterprise);
     keycloakService.stubs.createUserKc.resolves({
       id: 'randomInputId',
     });
@@ -652,8 +419,7 @@ describe('Citizen services', () => {
       }),
     );
     keycloakService.stubs.sendExecuteActionsEmailUserKc.resolves();
-    const sendManualAff =
-      affiliationService.stubs.sendManualAffiliationMail.resolves(undefined);
+    const sendManualAff = affiliationService.stubs.sendManualAffiliationMail.resolves(undefined);
 
     const result = await citizenService.createCitizen(salarieNoProEmail);
 
@@ -669,12 +435,9 @@ describe('Citizen services', () => {
       ) &&
         sinon.match.has(
           'affiliation',
-          sinon.match.has(
-            'enterpriseEmail',
-            salarieNoProEmail.affiliation.enterpriseEmail,
-          ),
+          sinon.match.has('enterpriseEmail', salarieNoProEmail.affiliation.enterpriseEmail),
         ),
-      sinon.match(mockEnterprise.hasManualAffiliation as Boolean),
+      sinon.match(mockEnterprise.enterpriseDetails.hasManualAffiliation as Boolean),
     );
 
     sinon.assert.calledWithExactly(
@@ -685,7 +448,7 @@ describe('Citizen services', () => {
     );
 
     affiliationRepository.stubs.createAffiliation.restore();
-    enterpriseRepository.stubs.findById.restore();
+    funderRepository.stubs.getEnterpriseById.restore();
     keycloakService.stubs.createUserKc.restore();
     keycloakService.stubs.sendExecuteActionsEmailUserKc.restore();
     sendManualAff.restore();
@@ -719,10 +482,7 @@ describe('Citizen services', () => {
       ) &&
         sinon.match.has(
           'affiliation',
-          sinon.match.has(
-            'enterpriseEmail',
-            salarieNoEnterprise.affiliation.enterpriseEmail,
-          ),
+          sinon.match.has('enterpriseEmail', salarieNoEnterprise.affiliation.enterpriseEmail),
         ),
       sinon.match(false as Boolean),
     );
@@ -734,7 +494,7 @@ describe('Citizen services', () => {
       sinon.match([RequiredActionAlias.VERIFY_EMAIL]),
     );
 
-    sinon.assert.notCalled(enterpriseRepository.stubs.findById);
+    sinon.assert.notCalled(funderRepository.stubs.getEnterpriseById);
 
     keycloakService.stubs.createUserKc.restore();
     affiliationRepository.stubs.createAffiliation.restore();
@@ -763,10 +523,7 @@ describe('Citizen services', () => {
 
     sinon.assert.calledWithExactly(
       affiliationRepository.stubs.createAffiliation,
-      sinon.match.has(
-        'affiliation',
-        sinon.match.has('enterpriseId', student.affiliation.enterpriseId),
-      ) &&
+      sinon.match.has('affiliation', sinon.match.has('enterpriseId', student.affiliation.enterpriseId)) &&
         sinon.match.has(
           'affiliation',
           sinon.match.has('enterpriseEmail', student.affiliation.enterpriseEmail),
@@ -781,11 +538,215 @@ describe('Citizen services', () => {
       sinon.match([RequiredActionAlias.VERIFY_EMAIL]),
     );
 
-    sinon.assert.notCalled(enterpriseRepository.stubs.findById);
+    sinon.assert.notCalled(funderRepository.stubs.getEnterpriseById);
 
     affiliationRepository.stubs.createAffiliation.restore();
     keycloakService.stubs.createUserKc.restore();
     keycloakService.stubs.sendExecuteActionsEmailUserKc.restore();
+  });
+
+  it('Account Deletion Service : ERROR', async () => {
+    try {
+      userAttributeRepository.stubs.find.rejects('Error');
+      await citizenService.accountDeletionService();
+    } catch (err) {
+      expect(err.message).to.equal('Error');
+      expect(err.statusCode).to.equal(StatusCode.InternalServerError);
+    }
+  });
+
+  it('Account Deletion Service Citizen: successful', async () => {
+    const mockCitizenUserEntity = new UserEntity({
+      id: 'randomInputId',
+      userAttributes: [
+        new UserAttribute({
+          name: 'identity.firstName',
+          value: JSON.stringify('firstName'),
+        }),
+        new UserAttribute({
+          name: 'personalInformation.email',
+          value: JSON.stringify('email'),
+        }),
+        new UserAttribute({
+          name: 'lastLoginAt',
+          value: '1110000',
+        }),
+      ],
+      keycloakGroups: [
+        new KeycloakGroup({
+          name: GROUPS.citizens,
+        }),
+      ],
+    });
+    const affiliation: Affiliation = {
+      id: 'affiliationId',
+      citizenId: 'randomInputId',
+      enterpriseEmail: '',
+      enterpriseId: '',
+      status: AFFILIATION_STATUS.UNKNOWN,
+    } as Affiliation;
+
+    userEntityRepository.stubs.find.resolves([mockCitizenUserEntity]);
+    userEntityRepository.stubs.getUserWithAttributes.resolves(mockCitizenUserEntity);
+    affiliationRepository.stubs.findOne.resolves(affiliation);
+    affiliationRepository.stubs.deleteById.resolves();
+    mailService.stubs.sendMailAsHtml.resolves();
+    keycloakService.stubs.deleteUserKc.resolves();
+    await citizenService.accountDeletionService();
+    expect(keycloakService.stubs.deleteUserKc.calledOnce).true();
+    expect(affiliationRepository.stubs.deleteById.calledOnce).true();
+  });
+
+  it('Account Deletion Service Funder: successful', async () => {
+    const mockUserFunderEntity = new UserEntity({
+      id: 'randomInputId',
+      userAttributes: [
+        new UserAttribute({
+          name: 'firstName',
+          value: 'firstName',
+        }),
+        new UserAttribute({
+          name: 'email',
+          value: 'email',
+        }),
+      ],
+      keycloakGroups: [
+        new KeycloakGroup({
+          name: Roles.MANAGERS,
+        }),
+      ],
+    });
+
+    userEntityRepository.stubs.find.resolves([mockUserFunderEntity]);
+    userRepository.stubs.findById.resolves(new User({email: 'email', firstName: 'firstName'}));
+    mailService.stubs.sendMailAsHtml.resolves();
+    keycloakService.stubs.deleteUserKc.resolves();
+    await citizenService.accountDeletionService();
+    expect(keycloakService.stubs.deleteUserKc.calledOnce).true();
+    expect(userRepository.stubs.deleteById.calledOnce).true();
+  });
+
+  it('Notify Inactive Account : ERROR', async () => {
+    try {
+      userAttributeRepository.stubs.find.rejects('Error');
+      await citizenService.notifyInactiveAccount();
+    } catch (err) {
+      expect(err.message).to.equal('Error');
+      expect(err.statusCode).to.equal(StatusCode.InternalServerError);
+    }
+  });
+
+  it('Notify Inactive Account : successful', async () => {
+    const mockCitizenUserEntity = new UserEntity({
+      id: 'randomInputId',
+      userAttributes: [
+        new UserAttribute({
+          name: 'identity.firstName',
+          value: JSON.stringify('firstName'),
+        }),
+        new UserAttribute({
+          name: 'personalInformation.email',
+          value: JSON.stringify('email'),
+        }),
+        new UserAttribute({
+          name: 'lastLoginAt',
+          value: '1110000',
+        }),
+      ],
+    });
+    userAttributeRepository.stubs.find
+      .onCall(0)
+      .resolves([new UserAttribute({userId: 'randomOtherInputId'})]);
+    userAttributeRepository.stubs.find.onCall(1).resolves([new UserAttribute({userId: 'randomInputId'})]);
+    userEntityRepository.stubs.getUserWithAttributes.resolves(mockCitizenUserEntity);
+    mailService.stubs.sendMailAsHtml.resolves();
+    keycloakService.stubs.updateUserKC.resolves();
+    await citizenService.notifyInactiveAccount();
+    expect(keycloakService.stubs.updateUserKC.calledOnce).true();
+  });
+
+  it('Delete Inactive Account : ERROR', async () => {
+    try {
+      userAttributeRepository.stubs.find.rejects('Error');
+      await citizenService.deleteInactiveAccount();
+    } catch (err) {
+      expect(err.message).to.equal('Error');
+      expect(err.statusCode).to.equal(StatusCode.InternalServerError);
+    }
+  });
+
+  it('Delete Inactive Account without affiliation and subscription: successful', async () => {
+    const mockCitizenUserEntity = new UserEntity({
+      id: 'randomInputId',
+      userAttributes: [
+        new UserAttribute({
+          name: 'identity.firstName',
+          value: JSON.stringify('firstName'),
+        }),
+        new UserAttribute({
+          name: 'personalInformation.email',
+          value: JSON.stringify('email'),
+        }),
+        new UserAttribute({
+          name: 'lastLoginAt',
+          value: '1110000',
+        }),
+      ],
+    });
+    userAttributeRepository.stubs.find
+      .onCall(0)
+      .resolves([new UserAttribute({userId: 'randomOtherInputId'})]);
+    userAttributeRepository.stubs.find.onCall(1).resolves([new UserAttribute({userId: 'randomInputId'})]);
+    userEntityRepository.stubs.getUserWithAttributes.resolves(mockCitizenUserEntity);
+    subscriptionRepository.stubs.find.resolves([]);
+    affiliationRepository.stubs.findOne.resolves(undefined);
+    mailService.stubs.sendMailAsHtml.resolves();
+    keycloakService.stubs.deleteUserKc.resolves();
+    await citizenService.deleteInactiveAccount();
+    expect(subscriptionRepository.stubs.updateById.calledOnce).false();
+    expect(keycloakService.stubs.deleteUserKc.calledOnce).true();
+  });
+
+  it('Delete Inactive Account with affiliation and subscription: successful', async () => {
+    const mockCitizenUserEntity = new UserEntity({
+      id: 'randomInputId',
+      userAttributes: [
+        new UserAttribute({
+          name: 'identity.firstName',
+          value: JSON.stringify('firstName'),
+        }),
+        new UserAttribute({
+          name: 'personalInformation.email',
+          value: JSON.stringify('email'),
+        }),
+        new UserAttribute({
+          name: 'lastLoginAt',
+          value: '1110000',
+        }),
+      ],
+    });
+
+    const affiliation: Affiliation = {
+      id: 'affiliationId',
+      citizenId: 'randomInputId',
+      enterpriseEmail: '',
+      enterpriseId: '',
+      status: AFFILIATION_STATUS.UNKNOWN,
+    } as Affiliation;
+
+    userAttributeRepository.stubs.find.onCall(0).resolves([]);
+    userAttributeRepository.stubs.find.onCall(1).resolves([new UserAttribute({userId: 'randomInputId'})]);
+    userEntityRepository.stubs.getUserWithAttributes.resolves(mockCitizenUserEntity);
+    subscriptionRepository.stubs.find.resolves([new Subscription({id: 'randomSubscriptionId'})]);
+    subscriptionRepository.stubs.updateById.resolves();
+    affiliationRepository.stubs.findOne.resolves(affiliation);
+    affiliationRepository.stubs.deleteById.resolves();
+    mailService.stubs.sendMailAsHtml.resolves();
+    keycloakService.stubs.deleteUserKc.resolves();
+    await citizenService.deleteInactiveAccount();
+    expect(keycloakService.stubs.deleteUserKc.calledOnce).true();
+    expect(affiliationRepository.stubs.deleteById.calledOnce).true();
+    expect(subscriptionRepository.stubs.updateById.calledOnce).true();
   });
 
   it('getCitizenWithAffiliationById: successful', async () => {
@@ -815,9 +776,6 @@ describe('Citizen services', () => {
       id: 'randomInputId',
       lastName: 'lastName',
       firstName: 'firstName',
-      identity: {},
-      personalInformation: {},
-      dgfipInformation: {},
       affiliation: affiliation,
     });
 
@@ -828,17 +786,25 @@ describe('Citizen services', () => {
     expect(result).to.deepEqual(citizenWithAffiliationResult);
   });
 
-  it('searchCitizenWithAffiliationListByFilter: successful', async () => {
+  it('getCitizenByFilter : returns a citizen with user attributes and affiliation', async () => {
     const mockCitizenUserEntity = new UserEntity({
       id: 'randomInputId',
       userAttributes: [
         new UserAttribute({
-          name: 'lastName',
-          value: 'lastName',
+          name: 'identity.lastName',
+          value: JSON.stringify({
+            value: 'lastName',
+            source: 'moncomptemobilite.fr',
+            certificationDate: '2023-01-19T15:53:25.888Z',
+          }),
         }),
         new UserAttribute({
-          name: 'firstName',
-          value: 'firstName',
+          name: 'identity.fistName',
+          value: JSON.stringify({
+            value: 'firstName',
+            source: 'moncomptemobilite.fr',
+            certificationDate: '2023-01-19T15:53:25.888Z',
+          }),
         }),
       ],
     });
@@ -846,47 +812,197 @@ describe('Citizen services', () => {
     const affiliation: Affiliation = {
       id: 'affiliationId',
       citizenId: 'randomInputId',
-      enterpriseEmail: '',
-      enterpriseId: '',
-      status: AFFILIATION_STATUS.UNKNOWN,
+      enterpriseEmail: 'enterpriseEmail',
+      enterpriseId: 'enterpriseId',
+      status: AFFILIATION_STATUS.AFFILIATED,
     } as Affiliation;
 
-    const citizenWithAffiliationResult: Citizen = Object.assign(new Citizen(), {
+    const expectedCitizen: Citizen = Object.assign(new Citizen(), {
       id: 'randomInputId',
-      lastName: 'lastName',
-      firstName: 'firstName',
-      identity: {},
-      personalInformation: {},
-      dgfipInformation: {},
-      affiliation: affiliation,
+      identity: {
+        lastName: {
+          value: 'lastName',
+          source: 'moncomptemobilite.fr',
+          certificationDate: '2023-01-19T15:53:25.888Z',
+        },
+        fistName: {
+          value: 'firstName',
+          source: 'moncomptemobilite.fr',
+          certificationDate: '2023-01-19T15:53:25.888Z',
+        },
+      },
+      affiliation,
     });
 
-    affiliationRepository.stubs.find.resolves([affiliation]);
-    userEntityRepository.stubs.searchUserWithAttributesByFilter.resolves([
-      mockCitizenUserEntity,
-    ]);
+    const citizenFilter = {fields: {id: true, identity: true, personalInformation: true, affiliation: true}};
+
+    userEntityRepository.stubs.getUserWithAttributes.resolves(mockCitizenUserEntity);
     affiliationRepository.stubs.findOne.resolves(affiliation);
 
-    const result = await citizenService.searchCitizenWithAffiliationListByFilter(
-      {where: {}},
-      {},
-    );
-    expect(result).to.deepEqual([citizenWithAffiliationResult]);
-    sinon.assert.calledWithExactly(affiliationRepository.stubs.find, sinon.match({}));
-    sinon.assert.calledWithExactly(
-      userEntityRepository.stubs.searchUserWithAttributesByFilter,
-      sinon.match({where: {id: {inq: ['randomInputId']}}}),
+    const result = await citizenService.getCitizenByFilter('randomInputId', citizenFilter);
+
+    expect(result).to.eql(expectedCitizen);
+    sinon.assert.calledWith(
+      userEntityRepository.stubs.getUserWithAttributes,
+      'randomInputId',
       GROUPS.citizens,
+      {
+        where: {
+          or: [
+            {
+              name: {
+                inq: [
+                  'identity.lastName',
+                  'identity.firstName',
+                  'identity.middleNames',
+                  'identity.gender',
+                  'identity.birthDate',
+                  'identity.birthPlace',
+                  'identity.birthCountry',
+                ],
+              },
+            },
+          ],
+        },
+      },
     );
+    sinon.assert.calledWith(affiliationRepository.stubs.findOne, {where: {citizenId: 'randomInputId'}});
+  });
+
+  it('getEnterpriseEmployees : returns list of employees OK', async () => {
+    const stub = sinon.stub(CitizenService.prototype, 'findCitizenWithAffiliation').resolves([]);
+
+    const queryParams: EmployeesQueryParams = {
+      funderId: 'funderId',
+      status: AFFILIATION_STATUS.AFFILIATED,
+      lastName: 'lastName',
+      skip: 0,
+      limit: 10,
+    };
+
+    const response = await citizenService.getEnterpriseEmployees(queryParams);
+
+    expect(response).to.eql([]);
+
+    sinon.assert.calledWithExactly(
+      stub,
+      sinon.match({
+        order: ['lastName ASC'],
+        where: {lastName: {regexp: /.*lastName.*/i}},
+        fields: {id: true},
+        include: [{relation: 'userAttributes'}],
+      }),
+      sinon.match({
+        where: {
+          enterpriseId: 'funderId',
+          status: AFFILIATION_STATUS.AFFILIATED,
+        },
+        limit: 10,
+        skip: 0,
+      }),
+    );
+
+    stub.restore();
+  });
+
+  it('getEnterpriseEmployees : returns list of employees without unknown affilations OK', async () => {
+    const stub = sinon.stub(CitizenService.prototype, 'findCitizenWithAffiliation').resolves([]);
+
+    const queryParams: EmployeesQueryParams = {
+      funderId: 'funderId',
+      lastName: 'lastName',
+      skip: 0,
+      limit: 10,
+    };
+
+    const response = await citizenService.getEnterpriseEmployees(queryParams);
+
+    expect(response).to.eql([]);
+
+    sinon.assert.calledWithExactly(
+      stub,
+      sinon.match({
+        order: ['lastName ASC'],
+        where: {lastName: {regexp: /.*lastName.*/i}},
+        fields: {id: true},
+        include: [{relation: 'userAttributes'}],
+      }),
+      sinon.match({
+        where: {
+          enterpriseId: 'funderId',
+          status: {neq: AFFILIATION_STATUS.UNKNOWN},
+        },
+        limit: 10,
+        skip: 0,
+      }),
+    );
+
+    stub.restore();
+  });
+
+  it('getEnterpriseEmployeesCount : returns count when lastName is provided OK', async () => {
+    const stub = sinon.stub(CitizenService.prototype, 'findCitizenWithAffiliation').resolves([]);
+
+    const queryParams: EmployeesQueryParams = {
+      funderId: 'funderId',
+      status: AFFILIATION_STATUS.AFFILIATED,
+      lastName: 'lastName',
+    };
+
+    const response = await citizenService.getEnterpriseEmployeesCount(queryParams);
+
+    expect(response).to.eql({count: 0});
+
+    sinon.assert.calledWithExactly(
+      stub,
+      sinon.match({
+        where: {lastName: {regexp: /.*lastName.*/i}},
+        fields: {id: true},
+        include: [{relation: 'userAttributes'}],
+      }),
+      sinon.match({
+        where: {
+          enterpriseId: 'funderId',
+          status: AFFILIATION_STATUS.AFFILIATED,
+        },
+      }),
+    );
+
+    stub.restore();
+  });
+
+  it('getEnterpriseEmployeesCount : returns count when lastName is not provided OK', async () => {
+    const queryParams: EmployeesQueryParams = {
+      funderId: 'funderId',
+      status: AFFILIATION_STATUS.AFFILIATED,
+    };
+    affiliationRepository.stubs.count.resolves({count: 3});
+
+    const result = await citizenService.getEnterpriseEmployeesCount(queryParams);
+
+    expect(result).to.eql({count: 3});
+    sinon.assert.calledWithExactly(affiliationRepository.stubs.count, {
+      enterpriseId: 'funderId',
+      status: AFFILIATION_STATUS.AFFILIATED,
+    });
+  });
+
+  it('getEnterpriseEmployeesCount : returns count exluding unknown affiliation when status\
+   is not provided OK', async () => {
+    const queryParams: EmployeesQueryParams = {
+      funderId: 'funderId',
+    };
+    affiliationRepository.stubs.count.resolves({count: 3});
+
+    const result = await citizenService.getEnterpriseEmployeesCount(queryParams);
+
+    expect(result).to.eql({count: 3});
+    sinon.assert.calledWithExactly(affiliationRepository.stubs.count, {
+      enterpriseId: 'funderId',
+      status: {neq: AFFILIATION_STATUS.UNKNOWN},
+    });
   });
 });
-
-const expectedErrorClientId = new ValidationError(
-  'client.id.notFound',
-  '/clientIdNotFound',
-  StatusCode.NotFound,
-  ResourceName.Client,
-);
 
 const mockCitizen3 = {
   id: 'randomInputId',
@@ -977,22 +1093,14 @@ const mockCitizen = new Citizen({
 
 const mockEnterprise = new Enterprise({
   id: 'randomInputIdEntreprise',
-  emailFormat: ['test@outlook.com', 'test@outlook.fr', 'test@outlook.xxx'],
   name: 'nameEntreprise',
   siretNumber: 50,
-  budgetAmount: 102,
-  employeesCount: 100,
-  hasManualAffiliation: true,
-});
-
-const mockUserWithCom = new User({
-  id: 'idUser',
-  email: 'random@random.fr',
-  firstName: 'firstName',
-  lastName: 'lastName',
-  funderId: 'funderId',
-  roles: ['gestionnaires'],
-  communityIds: ['id1'],
+  mobilityBudget: 102,
+  citizensCount: 100,
+  enterpriseDetails: new EnterpriseDetails({
+    emailDomainNames: ['test@outlook.com', 'test@outlook.fr', 'test@outlook.xxx'],
+    hasManualAffiliation: true,
+  }),
 });
 
 const mockSubscription = new Subscription({
@@ -1068,13 +1176,7 @@ const tabs: Tab[] = [
 const tabsWithoutSF: Tab[] = [
   {
     title: 'incentiveId',
-    header: [
-      'Date de la demande',
-      "Nom de l'aide",
-      'Financeur',
-      'Statut',
-      'Nom des justificatifs transmis',
-    ],
+    header: ['Date de la demande', "Nom de l'aide", 'Financeur', 'Statut', 'Nom des justificatifs transmis'],
     rows: [['06/04/2021', 'incentiveTitle', 'funderName', 'à traiter', '']],
   },
 ];
@@ -1209,7 +1311,7 @@ const clients: Client[] = [
 ];
 
 const mockAideCollectivite = new Incentive({
-  territory: {name: 'Toulouse', id: 'randomTerritoryId'} as Territory,
+  territoryIds: ['randomTerritoryId'],
   additionalInfos: 'test',
   funderName: 'Mairie',
   allocatedAmount: '200 €',
@@ -1278,8 +1380,10 @@ const expectedSalarieToBeCalledWith = cloneDeep(salarie);
 
 const enterprise: Enterprise = new Enterprise({
   name: 'enterprise',
-  emailFormat: ['@gmail.com', 'rr'],
-  hasManualAffiliation: false,
+  enterpriseDetails: new EnterpriseDetails({
+    emailDomainNames: ['@gmail.com', 'rr'],
+    hasManualAffiliation: false,
+  }),
 });
 
 const salarieNoEnterprise = Object.assign(new Citizen(), {

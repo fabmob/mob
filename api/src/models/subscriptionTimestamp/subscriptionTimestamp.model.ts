@@ -1,5 +1,6 @@
 import {Entity, model, property} from '@loopback/repository';
 import {Subscription} from '../subscription/subscription.model';
+import {Request} from './request.model';
 
 @model()
 export class SubscriptionTimestamp extends Entity {
@@ -7,7 +8,7 @@ export class SubscriptionTimestamp extends Entity {
     type: 'string',
     id: true,
     generated: true,
-    description: `Identifiant de l'horodatage`,
+    description: `Identifiant de l'horodatage de souscription`,
     jsonSchema: {
       example: ``,
       minLength: 1,
@@ -18,7 +19,7 @@ export class SubscriptionTimestamp extends Entity {
   @property({
     type: 'string',
     required: true,
-    description: `Identifiant de la demande`,
+    description: `Identifiant de la souscription`,
     jsonSchema: {
       example: ``,
       minLength: 1,
@@ -29,7 +30,7 @@ export class SubscriptionTimestamp extends Entity {
   @property({
     type: 'string',
     required: true,
-    description: `Demande hachée`,
+    description: `Valeur de hachage des données horodatées`,
     jsonSchema: {
       example: ``,
       minLength: 1,
@@ -37,22 +38,48 @@ export class SubscriptionTimestamp extends Entity {
   })
   hashedSubscription: string;
 
-  @property()
-  subscription: Subscription;
-
   @property({
-    type: 'Binary',
+    type: 'string',
     required: true,
-    description: `Réponse de l'horodatage`,
+    description: `Données horodatées de la souscription (JSON stringifié)`,
     jsonSchema: {
       example: ``,
       minLength: 1,
     },
   })
-  timestampReply: BinaryData;
+  timestampedData: string;
+
+  @property()
+  subscription: Subscription;
 
   @property({
-    description: `Date de création de l'horodatage`,
+    type: 'any',
+    required: true,
+    description: `Jeton d'horodatage, tel que défini par la [RFC 3161](https://www.ietf.org/rfc/rfc3161.txt)`,
+    jsonSchema: {
+      example: ``,
+      minLength: 1,
+    },
+  })
+  timestampToken: BinaryData;
+
+  @property({
+    description: `Date généralisée de création du jeton d'horodatage par l'Autorité d'Horodatage`,
+    type: 'date',
+    defaultFn: 'now',
+    jsonSchema: {
+      example: `2022-01-01 00:00:00.000Z`,
+    },
+  })
+  signingTime?: Date;
+
+  @property({
+    description: `Objet requête d'horodatage`,
+  })
+  request: Request;
+
+  @property({
+    description: `Date de création de l'horodatage de souscription`,
     type: 'date',
     defaultFn: 'now',
     jsonSchema: {

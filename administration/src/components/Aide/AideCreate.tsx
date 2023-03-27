@@ -41,12 +41,14 @@ const AideCreate: FC<CreateProps> = (props) => {
   };
 
   const transform = (data): Record => {
+    delete data.emailDomainNames;
+    delete data.hasManualAffiliation;
+
     if (data.eligibilityChecks && data.eligibilityChecks.length > 0) {
       return getFormData(data);
     }
-
-    if (data.specificFields && !data.specificFields.length ) {
-      delete data.specificFields
+    if (data.specificFields && !data.specificFields.length) {
+      delete data.specificFields;
     }
 
     return { ...data };

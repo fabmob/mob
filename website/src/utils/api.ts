@@ -29,3 +29,38 @@ export const ErrorTypes = {
   20010: 'minItems',
   20011: 'maxItems',
 };
+
+export interface IFilter<T> {
+  where?: any;
+  fields?: any;
+  order?: string[];
+  limit?: number;
+  skip?: number;
+  offset?: number;
+  include?: any;
+}
+
+export interface Count {
+  count: number;
+}
+
+export const stringifyParams = (queryParams: {
+  [key: string]: string[] | string | undefined | number | IFilter<Object>;
+}): string => {
+  const keys = Object.keys(queryParams);
+  if (!keys.length) {
+    return '';
+  }
+
+  const stringifiedParams: string = keys
+    .map((key) => {
+      const value = queryParams[key];
+      return value !== undefined && value !== ''
+        ? `${key}=${value}`
+        : undefined;
+    })
+    .filter((key) => !!key)
+    .join('&');
+
+  return stringifiedParams !== '' ? `?${stringifiedParams}` : '';
+};

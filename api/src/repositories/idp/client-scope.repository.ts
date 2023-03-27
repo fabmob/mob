@@ -1,9 +1,5 @@
 import {inject, Getter} from '@loopback/core';
-import {
-  DefaultCrudRepository,
-  repository,
-  HasManyThroughRepositoryFactory,
-} from '@loopback/repository';
+import {DefaultCrudRepository, repository, HasManyThroughRepositoryFactory} from '@loopback/repository';
 import {IdpDbDataSource} from '../../datasources';
 import {ClientScope, ClientScopeRelations, Client, ClientScopeClient} from '../../models';
 import {SCOPES} from '../../utils';
@@ -38,9 +34,9 @@ export class ClientScopeRepository extends DefaultCrudRepository<
     this.registerInclusionResolver('clients', this.clients.inclusionResolver);
   }
 
-  async getClients(): Promise<Client[] | undefined> {
+  async getClients(): Promise<Pick<Client, 'id' | 'clientId' | 'name'>[] | undefined> {
     const scopes = await this.findOne({
-      include: ['clients'],
+      include: [{relation: 'clients', scope: {fields: {id: true, clientId: true, name: true}}}],
       where: {name: SCOPES.FUNDERS_CLIENTS},
     });
     return scopes?.clients;

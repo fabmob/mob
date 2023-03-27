@@ -53,7 +53,7 @@ const CommonNav: FC<{ keycloak: Keycloak.KeycloakInstance }> = ({
               </Link>
             </li>
           )}
-          {funderType === FunderType.COLLECTIVITIES && (
+          {(funderType === FunderType.COLLECTIVITIES || funderType === FunderType.NATIONAL) && (
             <li className="mcm-nav__item">
               <Link id="nav-gerer-citoyens" to="/gerer-citoyens">
                 {Strings['nav.manage.citizens.dashboard.value']}

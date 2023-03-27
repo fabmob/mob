@@ -62,5 +62,4 @@ export interface ClientScopeClientRelations {
   // describe navigational properties here
 }
 
-export type ClientScopeClientWithRelations = ClientScopeClient &
-  ClientScopeClientRelations;
+export type ClientScopeClientWithRelations = ClientScopeClient & ClientScopeClientRelations;

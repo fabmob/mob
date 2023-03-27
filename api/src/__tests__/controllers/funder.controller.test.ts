@@ -1,242 +1,434 @@
-import {
-  createStubInstance,
-  expect,
-  sinon,
-  StubbedInstanceWithSinonAccessor,
-} from '@loopback/testlab';
+import {createStubInstance, expect, sinon, StubbedInstanceWithSinonAccessor} from '@loopback/testlab';
 import {securityId} from '@loopback/security';
 
 import {FunderController} from '../../controllers';
 import {
   Collectivity,
   Community,
-  Enterprise,
   EncryptionKey,
+  Enterprise,
+  EnterpriseDetails,
+  Funder,
+  NationalAdministration,
   PrivateKeyAccess,
-  Client,
+  UserEntity,
 } from '../../models';
-import {FunderService} from '../../services';
-
 import {
-  CommunityRepository,
-  EnterpriseRepository,
-  CollectivityRepository,
   ClientScopeRepository,
+  CommunityRepository,
+  FunderRepository,
+  UserEntityRepository,
 } from '../../repositories';
-import {ValidationError} from '../../validationError';
-import {FUNDER_TYPE, ResourceName, StatusCode, IUser} from '../../utils';
-import {Clients} from 'keycloak-admin/lib/resources/clients';
+import {CitizenService, KeycloakService, SubscriptionService} from '../../services';
+import {AFFILIATION_STATUS, FUNDER_TYPE, GROUPS, IUser, PartialCitizen, ResourceName} from '../../utils';
+import {BadRequestError} from '../../validationError';
 
 describe('Funder Controller ', () => {
-  let collectivityRepository: StubbedInstanceWithSinonAccessor<CollectivityRepository>,
+  let funderRepository: StubbedInstanceWithSinonAccessor<FunderRepository>,
     communityRepository: StubbedInstanceWithSinonAccessor<CommunityRepository>,
-    enterpriseRepository: StubbedInstanceWithSinonAccessor<EnterpriseRepository>,
     clientScopeRepository: StubbedInstanceWithSinonAccessor<ClientScopeRepository>,
-    funderService: StubbedInstanceWithSinonAccessor<FunderService>,
-    controller: FunderController;
+    userEntityRepository: StubbedInstanceWithSinonAccessor<UserEntityRepository>,
+    keycloakService: StubbedInstanceWithSinonAccessor<KeycloakService>,
+    citizenService: StubbedInstanceWithSinonAccessor<CitizenService>,
+    subscriptionService: StubbedInstanceWithSinonAccessor<SubscriptionService>,
+    funderController: FunderController;
+
+  const responseOK: any = {
+    status: function () {
+      return this;
+    },
+    contentType: function () {
+      return this;
+    },
+    send: (body: any) => body,
+  };
 
   beforeEach(() => {
-    givenStubbedCollectivityRepository();
-    givenStubbedCommunityRepository();
-    givenStubbedEnterpriseRepository();
-    givenStubbedFunderService();
-    controller = new FunderController(
+    const currentUser: IUser = {
+      id: 'idEnterprise',
+      emailVerified: true,
+      maas: undefined,
+      membership: ['/entreprises/Capgemini'],
+      funderType: FUNDER_TYPE.ENTERPRISE,
+      roles: ['gestionnaires'],
+      [securityId]: 'idEnterprise',
+    };
+
+    givenStubbedRepository();
+    givenStubbedService();
+    funderController = new FunderController(
+      responseOK,
+      funderRepository,
       communityRepository,
-      enterpriseRepository,
-      collectivityRepository,
-      funderService,
       clientScopeRepository,
+      userEntityRepository,
+      keycloakService,
+      citizenService,
+      subscriptionService,
+      currentUser,
     );
   });
 
-  it('get(/v1/funders)', async () => {
-    funderService.stubs.getFunders.resolves(mockReturnFunder);
-    const result = await controller.find();
+  function givenStubbedRepository() {
+    funderRepository = createStubInstance(FunderRepository);
+    communityRepository = createStubInstance(CommunityRepository);
+    clientScopeRepository = createStubInstance(ClientScopeRepository);
+    userEntityRepository = createStubInstance(UserEntityRepository);
+  }
 
-    expect(result).to.deepEqual(mockReturnFunder);
-    funderService.stubs.getFunders.restore();
-  });
+  function givenStubbedService() {
+    keycloakService = createStubInstance(KeycloakService);
+    citizenService = createStubInstance(CitizenService);
+    subscriptionService = createStubInstance(SubscriptionService);
+  }
 
-  it('FunderController create : succeeded-enterprise', async () => {
-    const community = new Community({
-      name: 'random',
-      funderId: 'randomId',
-    });
+  it('FunderController POST v1/funders NationalAdministration: OK', async () => {
+    keycloakService.stubs.createGroupKc.resolves({id: 'funderNationalId'});
+    funderRepository.stubs.create.resolves(funderNational);
 
-    communityRepository.stubs.find.resolves([]);
-    enterpriseRepository.stubs.find.resolves([
-      new Enterprise({name: 'randomEnterprise'}),
-    ]);
-    communityRepository.stubs.create.resolves(community);
-
-    const res = await controller.create(community);
-    expect(res).to.deepEqual(community);
-  });
-
-  it('FunderController create : succeeded-collectivity', async () => {
-    const community = new Community({
-      name: 'random',
-      funderId: 'randomId',
-    });
-
-    communityRepository.stubs.find.resolves([]);
-    enterpriseRepository.stubs.find.resolves([]);
-    collectivityRepository.stubs.find.resolves([
-      new Collectivity({name: 'randomEnterprise'}),
-    ]);
-    communityRepository.stubs.create.resolves(community);
-
-    const res = await controller.create(community);
-    expect(res).to.deepEqual(community);
-  });
-
-  it('FunderController create : fails because name already exists', async () => {
-    const community = new Community({
-      name: 'random',
-      funderId: 'randomId',
-    });
-    const communityExisted = new Community({
-      name: 'random',
-      funderId: 'randomId2',
-    });
-
-    const error = new ValidationError(
-      `communities.error.name.unique`,
-      `/communities`,
-      StatusCode.UnprocessableEntity,
-      ResourceName.Community,
+    const result = await funderController.create(funderNational);
+    sinon.assert.calledOnceWithExactly(
+      keycloakService.stubs.createGroupKc,
+      funderNational.name,
+      GROUPS.administrations_nationales,
     );
+    expect(keycloakService.stubs.addUserGroupMembership).not.called;
+    expect(result).to.deepEqual(funderNational);
+  });
+
+  it('FunderController POST v1/funders Collectivity: OK', async () => {
+    keycloakService.stubs.createGroupKc.resolves({id: 'funderCollectivityId'});
+    funderRepository.stubs.create.resolves(funderCollectivity);
+
+    const result = await funderController.create(funderCollectivity);
+    sinon.assert.calledOnceWithExactly(
+      keycloakService.stubs.createGroupKc,
+      funderCollectivity.name,
+      GROUPS.collectivities,
+    );
+    expect(keycloakService.stubs.addUserGroupMembership).not.called;
+    expect(result).to.deepEqual(funderCollectivity);
+  });
+
+  it('FunderController POST v1/funders Enterprise: OK', async () => {
+    keycloakService.stubs.createGroupKc.resolves({id: 'funderEnterpriseId'});
+    funderRepository.stubs.create.resolves(funderEnterprise);
+    userEntityRepository.stubs.getServiceUser.resolves({id: 'enterpriseClientId'} as UserEntity);
+
+    const result = await funderController.create(funderEnterprise);
+    sinon.assert.calledOnceWithExactly(
+      keycloakService.stubs.createGroupKc,
+      funderEnterprise.name,
+      GROUPS.enterprises,
+    );
+    sinon.assert.calledOnceWithExactly(
+      keycloakService.stubs.addUserGroupMembership,
+      'enterpriseClientId',
+      funderEnterprise.id,
+    );
+    expect(result).to.deepEqual(funderEnterprise);
+  });
+
+  it('FunderController POST v1/funders : Mongo ERROR', async () => {
     try {
-      communityRepository.stubs.find.resolves([communityExisted]);
-
-      await controller.create(community);
+      keycloakService.stubs.createGroupKc.resolves({id: 'funderEnterpriseId'});
+      funderRepository.stubs.create.rejects(new Error('Error'));
+      keycloakService.stubs.deleteGroupKc.resolves();
+      await funderController.create(funderEnterprise);
     } catch (err) {
-      expect(err).to.deepEqual(error);
+      sinon.assert.calledOnceWithExactly(keycloakService.stubs.deleteGroupKc, funderEnterprise.id);
+      expect(err.message).to.equal('Error');
     }
   });
 
-  it('FunderController create : fails because funder is not present', async () => {
+  it('FunderController GET /v1/funders/count: OK', async () => {
+    const funderCount = {
+      count: 12,
+    };
+    funderRepository.stubs.count.resolves(funderCount);
+    const result = await funderController.count();
+    expect(result).to.deepEqual(funderCount);
+  });
+
+  it('FunderController GET /v1/funders/count: Mongo ERROR', async () => {
+    try {
+      funderRepository.stubs.count.rejects(new Error('Error'));
+      await funderController.count();
+    } catch (err) {
+      expect(err.message).to.equal('Error');
+    }
+  });
+
+  it('FunderController GET /v1/funders: OK', async () => {
+    funderRepository.stubs.find.resolves([funderNational]);
+    const result = await funderController.find();
+    expect(result).to.deepEqual([funderNational]);
+  });
+
+  it('FunderController GET /v1/funders: Mongo ERROR', async () => {
+    try {
+      funderRepository.stubs.find.rejects(new Error('Error'));
+      await funderController.find();
+    } catch (err) {
+      expect(err.message).to.equal('Error');
+    }
+  });
+
+  it('FunderController GET /v1/funders/{funderId}: OK', async () => {
+    funderRepository.stubs.findById.resolves(funderNational);
+    const result = await funderController.findById('funderNationalId');
+    expect(result).to.deepEqual(funderNational);
+  });
+
+  it('FunderController GET /v1/funders/{funderId}: Mongo ERROR', async () => {
+    try {
+      funderRepository.stubs.findById.rejects(new Error('Error'));
+      await funderController.findById('funderNationalId');
+    } catch (err) {
+      expect(err.message).to.equal('Error');
+    }
+  });
+
+  it('FunderController PUT /v1/funders/{funderId}/encryption_key: Mongo ERROR', async () => {
+    try {
+      funderRepository.stubs.findById.rejects(new Error('Error'));
+
+      await funderController.storeEncryptionKey(funderCollectivity.id, mockencryptionKeyValid);
+    } catch (err) {
+      expect(err.message).to.equal('Error');
+    }
+  });
+
+  it('FunderController PUT /v1/funders/{funderId}/encryption_key: OK', async () => {
+    funderRepository.stubs.findById.resolves(funderCollectivity);
+    funderRepository.stubs.updateById.resolves();
+    await funderController.storeEncryptionKey(funderCollectivity.id, mockencryptionKeyValid);
+    sinon.assert.called(funderRepository.stubs.updateById);
+  });
+
+  it('FunderController GET /v1/funders/communities/count : OK', async () => {
+    const countRes = {
+      count: 10,
+    };
+    communityRepository.stubs.count.resolves(countRes);
+    const result = await funderController.countCommunities();
+    expect(result).to.deepEqual(countRes);
+  });
+
+  it('FunderController GET /v1/funders/communities: Mongo ERROR', async () => {
+    try {
+      communityRepository.stubs.find.rejects(new Error('Error'));
+
+      await funderController.findCommunities();
+    } catch (err) {
+      expect(err.message).to.equal('Error');
+    }
+  });
+
+  it('FunderController GET /v1/funders/communities: OK', async () => {
+    communityRepository.stubs.find.resolves([newCommunity]);
+    funderRepository.stubs.find.resolves(mockReturnFunder);
+    const result = await funderController.findCommunities();
+
+    expect(result).to.deepEqual([mockAllCommunities]);
+  });
+
+  it('FunderController POST /v1/funders/communities : OK result', async () => {
     const community = new Community({
       name: 'random',
       funderId: 'randomId',
     });
-    const error = new ValidationError(
-      `communities.error.funders.missed`,
-      `/communities`,
-      StatusCode.UnprocessableEntity,
-      ResourceName.Community,
-    );
 
-    communityRepository.stubs.find.resolves([]);
-    enterpriseRepository.stubs.find.resolves([]);
-    collectivityRepository.stubs.find.resolves([]);
+    communityRepository.stubs.findOne.resolves();
+    funderRepository.stubs.findById.resolves(funderCollectivity);
+    communityRepository.stubs.create.resolves(community);
+
+    const res = await funderController.createCommunity(community);
+    expect(res).to.deepEqual(community);
+  });
+
+  it('FunderController POST /v1/funders/communities : no funder OK undefined', async () => {
+    const community = new Community({
+      name: 'random',
+      funderId: 'randomId',
+    });
+    communityRepository.stubs.findOne.resolves();
+    funderRepository.stubs.findById.resolves(undefined);
+
+    const res = await funderController.createCommunity(community);
+    expect(res).to.equal(undefined);
+  });
+
+  it('FunderController POST /v1/funders/communities : OK undefined', async () => {
+    const community = new Community({
+      name: 'random',
+      funderId: 'randomId',
+    });
+
+    communityRepository.stubs.findOne.resolves(community);
+
+    const res = await funderController.createCommunity(community);
+    expect(res).to.equal(undefined);
+  });
+
+  it('FunderController POST /v1/funders/communities : Mongo Error', async () => {
     try {
-      const res = await controller.create(community);
+      const community = new Community({
+        name: 'random',
+        funderId: 'randomId',
+      });
+
+      communityRepository.stubs.findOne.rejects(new Error('Error'));
+      await funderController.createCommunity(community);
     } catch (err) {
-      expect(err).to.deepEqual(error);
+      expect(err.message).to.equal('Error');
     }
   });
 
-  it('FunderController get by funderId : successful', async () => {
-    const funderId = 'randomFunderId';
+  it('FunderController GET /v1/funders/{funderId}/communities : OK', async () => {
+    const funderId = 'funderCollectivityId';
     const communitiesResult: [] = [];
     communityRepository.stubs.findByFunderId.resolves(communitiesResult);
-    const res = await controller.findByFunderId(funderId);
+    const res = await funderController.findByFunderId(funderId);
 
     expect(res).to.deepEqual(communitiesResult);
   });
 
-  it('FunderController count : successful', async () => {
-    const countRes = {
-      count: 10,
+  it('FunderController GET /v1/funders/{funderId}/citizens enterprise funder: OK', async () => {
+    const funderId = 'funderEnterpriseId';
+    const status = AFFILIATION_STATUS.AFFILIATED;
+    const lastName = 'lastName';
+    const skip = 0;
+    const limit = 10;
+
+    citizenService.stubs.getEnterpriseEmployees.resolves([mockCitizen]);
+
+    const result = await funderController.getCitizens(funderId, status, lastName, skip, limit);
+
+    expect(result).to.eql([mockCitizen]);
+    sinon.assert.calledWith(citizenService.stubs.getEnterpriseEmployees, {
+      funderId,
+      status,
+      lastName,
+      skip,
+      limit,
+    });
+    sinon.assert.notCalled(subscriptionService.stubs.getCitizensWithSubscription);
+  });
+
+  it('FunderController GET /v1/funders/{funderId}/citizens collectivity funder: OK', async () => {
+    const funderId = 'funderCollectivityId';
+    const lastName = 'lastName';
+    const skip = 0;
+    const limit = 10;
+
+    const currentUser: IUser = {
+      id: 'idCollectivity',
+      emailVerified: true,
+      maas: undefined,
+      membership: ['/collectivities/SM'],
+      funderType: FUNDER_TYPE.COLLECTIVITY,
+      roles: ['gestionnaires'],
+      [securityId]: 'idCollectivity',
     };
 
-    communityRepository.stubs.count.resolves(countRes);
-    const result = await controller.count();
-
-    expect(result).to.deepEqual(countRes);
-  });
-
-  it('FunderController v1/funders/communities', async () => {
-    communityRepository.stubs.find.resolves([newCommunity]);
-    funderService.stubs.getFunders.resolves(mockReturnFunder);
-    const result = await controller.findCommunities();
-
-    expect(result).to.deepEqual([mockAllCommunities]);
-    funderService.stubs.getFunders.restore();
-    communityRepository.stubs.find.restore();
-  });
-
-  it('encryption_key : asserts encryption key has been stored for collectivity', async () => {
-    collectivityRepository.stubs.findOne.resolves(mockCollectivity2);
-    collectivityRepository.stubs.updateById.resolves();
-    enterpriseRepository.stubs.create.resolves(undefined);
-    await controller.storeEncryptionKey(mockCollectivity2.id, mockencryptionKeyValid);
-    sinon.assert.called(collectivityRepository.stubs.updateById);
-  });
-
-  it('encryption_key : asserts encryption key has been stored for enterprise', async () => {
-    collectivityRepository.stubs.findOne.resolves(undefined);
-    enterpriseRepository.stubs.updateById.resolves();
-    enterpriseRepository.stubs.findOne.resolves(mockEnterprise);
-    await controller.storeEncryptionKey(mockEnterprise.id, mockencryptionKeyValid);
-    sinon.assert.called(enterpriseRepository.stubs.updateById);
-  });
-
-  it('findFunderById : returns enterprise when funder is of type enterprise', async () => {
-    collectivityRepository.stubs.findOne.resolves(undefined);
-    enterpriseRepository.stubs.findOne.resolves(mockEnterprise);
-    const enterprise = await controller.findFunderById(mockEnterprise.id);
-    expect(enterprise).to.deepEqual(mockEnterprise);
-  });
-
-  it('findFunderById : returns collectivity when funder is of type collectivity', async () => {
-    collectivityRepository.stubs.findOne.resolves(mockCollectivity);
-    enterpriseRepository.stubs.findOne.resolves(undefined);
-    const collectivity = await controller.findFunderById(mockCollectivity.id);
-    expect(collectivity).to.deepEqual(mockCollectivity);
-  });
-
-  it('findClients : returns list of clients', async () => {
-    clientScopeRepository.stubs.getClients.resolves(mockClientsList);
-    const clients = await controller.findClients();
-    expect(clients).to.deepEqual(mockClientsList);
-  });
-
-  it('findFunderById : throws error when funder not found', async () => {
-    const funderNotFoundError = new ValidationError(
-      `Funder not found`,
-      `/Funder`,
-      StatusCode.NotFound,
-      ResourceName.Funder,
+    funderController = new FunderController(
+      responseOK,
+      funderRepository,
+      communityRepository,
+      clientScopeRepository,
+      userEntityRepository,
+      keycloakService,
+      citizenService,
+      subscriptionService,
+      currentUser,
     );
+
+    subscriptionService.stubs.getCitizensWithSubscription.resolves([mockCitizenWithSubscription]);
+
+    const result = await funderController.getCitizens(funderId, undefined, lastName, skip, limit);
+
+    expect(result).to.eql([mockCitizenWithSubscription]);
+    sinon.assert.calledWith(subscriptionService.stubs.getCitizensWithSubscription, {
+      funderId,
+      lastName,
+      skip,
+      limit,
+    });
+    sinon.assert.notCalled(citizenService.stubs.getEnterpriseEmployees);
+  });
+
+  it('FunderController GET /v1/funders/{funderId}/citizens funderType not found', async () => {
+    const funderId = '123';
+    const status = AFFILIATION_STATUS.AFFILIATED;
+    const lastName = 'Doe';
+    const skip = 0;
+    const limit = 10;
+
+    const currentUser: IUser = {
+      id: 'idEnterprise',
+      emailVerified: true,
+      maas: undefined,
+      membership: ['/entreprises/Capgemini'],
+      funderType: 'invalidFunderType' as FUNDER_TYPE,
+      roles: ['gestionnaires'],
+      [securityId]: 'idEnterprise',
+    };
+
+    funderController = new FunderController(
+      responseOK,
+      funderRepository,
+      communityRepository,
+      clientScopeRepository,
+      userEntityRepository,
+      keycloakService,
+      citizenService,
+      subscriptionService,
+      currentUser,
+    );
+
+    const expectedError = new BadRequestError(
+      FunderController.name,
+      'getCitizens',
+      'funderType.not.found',
+      '/funderTypeNotFound',
+      ResourceName.Funder,
+      currentUser.funderType,
+    );
+
     try {
-      collectivityRepository.stubs.findOne.resolves(undefined);
-      enterpriseRepository.stubs.findOne.resolves(undefined);
-      await controller.findFunderById('wrongFunderId');
-      sinon.assert.fail();
+      await funderController.getCitizens(funderId, status, lastName, skip, limit);
     } catch (error) {
-      expect(error).to.deepEqual(funderNotFoundError);
+      expect(error).to.eql(expectedError);
     }
   });
-
-  function givenStubbedCollectivityRepository() {
-    collectivityRepository = createStubInstance(CollectivityRepository);
-  }
-
-  function givenStubbedCommunityRepository() {
-    communityRepository = createStubInstance(CommunityRepository);
-    clientScopeRepository = createStubInstance(ClientScopeRepository);
-  }
-
-  function givenStubbedFunderService() {
-    funderService = createStubInstance(FunderService);
-  }
-
-  function givenStubbedEnterpriseRepository() {
-    enterpriseRepository = createStubInstance(EnterpriseRepository);
-  }
 });
+
+const funderNational: Funder = new NationalAdministration({
+  id: 'funderNationalId',
+  type: FUNDER_TYPE.NATIONAL,
+  name: 'France',
+}) as Funder;
+
+const funderCollectivity: Funder = new Collectivity({
+  id: 'funderCollectivityId',
+  type: FUNDER_TYPE.COLLECTIVITY,
+  name: 'Mulhouse',
+  siretNumber: 1110000,
+}) as Funder;
+
+const funderEnterprise: Funder = new Enterprise({
+  id: 'funderEnterpriseId',
+  type: FUNDER_TYPE.ENTERPRISE,
+  name: 'Capgemini',
+  mobilityBudget: 1110000,
+  clientId: 'enterprise-client',
+  enterpriseDetails: new EnterpriseDetails({
+    isHris: false,
+    hasManualAffiliation: false,
+    emailDomainNames: ['@example.com'],
+  }),
+}) as Funder;
 
 const today = new Date();
 const expirationDate = new Date(today.setMonth(today.getMonth() + 7));
@@ -262,69 +454,37 @@ const mockencryptionKeyValid = new EncryptionKey({
   ),
 });
 
-const mockClientsList = [
-  {
-    clientId: '62977dc80929474f84c403de',
-  } as Client,
-];
-const mockencryptionKeyNogetKeyURL = new EncryptionKey({
-  id: '62977dc80929474f84c403de',
-  version: 1,
-  publicKey,
-  expirationDate,
-  lastUpdateDate: new Date(),
-});
-
-const mockCollectivity2 = new Collectivity({
-  id: '2b6ee373-4c5b-403b-afe5-3bf3cbd2473c',
-  name: 'Mulhouse',
-  citizensCount: 1,
-  mobilityBudget: 1,
-  encryptionKey: mockencryptionKeyValid,
-});
-
-const mockCollectivity = new Collectivity({
-  id: 'randomInputIdCollectivity',
-  name: 'nameCollectivity',
-  citizensCount: 10,
-  mobilityBudget: 12,
-  encryptionKey: mockencryptionKeyValid,
-});
-
-const mockEnterprise = new Enterprise({
-  id: 'randomInputIdEnterprise',
-  emailFormat: ['test@outlook.com', 'test@outlook.fr', 'test@outlook.xxx'],
-  name: 'nameEnterprise',
-  siretNumber: 50,
-  employeesCount: 2345,
-  budgetAmount: 102,
-  encryptionKey: mockencryptionKeyValid,
-});
-
-const mockReturnFunder = [
-  {...mockCollectivity, funderType: FUNDER_TYPE.collectivity},
-  {...mockEnterprise, funderType: FUNDER_TYPE.enterprise},
-];
-
-const newCommunity = new Community({
+const newCommunity: Community = new Community({
   id: '6175d61442ebca0660ddf3fb',
   name: 'fio',
-  funderId: 'randomInputIdEnterprise',
+  funderId: 'funderEnterpriseId',
 });
 
+const mockReturnFunder: Funder[] = [funderEnterprise, funderCollectivity];
+
 const mockAllCommunities = {
-  funderId: 'randomInputIdEnterprise',
-  funderName: 'nameEnterprise',
-  funderType: 'Entreprise',
+  funderId: 'funderEnterpriseId',
+  funderName: 'Capgemini',
+  funderType: FUNDER_TYPE.ENTERPRISE,
   id: '6175d61442ebca0660ddf3fb',
   name: 'fio',
 };
 
-const currentUser: IUser = {
-  id: 'idUser',
-  emailVerified: true,
-  maas: undefined,
-  membership: ['/entreprises/Capgemini'],
-  roles: ['gestionnaires'],
-  [securityId]: 'idEnterprise',
+const mockCitizen: PartialCitizen = {
+  id: 'randomInputId',
+  lastName: 'lastName',
+  firstName: 'firstName',
+  birthdate: 'birthdate',
+  email: 'email',
+  enterpriseEmail: 'email@email.com',
+  isCitizenDeleted: false,
+};
+
+const mockCitizenWithSubscription: PartialCitizen = {
+  id: 'citizenId',
+  lastName: 'lastName',
+  firstName: 'firstName',
+  birthdate: 'birthdate',
+  email: 'email',
+  isCitizenDeleted: false,
 };

@@ -8,8 +8,7 @@ export class Link extends Model {
     description: `Lien de redirection cible`,
     required: true,
     jsonSchema: {
-      example:
-        'https://website.${env}.moncomptemobilite.fr/subscriptions/new?incentiveId=',
+      example: 'https://website.${env}.moncomptemobilite.fr/subscriptions/new?incentiveId=',
     },
   })
   href: string;

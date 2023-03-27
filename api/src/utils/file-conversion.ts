@@ -1,7 +1,7 @@
 import pdf from 'html-pdf';
 import ejs from 'ejs';
 import path from 'path';
-import {logger} from '.';
+import {InternalServerError} from '../validationError';
 
 /**
  * Generate PDF Buffer from HTML
@@ -11,12 +11,10 @@ import {logger} from '.';
 export const generatePdfBufferFromHtml = async (html: string): Promise<Buffer> => {
   return new Promise<Buffer>((resolve, reject) => {
     // Ignore ssl errors to show images in pdf
-    pdf
-      .create(html, {phantomArgs: ['--ignore-ssl-errors=yes']})
-      .toBuffer(async (err, buffer) => {
-        if (err) reject(err);
-        resolve(buffer);
-      });
+    pdf.create(html, {phantomArgs: ['--ignore-ssl-errors=yes']}).toBuffer(async (err, buffer) => {
+      if (err) reject(new InternalServerError('file-conversion', generatePdfBufferFromHtml.name, err));
+      resolve(buffer);
+    });
   });
 };
 
@@ -36,7 +34,6 @@ export const generateTemplateAsHtml = async (
       data ?? {},
     );
   } catch (err) {
-    logger.error(`generateTemplateHtml : ${err}`);
-    throw new Error(`${err}`);
+    throw new InternalServerError('file-conversion', generateTemplateAsHtml.name, err);
   }
 };

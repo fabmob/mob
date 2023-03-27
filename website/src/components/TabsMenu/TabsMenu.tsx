@@ -23,7 +23,11 @@ interface TabsMenuProps {
 
 const TabsMenu: FC<TabsMenuProps> = ({ tabs, info, contact }) => {
   const [visibleTab, setVisibleTab] = useState(tabs[0].id);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState<boolean[]>([
+    false,
+    false,
+    false,
+  ]);
   const [contentHeight, setContentHeight] = useState(0);
   const measuredRef = useCallback(
     (node) => {
@@ -52,20 +56,50 @@ const TabsMenu: FC<TabsMenuProps> = ({ tabs, info, contact }) => {
     );
   });
 
-  const tabsContentList = tabs.map((item) => {
+  const toogleSeeMore = (tabIndex: number) => {
+    const nextIsExpanded: boolean[] = isExpanded.map((check, index) => {
+      return index === tabIndex ? !check : (check = false);
+    });
+    setIsExpanded(nextIsExpanded);
+  };
+  const tabsContentList = tabs.map((item, index) => {
+    const textLength: number = item.tabContent.length;
     return (
-      <div
-        className="tab"
-        key={item.id}
-        style={visibleTab === item.id ? {} : { display: 'none' }}
-      >
-        <Markdown>{item.tabContent}</Markdown>
-      </div>
+      <>
+        <div
+          className={
+            'tab ' +
+            (textLength < 2000
+              ? ''
+              : isExpanded[index]
+              ? 'is-expanded'
+              : 'not-expanded')
+          }
+          key={item.id}
+          style={visibleTab === item.id ? {} : { display: 'none' }}
+        >
+          <Markdown>{item.tabContent}</Markdown>
+        </div>
+        {textLength > 2000 && (
+          <div
+            className={textLength > 2000 ? 'has-show-more' : 'show-more'}
+            style={visibleTab === item.id ? {} : { display: 'none' }}
+          >
+            <button
+              type="button"
+              className="show-more__button"
+              onClick={() => {
+                toogleSeeMore(index);
+              }}
+            >
+              {!isExpanded[index] ? Strings['see.more'] : Strings['see.less']}
+            </button>
+          </div>
+        )}
+      </>
     );
   });
   const CSSContentClass = classNames('mcm-tabs__content', {
-    'has-show-more': contentHeight > 500,
-    'is-expanded': isExpanded,
     'has-info': info,
   });
   return (
@@ -73,20 +107,7 @@ const TabsMenu: FC<TabsMenuProps> = ({ tabs, info, contact }) => {
       <ul className="mcm-tabs__labels page-container">{tabsLabelList}</ul>
       <div className={CSSContentClass}>
         <div ref={measuredRef} className="page-container">
-          <div className="content-list">
-            {tabsContentList}
-            {contentHeight > 500 && (
-              <div className="show-more">
-                <button
-                  type="button"
-                  className="show-more__button"
-                  onClick={() => setIsExpanded(true)}
-                >
-                  {Strings['see.more']}
-                </button>
-              </div>
-            )}
-          </div>
+          <div className="content-list">{tabsContentList}</div>
           <div className="container-card">
             {contact && (
               <InformationCard title={Strings['contact']}>
@@ -95,7 +116,7 @@ const TabsMenu: FC<TabsMenuProps> = ({ tabs, info, contact }) => {
             )}
             {info && (
               <InformationCard title={Strings['good.toKnow']}>
-                <p className="contact__body">{info}</p>
+                <Markdown>{info}</Markdown>
               </InformationCard>
             )}
           </div>

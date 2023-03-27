@@ -2,7 +2,7 @@
   "incentives.error.required": "Attention, ce champ est obligatoire",
   "incentives.error.title.minLength": "Le nom de l'aide doit faire plus de 3 caractères",
   "incentives.error.validityDate.format": "La durée de validité doit être au format JJ/MM/AAAA",
-  "incentives.error.validityDate.minDate": "La durée de validité doit être supérieure à la date d'aujourd'hui",
+  "incentives.error.validityDate.minDate": "La date de fin de validité doit être supérieure à la date d'aujourd'hui",
   "incentives.error.fundername.enterprise.notExist": "L'Entreprise renseignée n'existe pas",
   "incentives.error.title.alreadyUsedForFunder": "Ce titre d'aide est déjà utilisé pour ce financeur",
   "incentives.error.funderid.notfound": "Veuillez choisir un financeur existant",
@@ -14,5 +14,15 @@
   "aides.create.success": "L'aide \"{aidTitle}\" a été créée avec succès",
   "aides.create.title": "Création d'une aide à la mobilité",
   "territory.name.error.unique": "Attention, le nom de territoire est déjà utilisé. Veuillez le vérifier sur votre liste.",
-  "incentiveEligibilityChecks.error": "Problème durant la récupération des contôles d'éligibilité de l'aide"
+  "incentiveEligibilityChecks.error": "Problème durant la récupération des contôles d'éligibilité de l'aide",
+  "territory.error.maxItems": "Vous ne pouvez sélectionner qu'un seul territoire par aide",
+  "incentive.mainCharacteristics.title":"Aide - Caractéristiques principales",
+  "incentive.detailsInfo.title" : "Aide - Informations détaillées",
+  "incentive.subscription.management.title": "Souscriptions - La gestion",
+  "incentive.subscription.form.title" : "Souscriptions - Le formulaire",
+  "incentive.subscription.treatment.title" : "Souscriptions - Le traitement",
+  "incentive.subscription.communication.title" : "Souscriptions - La communication",
+  "incentive.specificFields" : "Champs spécifiques",
+  "incentive.mob.title" : "Dans Mon Compte Mobilité",
+  "incentive.timestamp.title": "Horodatage"
 }

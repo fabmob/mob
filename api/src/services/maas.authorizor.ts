@@ -1,8 +1,4 @@
-import {
-  AuthorizationContext,
-  AuthorizationDecision,
-  AuthorizationMetadata,
-} from '@loopback/authorization';
+import {AuthorizationContext, AuthorizationDecision, AuthorizationMetadata} from '@loopback/authorization';
 
 import {IUser, Roles} from '../utils';
 /**

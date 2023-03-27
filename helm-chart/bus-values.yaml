@@ -75,6 +75,7 @@ statefulSet:
     spec:
       podManagementPolicy: OrderedReady
       replicas: 2
+      serviceName: bus
       selector:
         matchLabels:
           io.kompose.service: bus

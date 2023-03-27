@@ -1,173 +1,249 @@
-import {post, param, get, getModelSchemaRef, requestBody, put} from '@loopback/rest';
-import {repository, Count, CountSchema, Where} from '@loopback/repository';
-import {inject, intercept, service} from '@loopback/core';
 import {authenticate} from '@loopback/authentication';
 import {authorize} from '@loopback/authorization';
+import {inject, intercept, service} from '@loopback/core';
+import {Count, CountSchema, Filter, repository, Where} from '@loopback/repository';
+import {post, param, get, getModelSchemaRef, requestBody, put, RestBindings} from '@loopback/rest';
+import {SecurityBindings} from '@loopback/security';
+import {capitalize, orderBy} from 'lodash';
+import {CitizensWithSubscriptionSchema, TAG_MAAS} from '../constants';
 
-import {orderBy, capitalize} from 'lodash';
-
+import {AffiliationInterceptor, FunderInterceptor} from '../interceptors';
 import {
+  Funder,
   Collectivity,
-  Community,
   Enterprise,
+  NationalAdministration,
+  Community,
   FunderCommunity,
   EncryptionKey,
-  Error,
-  Client,
+  Citizen,
 } from '../models';
 import {
-  CommunityRepository,
-  EnterpriseRepository,
-  CollectivityRepository,
   ClientScopeRepository,
+  CommunityRepository,
+  FunderRepository,
+  UserEntityRepository,
 } from '../repositories';
-import {FunderService} from '../services';
+import {CitizenService, KeycloakService, SubscriptionService} from '../services';
 import {
-  ResourceName,
-  StatusCode,
-  SECURITY_SPEC_KC_PASSWORD,
-  Roles,
+  AFFILIATION_STATUS,
   AUTH_STRATEGY,
-  IFunder,
+  FUNDER_TYPE,
+  GROUPS,
   IFindCommunities,
+  IUser,
+  Logger,
+  PartialCitizen,
+  ResourceName,
+  Roles,
+  SECURITY_SPEC_API_KEY_KC_PASSWORD,
+  SECURITY_SPEC_JWT_KC_PASSWORD,
   SECURITY_SPEC_KC_CREDENTIALS,
-  SECURITY_SPEC_KC_CREDENTIALS_KC_PASSWORD,
+  SECURITY_SPEC_KC_PASSWORD,
+  StatusCode,
 } from '../utils';
-import {ValidationError} from '../validationError';
-import {FunderInterceptor} from '../interceptors';
-import {canAccessHisOwnData} from '../services';
-import _ from 'lodash';
+import {BadRequestError} from '../validationError';
+import {defaultSwaggerError} from './utils/swagger-errors';
+import express, {Request, Response} from 'express';
 
-@authenticate(AUTH_STRATEGY.KEYCLOAK)
 export class FunderController {
   constructor(
+    @inject(RestBindings.Http.RESPONSE) private response: Response,
+    @repository(FunderRepository)
+    public funderRepository: FunderRepository,
     @repository(CommunityRepository)
     public communityRepository: CommunityRepository,
-    @repository(EnterpriseRepository)
-    public enterpriseRepository: EnterpriseRepository,
-    @repository(CollectivityRepository)
-    public collectivityRepository: CollectivityRepository,
-    @inject('services.FunderService')
-    public funderService: FunderService,
     @repository(ClientScopeRepository)
-    private clientScopeRepository: ClientScopeRepository,
+    public clientScopeRepository: ClientScopeRepository,
+    @repository(UserEntityRepository)
+    public userEntityRepository: UserEntityRepository,
+    @service(KeycloakService)
+    public keycloakService: KeycloakService,
+    @service(CitizenService)
+    public citizenService: CitizenService,
+    @service(SubscriptionService)
+    public subscriptionService: SubscriptionService,
+    @inject(SecurityBindings.USER)
+    private currentUser: IUser,
   ) {}
 
-  /**
-   * Get all funders
-   * @returns all funders
-   */
+  @authenticate(AUTH_STRATEGY.KEYCLOAK)
   @authorize({allowedRoles: [Roles.CONTENT_EDITOR]})
-  @get('/v1/funders', {
+  @intercept(FunderInterceptor.BINDING_KEY)
+  @post('/v1/funders', {
     'x-controller-name': 'Funders',
-    summary: 'Retourne les financeurs',
+    summary: 'Crée un financeur',
+    security: SECURITY_SPEC_KC_PASSWORD,
+    responses: {
+      [StatusCode.Created]: {
+        description: 'Le financeur est créé',
+        content: {'application/json': {schema: getModelSchemaRef(Funder)}},
+      },
+      ...defaultSwaggerError,
+    },
+  })
+  async create(
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            anyOf: [
+              getModelSchemaRef(NationalAdministration, {
+                exclude: ['id'],
+                title: 'CreateNationalAdministration',
+              }),
+              getModelSchemaRef(Collectivity, {
+                exclude: ['id'],
+                title: 'CreateCollectivity',
+              }),
+              getModelSchemaRef(Enterprise, {
+                exclude: ['id'],
+                title: 'CreateEnterprise',
+              }),
+            ],
+          },
+        },
+      },
+    })
+    funder: Funder,
+  ): Promise<{id: string}> {
+    this.response.status(201);
+    let funderGroupKC: {id: string} | undefined;
+    try {
+      const FUNDER_TO_GROUPS: {[key: string]: GROUPS} = {
+        [FUNDER_TYPE.ENTERPRISE]: GROUPS.enterprises,
+        [FUNDER_TYPE.COLLECTIVITY]: GROUPS.collectivities,
+        [FUNDER_TYPE.NATIONAL]: GROUPS.administrations_nationales,
+      };
+
+      funderGroupKC = await this.keycloakService.createGroupKc(funder.name, FUNDER_TO_GROUPS[funder.type]);
+
+      Logger.info(FunderController.name, this.create.name, 'Funder created in KC', funderGroupKC.id);
+
+      if (funder.clientId) {
+        const serviceUser = await this.userEntityRepository.getServiceUser(funder.clientId);
+        await this.keycloakService.addUserGroupMembership(serviceUser!.id, funderGroupKC.id);
+        Logger.info(FunderController.name, this.create.name, 'ServiceUser added to group', funderGroupKC.id);
+        // Remove clientId from object
+        delete funder.clientId;
+      }
+
+      const funderRepository: Funder = await this.funderRepository.create({
+        ...funder,
+        ...funderGroupKC,
+      });
+      Logger.info(FunderController.name, this.create.name, 'Funder created in Mongo', funderGroupKC.id);
+      return funderRepository;
+    } catch (err) {
+      if (funderGroupKC && funderGroupKC.id) {
+        await this.keycloakService.deleteGroupKc(funderGroupKC.id);
+        Logger.info(FunderController.name, this.create.name, 'Funder deleted from KC', funderGroupKC.id);
+      }
+      Logger.error(FunderController.name, this.create.name, 'Error', err);
+      throw err;
+    }
+  }
+
+  @authenticate(AUTH_STRATEGY.KEYCLOAK)
+  @authorize({allowedRoles: [Roles.CONTENT_EDITOR]})
+  @get('/v1/funders/count', {
+    'x-controller-name': 'Funders',
+    summary: 'Récupère le nombre de financeurs',
     security: SECURITY_SPEC_KC_PASSWORD,
     responses: {
       [StatusCode.Success]: {
-        description: 'Array of funders',
+        description: 'Le nombre de financeurs',
+        content: {
+          'application/json': {schema: {...CountSchema, ...{title: 'Count'}}},
+        },
+      },
+      ...defaultSwaggerError,
+    },
+  })
+  async count(@param.where(Funder) where?: Where<Funder>): Promise<Count> {
+    try {
+      return await this.funderRepository.count(where);
+    } catch (err) {
+      Logger.error(FunderController.name, this.count.name, 'Error', err);
+      throw err;
+    }
+  }
+
+  @authenticate(AUTH_STRATEGY.API_KEY, AUTH_STRATEGY.KEYCLOAK)
+  @authorize({allowedRoles: [Roles.API_KEY, Roles.CONTENT_EDITOR, Roles.CITIZENS]})
+  @intercept(FunderInterceptor.BINDING_KEY)
+  @get('/v1/funders', {
+    'x-controller-name': 'Funders',
+    summary: 'Récupère la liste des financeurs',
+    security: SECURITY_SPEC_API_KEY_KC_PASSWORD,
+    responses: {
+      [StatusCode.Success]: {
+        description: 'La liste des financeurs',
         content: {
           'application/json': {
             schema: {
-              title: 'Funders',
               type: 'array',
               items: {
-                allOf: [
-                  {
-                    anyOf: [{'x-ts-type': Enterprise}, {'x-ts-type': Collectivity}],
-                  },
-                  {
-                    type: 'object',
-                    properties: {
-                      funderType: {
-                        type: 'string',
-                      },
-                    },
-                    required: ['funderType'],
-                  },
+                anyOf: [
+                  getModelSchemaRef(NationalAdministration),
+                  getModelSchemaRef(Collectivity),
+                  getModelSchemaRef(Enterprise),
                 ],
               },
             },
           },
         },
       },
+      ...defaultSwaggerError,
     },
   })
-  find(): Promise<IFunder[]> {
-    return this.funderService.getFunders();
+  async find(@param.filter(Funder) filter?: Filter<Funder>): Promise<Funder[]> {
+    try {
+      return await this.funderRepository.find(filter);
+    } catch (err) {
+      Logger.error(FunderController.name, this.find.name, 'Error', err);
+      throw err;
+    }
   }
 
-  /**
-   * Get the number of communities
-   */
-  @authorize({allowedRoles: [Roles.CONTENT_EDITOR]})
-  @get('/v1/funders/communities/count', {
+  @authenticate(AUTH_STRATEGY.KEYCLOAK)
+  @authorize({allowedRoles: [Roles.FUNDERS, Roles.CONTENT_EDITOR]})
+  @intercept(FunderInterceptor.BINDING_KEY)
+  @get('/v1/funders/{funderId}', {
     'x-controller-name': 'Funders',
-    summary: 'Retourne le nombre de communautés',
+    summary: `Retourne les informations d'un financeur`,
     security: SECURITY_SPEC_KC_PASSWORD,
     responses: {
       [StatusCode.Success]: {
-        description: 'Community model count',
-        content: {
-          'application/json': {
-            schema: {...CountSchema, ...{title: 'Count'}},
-          },
-        },
-      },
-    },
-  })
-  async count(@param.where(Community) where?: Where<Community>): Promise<Count> {
-    return this.communityRepository.count(where);
-  }
-
-  /**
-   * Get all communities with associated funders
-   * @returns all communities with associated funders
-   */
-  @authorize({allowedRoles: [Roles.CONTENT_EDITOR]})
-  @get('/v1/funders/communities', {
-    'x-controller-name': 'Funders',
-    summary: 'Retourne les communautés et leurs financeurs associés',
-    security: SECURITY_SPEC_KC_PASSWORD,
-    responses: {
-      [StatusCode.Success]: {
-        description: 'Array of Community model instances',
+        description: 'Les informations du financeur',
         content: {
           'application/json': {
             schema: {
-              type: 'array',
-              items: getModelSchemaRef(FunderCommunity),
+              oneOf: [
+                getModelSchemaRef(NationalAdministration),
+                getModelSchemaRef(Collectivity),
+                getModelSchemaRef(Enterprise),
+              ],
             },
           },
         },
       },
+      ...defaultSwaggerError,
     },
   })
-  async findCommunities(): Promise<IFindCommunities[]> {
-    const funders = await this.funderService.getFunders();
-
-    const community: Community[] = await this.communityRepository.find({
-      fields: {name: true, id: true, funderId: true},
-    });
-    const allCommunities =
-      community &&
-      community.map((elt: Community) => {
-        const funder =
-          funders && funders.find((elt1: IFunder) => elt.funderId === elt1.id);
-
-        return {
-          ...elt,
-          funderType: capitalize(funder?.funderType),
-          funderName: funder?.name,
-        };
-      });
-
-    return orderBy(allCommunities, ['funderName', 'funderType', 'name'], ['asc']);
+  async findById(@param.path.string('funderId') funderId: string): Promise<Funder> {
+    try {
+      return await this.funderRepository.findById(funderId);
+    } catch (err) {
+      Logger.error(FunderController.name, this.findById.name, 'Error', err);
+      throw err;
+    }
   }
 
   /**
    * Post funder's public encryption key
-   * @returns funder's public encryption key
    */
+  @authenticate(AUTH_STRATEGY.KEYCLOAK)
   @authorize({allowedRoles: [Roles.SIRH_BACKEND, Roles.VAULT_BACKEND]})
   @intercept(FunderInterceptor.BINDING_KEY)
   @put('/v1/funders/{funderId}/encryption_key', {
@@ -178,71 +254,7 @@ export class FunderController {
       [StatusCode.NoContent]: {
         description: `Les paramètres de clé de chiffrement ont bien été enregistrés`,
       },
-      [StatusCode.Unauthorized]: {
-        description: "L'utilisateur est non connecté",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 401,
-                name: 'Error',
-                message: 'Authorization header not found',
-                path: '/authorization',
-              },
-            },
-          },
-        },
-      },
-      [StatusCode.Forbidden]: {
-        description:
-          "L'utilisateur n'a pas les droits pour enregistrer les paramètres de clé de chiffrement",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 403,
-                name: 'Error',
-                message: 'Access denied',
-                path: '/authorization',
-              },
-            },
-          },
-        },
-      },
-      [StatusCode.NotFound]: {
-        description: "Ce financeur n'existe pas",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 404,
-                name: 'Error',
-                message: 'Funder not found',
-                path: '/Funder',
-              },
-            },
-          },
-        },
-      },
-      [StatusCode.UnprocessableEntity]: {
-        description: 'Les informations sur la clé de chiffrement ne sont pas valides',
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 422,
-                name: 'Error',
-                message: `encryptionKey.error.privateKeyAccess.missing`,
-                path: '/EncryptionKey',
-              },
-            },
-          },
-        },
-      },
+      ...defaultSwaggerError,
     },
   })
   async storeEncryptionKey(
@@ -257,93 +269,176 @@ export class FunderController {
     })
     encryptionKey: EncryptionKey,
   ): Promise<void> {
-    const enterprise: Enterprise | null = await this.enterpriseRepository.findOne({
-      where: {id: funderId},
-    });
-    const collectivity: Collectivity | null = await this.collectivityRepository.findOne({
-      where: {id: funderId},
-    });
-
-    if (enterprise) {
-      await this.enterpriseRepository.updateById(enterprise.id, {encryptionKey});
-    }
-
-    if (collectivity) {
-      await this.collectivityRepository.updateById(collectivity.id, {
-        encryptionKey,
-      });
+    try {
+      const funder: Funder = await this.funderRepository.findById(funderId);
+      Logger.debug(FunderController.name, this.storeEncryptionKey.name, 'Funder result', funder);
+      if (funder) {
+        await this.funderRepository.updateById(funder.id, {encryptionKey});
+        Logger.info(FunderController.name, this.storeEncryptionKey.name, 'Funder updated', funder.id);
+      }
+    } catch (error) {
+      Logger.error(FunderController.name, this.storeEncryptionKey.name, 'Error', error);
+      throw error;
     }
   }
 
+  /**
+   * Get the number of communities
+   */
+  @authenticate(AUTH_STRATEGY.KEYCLOAK)
+  @authorize({allowedRoles: [Roles.CONTENT_EDITOR]})
+  @get('/v1/funders/communities/count', {
+    'x-controller-name': 'Funders',
+    summary: 'Retourne le nombre de communautés',
+    security: SECURITY_SPEC_KC_PASSWORD,
+    responses: {
+      [StatusCode.Success]: {
+        description: 'Le nombre de communautés financeur',
+        content: {
+          'application/json': {
+            schema: {...CountSchema, ...{title: 'Count'}},
+          },
+        },
+      },
+      ...defaultSwaggerError,
+    },
+  })
+  async countCommunities(@param.where(Community) where?: Where<Community>): Promise<Count> {
+    return this.communityRepository.count(where);
+  }
+
+  /**
+   * Get all communities with associated funders
+   * @returns all communities with associated funders
+   */
+  @authenticate(AUTH_STRATEGY.KEYCLOAK)
+  @authorize({allowedRoles: [Roles.CONTENT_EDITOR]})
+  @get('/v1/funders/communities', {
+    'x-controller-name': 'Funders',
+    summary: 'Retourne les communautés et leurs financeurs associés',
+    security: SECURITY_SPEC_KC_PASSWORD,
+    responses: {
+      [StatusCode.Success]: {
+        description: 'La liste des communautés financeur',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'array',
+              items: getModelSchemaRef(FunderCommunity),
+            },
+          },
+        },
+      },
+      ...defaultSwaggerError,
+    },
+  })
+  async findCommunities(@param.filter(Community) filter?: Filter<Community>): Promise<IFindCommunities[]> {
+    try {
+      // Check if where filter contains limit
+      const limit: number | null = filter?.limit ?? 10;
+      Logger.debug(FunderController.name, this.findCommunities.name, 'Applied limit', limit);
+
+      const funderList: Pick<Funder, 'id' | 'type' | 'name'>[] = await this.funderRepository.find({
+        fields: {id: true, type: true, name: true},
+      });
+      const community: Pick<Community, 'id' | 'funderId' | 'name'>[] = await this.communityRepository.find(
+        filter,
+        {
+          fields: {name: true, id: true, funderId: true},
+        },
+      );
+
+      const allCommunities =
+        community &&
+        community.map((elt: Pick<Community, 'id' | 'funderId' | 'name'>) => {
+          const funder =
+            funderList &&
+            funderList.find((elt1: Pick<Funder, 'id' | 'type' | 'name'>) => elt.funderId === elt1.id);
+
+          return {
+            ...elt,
+            funderType: capitalize(funder!.type),
+            funderName: funder!.name,
+          };
+        });
+
+      return allCommunities;
+    } catch (error) {
+      Logger.error(FunderController.name, this.findCommunities.name, 'Error', error);
+      throw error;
+    }
+  }
+
+  @authenticate(AUTH_STRATEGY.KEYCLOAK)
   @authorize({allowedRoles: [Roles.CONTENT_EDITOR]})
   @post('/v1/funders/communities', {
     'x-controller-name': 'Funders',
     summary: 'Crée une communauté pour un financeur',
     security: SECURITY_SPEC_KC_PASSWORD,
     responses: {
-      [StatusCode.Success]: {
-        description: 'Community model instance',
+      [StatusCode.Created]: {
+        description: 'La communauté financeur créée',
         content: {'application/json': {schema: getModelSchemaRef(Community)}},
       },
+      ...defaultSwaggerError,
     },
   })
-  async create(
+  async createCommunity(
     @requestBody({
       content: {
         'application/json': {
-          schema: getModelSchemaRef(Community),
+          schema: getModelSchemaRef(Community, {
+            exclude: ['id'],
+            title: 'CreateCommunity',
+          }),
         },
       },
     })
     community: Omit<Community, 'id'>,
-  ): Promise<Community> {
-    const {name, funderId} = community;
+  ): Promise<Community | undefined> {
+    this.response.status(201);
+    try {
+      const {name, funderId} = community;
 
-    const communitiesByFunderId = await this.communityRepository.find({
-      where: {funderId, name},
-      fields: {id: true},
-    });
-    if (communitiesByFunderId.length === 0) {
-      const enterprises = await this.enterpriseRepository.find({
-        where: {id: funderId},
+      const communitiesByFunderId = await this.communityRepository.findOne({
+        where: {funderId, name},
         fields: {id: true},
       });
-      let collectivities = [];
 
-      if (enterprises.length === 0) {
-        collectivities = await this.collectivityRepository.find({
-          where: {id: funderId},
-          fields: {id: true},
-        });
-      }
-
-      if (collectivities.length > 0 || enterprises.length > 0)
-        return this.communityRepository.create(community);
-
-      throw new ValidationError(
-        `communities.error.funders.missed`,
-        `/communities`,
-        StatusCode.UnprocessableEntity,
-        ResourceName.Community,
+      Logger.debug(
+        FunderController.name,
+        this.createCommunity.name,
+        'Communities data',
+        communitiesByFunderId,
       );
+
+      if (!communitiesByFunderId) {
+        const funder: Funder | null = await this.funderRepository.findById(funderId);
+
+        if (funder) {
+          const result: Community = await this.communityRepository.create(community);
+          Logger.info(FunderController.name, this.createCommunity.name, 'Community created', result.id);
+          return result;
+        }
+      }
+      return undefined;
+    } catch (error) {
+      Logger.error(FunderController.name, this.createCommunity.name, 'Error', error);
+      throw error;
     }
-    throw new ValidationError(
-      `communities.error.name.unique`,
-      `/communities`,
-      StatusCode.UnprocessableEntity,
-      ResourceName.Community,
-    );
   }
 
-  @authorize({allowedRoles: [Roles.CONTENT_EDITOR, Roles.PLATFORM]})
+  @authenticate(AUTH_STRATEGY.KEYCLOAK)
+  @authorize({allowedRoles: [Roles.CONTENT_EDITOR, Roles.PLATFORM, Roles.MAAS]})
+  @intercept(AffiliationInterceptor.BINDING_KEY)
   @get('/v1/funders/{funderId}/communities', {
     'x-controller-name': 'Funders',
     summary: "Retourne les communautés d'un financeur",
-    security: SECURITY_SPEC_KC_PASSWORD,
+    security: SECURITY_SPEC_JWT_KC_PASSWORD,
+    tags: ['Funders', TAG_MAAS],
     responses: {
       [StatusCode.Success]: {
-        description: `Réponse si les communautés d'au moins\
-         un financeur sont trouvées.`,
+        description: `La liste des communautés d'un financeur`,
         content: {
           'application/json': {
             schema: {
@@ -353,6 +448,7 @@ export class FunderController {
           },
         },
       },
+      ...defaultSwaggerError,
     },
   })
   async findByFunderId(
@@ -362,119 +458,157 @@ export class FunderController {
     return this.communityRepository.findByFunderId(funderId);
   }
 
-  @authorize({voters: [canAccessHisOwnData]})
-  @get('/v1/funders/{funderId}', {
-    'x-controller-name': 'Funders',
-    summary: 'Retourne les informations du financeur',
-    security: SECURITY_SPEC_KC_CREDENTIALS_KC_PASSWORD,
-    responses: {
-      [StatusCode.Success]: {
-        description: `Funder`,
-        content: {
-          'application/json': {
-            schema: {
-              oneOf: [getModelSchemaRef(Community), getModelSchemaRef(Enterprise)],
-            },
-          },
-        },
-      },
-      [StatusCode.Unauthorized]: {
-        description: 'The user is not logged in',
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 401,
-                name: 'Error',
-                message: 'Authorization header not found',
-                path: '/authorization',
-              },
-            },
-          },
-        },
-      },
-      [StatusCode.Forbidden]: {
-        description: 'The user does not have access rights',
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 403,
-                name: 'Error',
-                message: 'Access denied',
-                path: '/authorization',
-              },
-            },
-          },
-        },
-      },
-    },
-  })
-  async findFunderById(
-    @param.path.string('funderId', {description: `L'identifiant du financeur`})
-    funderId: string,
-  ): Promise<Collectivity | Enterprise> {
-    let funder: Collectivity | Enterprise | undefined = undefined;
-    const collectivity = await this.collectivityRepository.findOne({
-      where: {id: funderId},
-    });
-    const enterprise = await this.enterpriseRepository.findOne({
-      where: {id: funderId},
-    });
-    funder = collectivity ? collectivity : enterprise ? enterprise : undefined;
-    if (!funder) {
-      throw new ValidationError(
-        `Funder not found`,
-        `/Funder`,
-        StatusCode.NotFound,
-        ResourceName.Funder,
-      );
-    }
-    return funder;
-  }
-
   /**
-   * Get all clients with a specific scope
-   * @returns all clients
+   * Return List of citizen based on funder type (enterprise, collectivity, or national)
+   * @param funderId The ID of the funder
+   * @param status The affiliation status of the citizen
+   * @param lastName Lastname of the citizen
+   * @param skip The number of elements to skip when paginating results
+   * @param limit The maximum number of citizens to return
    */
-  @authorize({allowedRoles: [Roles.CONTENT_EDITOR]})
-  @get('/v1/funders/clients', {
+  @authenticate(AUTH_STRATEGY.KEYCLOAK)
+  @intercept(FunderInterceptor.BINDING_KEY)
+  @authorize({
+    allowedRoles: [Roles.MANAGERS, Roles.SUPERVISORS],
+  })
+  @get('/v1/funders/{funderId}/citizens', {
     'x-controller-name': 'Funders',
-    summary: 'Retourne les financeurs',
+    summary: 'Récupère la liste de citoyens/salariés',
     security: SECURITY_SPEC_KC_PASSWORD,
     responses: {
       [StatusCode.Success]: {
-        description: 'Array of clients',
+        description: 'La liste des citoyens/salariés',
         content: {
           'application/json': {
-            schema: {
-              title: 'clients',
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  clientId: {
-                    description: `Identifiant du client`,
-                    type: 'string',
-                    example: '',
-                  },
-                  id: {
-                    description: `Identifiant`,
-                    type: 'string',
-                    example: '',
-                  },
-                },
-              },
-            },
+            schema: {type: 'array', items: CitizensWithSubscriptionSchema},
           },
         },
       },
+      ...defaultSwaggerError,
     },
   })
-  async findClients(): Promise<Client[]> {
-    const clients = await this.clientScopeRepository.getClients();
-    return clients!;
+  async getCitizens(
+    @param.path.string('funderId', {
+      description: `L'identifiant du financeur`,
+    })
+    funderId: string,
+    @param.query.string('status', {
+      description: `Statut de l'affiliation du citoyen`,
+      schema: {
+        type: 'string',
+        enum: ['AFFILIE', 'DESAFFILIE', 'A_AFFILIER'],
+      },
+    })
+    status?: AFFILIATION_STATUS,
+    @param.query.string('lastName', {description: 'Nom du citoyen'})
+    lastName?: string,
+    @param.query.number('skip', {
+      description: 'Filtre pour omettre le nombre spécifié de résultats retournés',
+    })
+    skip?: number,
+    @param.query.number('limit', {
+      description: 'Nombre maximal de citoyens à retourner',
+    })
+    limit?: number,
+  ): Promise<PartialCitizen[]> {
+    try {
+      const {funderType} = this.currentUser;
+
+      if (funderType === FUNDER_TYPE.ENTERPRISE) {
+        return await this.citizenService.getEnterpriseEmployees({funderId, status, lastName, skip, limit});
+      } else if (funderType === FUNDER_TYPE.COLLECTIVITY || funderType === FUNDER_TYPE.NATIONAL) {
+        return await this.subscriptionService.getCitizensWithSubscription({
+          funderId,
+          lastName,
+          skip,
+          limit,
+        });
+      } else {
+        throw new BadRequestError(
+          FunderController.name,
+          this.getCitizens.name,
+          'funderType.not.found',
+          '/funderTypeNotFound',
+          ResourceName.Funder,
+          funderType,
+        );
+      }
+    } catch (error) {
+      Logger.error(FunderController.name, this.getCitizens.name, 'Error', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Return total of citizen based on funder type (enterprise, collectivity, or national)
+   * @param funderId The ID of the funder
+   * @param status The affiliation status of the citizen
+   * @param lastName Lastname of the citizen
+   */
+  @authenticate(AUTH_STRATEGY.KEYCLOAK)
+  @intercept(FunderInterceptor.BINDING_KEY)
+  @authorize({
+    allowedRoles: [Roles.MANAGERS, Roles.SUPERVISORS],
+  })
+  @get('/v1/funders/{funderId}/citizens/count', {
+    'x-controller-name': 'Funders',
+    summary: 'Récupère le nombre de citoyens/salariés',
+    security: SECURITY_SPEC_KC_PASSWORD,
+    responses: {
+      [StatusCode.Success]: {
+        description: 'Le nombre de citoyens/salariés',
+        content: {
+          'application/json': {
+            schema: {...CountSchema, ...{title: 'Count'}},
+          },
+        },
+      },
+      ...defaultSwaggerError,
+    },
+  })
+  async getCitizensCount(
+    @param.path.string('funderId', {
+      description: `L'identifiant du financeur`,
+    })
+    funderId: string,
+    @param.query.string('status', {
+      description: `Statut de l'affiliation du citoyen`,
+      schema: {
+        type: 'string',
+        enum: ['AFFILIE', 'DESAFFILIE', 'A_AFFILIER'],
+      },
+    })
+    status?: AFFILIATION_STATUS,
+    @param.query.string('lastName', {description: 'Nom du citoyen'})
+    lastName?: string,
+  ): Promise<Count> {
+    try {
+      const {funderType} = this.currentUser;
+
+      if (funderType === FUNDER_TYPE.ENTERPRISE) {
+        return await this.citizenService.getEnterpriseEmployeesCount({
+          funderId,
+          status,
+          lastName,
+        });
+      } else if (funderType === FUNDER_TYPE.COLLECTIVITY || funderType === FUNDER_TYPE.NATIONAL) {
+        return await this.subscriptionService.getCitizensWithSubscriptionCount({
+          funderId,
+          lastName,
+        });
+      } else {
+        throw new BadRequestError(
+          FunderController.name,
+          this.getCitizensCount.name,
+          'funderType.not.found',
+          '/funderTypeNotFound',
+          ResourceName.Funder,
+          funderType,
+        );
+      }
+    } catch (error) {
+      Logger.error(FunderController.name, this.getCitizensCount.name, 'Error', error);
+      throw error;
+    }
   }
 }

@@ -130,5 +130,4 @@ export interface OfflineClientSessionRelations {
   // describe navigational properties here
 }
 
-export type OfflineClientSessionWithRelations = OfflineClientSession &
-  OfflineClientSessionRelations;
+export type OfflineClientSessionWithRelations = OfflineClientSession & OfflineClientSessionRelations;

@@ -3,11 +3,12 @@ export enum StatusCode {
   Created = 201,
   NoContent = 204,
   ContentDifferent = 210,
+  BadRequest = 400,
   Unauthorized = 401,
   Forbidden = 403,
   NotFound = 404,
   Conflict = 409,
-  PreconditionFailed = 412,
+  UnsupportedMediaType = 415,
   UnprocessableEntity = 422,
   InternalServerError = 500,
 }

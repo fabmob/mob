@@ -1,5 +1,6 @@
 import {Credentials} from 'keycloak-admin/lib/utils/auth';
 import {InfoObject} from '@loopback/openapi-v3';
+import {SchemaObject} from '@loopback/rest';
 
 export const OPENAPI_CONFIG: InfoObject = {
   title: 'moB - Mon Compte Mobilité',
@@ -51,3 +52,21 @@ export const credentials: Credentials = {
 };
 
 export const datePattern = /^(0?[1-9]|[12][0-9]|3[01])[-/](0?[1-9]|1[012])[-/]\d{4}$/;
+
+export const LIMIT_MAX: number = process.env.MAX_LIMIT ? Number(process.env.MAX_LIMIT) : 500;
+
+export const LIMIT_DEFAULT: number = process.env.DEFAULT_LIMIT ? Number(process.env.DEFAULT_LIMIT) : 200;
+
+export const CitizensWithSubscriptionSchema: SchemaObject = {
+  type: 'object',
+  properties: {
+    id: {type: 'string', example: 'test'},
+    lastName: {type: 'string', example: 'rasovsky'},
+    firstName: {type: 'string', example: 'bob'},
+    birthdate: {type: 'string', example: '1970-01-01'},
+    email: {type: 'string', example: 'bob.rasovsky@example.com'},
+    enterpriseEmail: {type: 'string', example: 'bob.rasovsky.pro@example.com'},
+    isCitizenDeleted: {type: 'boolean', example: false},
+  },
+  required: ['id', 'lastName', 'firstName', 'birthdate', 'email', 'isCitizenDeleted'],
+};

@@ -1,15 +1,12 @@
 import {expect, sinon} from '@loopback/testlab';
 import {Request} from 'express';
-import 'regenerator-runtime/runtime';
 import {securityId} from '@loopback/security';
 import {KeycloakAuthenticationStrategy} from '../../strategies';
 import {AuthenticationService} from '../../services';
-import {ValidationError} from '../../validationError';
-import {StatusCode} from '../../utils';
+import {FUNDER_TYPE, StatusCode} from '../../utils';
 
 describe('Keycloak strategy', () => {
-  let keycloakStrategy: KeycloakAuthenticationStrategy,
-    authenticationService: AuthenticationService;
+  let keycloakStrategy: KeycloakAuthenticationStrategy, authenticationService: AuthenticationService;
 
   beforeEach(() => {
     authenticationService = new AuthenticationService();
@@ -25,17 +22,18 @@ describe('Keycloak strategy', () => {
       realm_access: {
         roles: ['roles'],
       },
+      scope: 'profile email openid',
     };
     const userResult = {
       [securityId]: user.sub,
       id: user.sub,
       emailVerified: user.email_verified,
       clientName: user.clientName,
-      funderType: 'collectivités',
+      funderType: FUNDER_TYPE.COLLECTIVITY,
       funderName: 'Mulhouse',
       groups: ['Mulhouse'],
-      incentiveType: 'AideTerritoire',
       roles: user.realm_access.roles,
+      scopes: ['profile', 'email', 'openid'],
     };
     sinon.stub(authenticationService, 'verifyToken').resolves(user);
     const request = {
@@ -62,15 +60,11 @@ describe('Keycloak strategy', () => {
         authorization: 'Bearer xxx.yyy.zzz',
       },
     };
-    const expectedError = new ValidationError(
-      `Email not verified`,
-      '/authorization',
-      StatusCode.Unauthorized,
-    );
     try {
       await keycloakStrategy.authenticate(request as Request);
     } catch (err) {
-      expect(err).to.deepEqual(expectedError);
+      expect(err.message).to.deepEqual('Email not verified');
+      expect(err.statusCode).to.deepEqual(StatusCode.Unauthorized);
     }
   });
 });

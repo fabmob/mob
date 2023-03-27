@@ -3,14 +3,18 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { format } from 'date-fns';
 import { useMutation } from 'react-query';
-import { useSession } from '../../../context';
+import { useMatomo } from '@datapunt/matomo-tracker-react';
+import { AnyObject } from 'yup/lib/types';
+import { StringParam, useQueryParam } from 'use-query-params';
 
 import { computeServerErrorsV2 } from '@utils/form';
-import { getEntreprisesList, EntrepriseName } from '@api/EntrepriseService';
 import { createCitizen } from '@api/CitizenService';
 import { Citizen, CmsType } from '@utils/citoyens';
 import { matomoAccountCreation } from '@utils/matomo';
 import { formatDate } from '@utils/helpers';
+import { getFunders } from '@api/FunderService';
+import { Funder, FUNDER_TYPE } from '@utils/funders';
+import { matomoTrackEvent } from '@utils/matomo';
 
 import ProfessionalForm from '@components/Form/ProfessionalForm/ProfessionalForm';
 import DatePickerComponent from '../../DatePicker/DatePicker';
@@ -19,16 +23,13 @@ import TextField from '../../TextField/TextField';
 import FormSection from '../../FormSection/FormSection';
 import SelectField from '../../SelectField/SelectField';
 import Checkbox from '../../Checkbox/Checkbox';
+import { CertificationSource } from '@constants';
+import PatternCompositionMessage from '@modules/inscription/components/PatternCompositionMessage';
 
 import Strings from './locale/fr.json';
 import schema from './schema';
 
 import './_sign-up-form.scss';
-import { useMatomo } from '@datapunt/matomo-tracker-react';
-import { matomoTrackEvent } from '@utils/matomo';
-import { AnyObject } from 'yup/lib/types';
-import { StringParam, useQueryParam } from 'use-query-params';
-import { CertificationSource } from '@constants';
 
 // Options to inject into "status" select
 const statusOptions = [
@@ -49,7 +50,6 @@ export interface CompanyOption {
   id: string;
   value: string;
   label: string;
-  formats: string[];
 }
 
 interface CitizenForm extends Citizen {
@@ -80,9 +80,7 @@ interface SignUpFormProps {
   handleSwitchMode: () => void;
 }
 
-const SignUpForm: React.FC<SignUpFormProps> = ({
-  handleSwitchMode,
-}) => {
+const SignUpForm: React.FC<SignUpFormProps> = ({ handleSwitchMode }) => {
   const [companyOptions, setCompanyOption] = useState<CompanyOption[]>([]);
   const [dateErrors, setDateErrors] = useState<boolean>(false);
   const [inscription, setInscription] = useQueryParam(
@@ -126,7 +124,10 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
           computeServerErrorsV2(data.error, setError, Strings);
         } else {
           handleSwitchMode();
-          matomoAccountCreation(trackPageView, userData, companyOptions);
+          const enterpriseName: string | undefined = companyOptions.find(
+            (company) => userData.affiliation.enterpriseId === company.id
+          )?.value;
+          matomoAccountCreation(trackPageView, userData, enterpriseName);
           matomoTrackEvent('inscription', trackEvent, 'citoyen');
           setInscription('success');
         }
@@ -151,7 +152,6 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
    */
   const onSubmit = async (userData: CitizenForm): Promise<void> => {
     if (!dateErrors) {
-
       const newIdentity: AnyObject = {
         identity: {
           gender: { ...cmsObject },
@@ -225,40 +225,25 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
    *  Otherwise reset enterpriseEmail and company fields.
    * @param statusOption The value selected by user.
    */
-  const onGetEntreprisesList = (): void => {
-    getEntreprisesList<EntrepriseName[]>().then(
-      (result: EntrepriseName[]) => {
-        const company: CompanyOption[] = [];
-        result.forEach((item) =>
-          company.push({
-            id: item.id,
-            value: item.name,
-            label: item.name,
-            formats: item.emailFormat,
+  const onGetEnterpriseList = (): void => {
+    getFunders<Funder[]>([FUNDER_TYPE.ENTERPRISE]).then(
+      (result: Funder[]) => {
+        setCompanyOption(
+          result.map((enterprise: Funder) => {
+            return {
+              id: enterprise.id,
+              label: enterprise.name,
+              value: enterprise.name,
+            };
           })
         );
-
-        // Sort of company names
-        const compareObjects = (item1: any, item2: any, key: string) => {
-          const obj1 = item1[key].toUpperCase();
-          const obj2 = item2[key].toUpperCase();
-          if (obj1 < obj2) {
-            return -1;
-          }
-          if (obj1 > obj2) {
-            return 1;
-          }
-          return 0;
-        };
-        company.sort((a, b) => compareObjects(a, b, 'label'));
-        setCompanyOption(company);
       },
       (error: any) => {}
     );
   };
 
   useEffect(() => {
-    onGetEntreprisesList();
+    onGetEnterpriseList();
   }, []);
 
   /**
@@ -318,22 +303,23 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
           required
         />
 
-            <TextField
-              {...register('password')}
-              id="password"
-              label={Strings['password.label']}
-              type="password"
-              errors={errors}
-              required
-            />
-            <TextField
-              {...register('passwordConfirmation')}
-              id="passwordConfirmation"
-              label={Strings['confirme.password.label']}
-              type="password"
-              errors={errors}
-              required
-            />
+        <TextField
+          {...register('password')}
+          id="password"
+          label={Strings['password.label']}
+          tooltip={<PatternCompositionMessage />}
+          type="password"
+          errors={errors}
+          required
+        />
+        <TextField
+          {...register('passwordConfirmation')}
+          id="passwordConfirmation"
+          label={Strings['confirme.password.label']}
+          type="password"
+          errors={errors}
+          required
+        />
       </FormSection>
       <FormSection sectionName={Strings['address.section']}>
         <TextField

@@ -15,24 +15,21 @@ import ModalComponent from '@components/Modal/Modal';
 import Tab from '@components/Tabs/Tabs';
 import TooltipInfoIcon from '@components/TooltipInfoIcon/TooltipInfoIcon';
 import {
+  getCitizensCount,
   searchSalaries,
-  Citizen,
-  putCitizenDesaffiliation,
-  putCitizenAffiliation,
+  requestCitizenDesaffiliation,
+  requestCitizenAffiliation,
 } from '@api/CitizenService';
+import { getFunderById } from '@api/FunderService';
 
 import { useRoleAccepted } from '@utils/keycloakUtils';
-import { AFFILIATION_STATUS } from '@utils/citoyens';
-import {
-  getEntreprises,
-  EntrepriseName,
-  Enterprise,
-} from '@api/EntrepriseService';
+import { AFFILIATION_STATUS, PartialCitizen } from '@utils/citoyens';
 import {
   capitalizeFirst,
   formattedBirthdate,
   firstCharUpper,
 } from '@utils/helpers';
+import { Funder } from '@utils/funders';
 
 import { useUser } from '../../../../context';
 import { Roles } from '../../../../constants';
@@ -45,10 +42,9 @@ interface GestionSalarierProps {
   pageContext: { breadcrumb: { crumbs: string; crumbLabel: string } };
   location: Location;
 }
-interface affiliationSalarier {
-  entrepriseId?: string;
-  enterpriseEmail?: string;
-  status?: string;
+
+interface CitizensCount {
+  count: number;
 }
 
 /**
@@ -63,6 +59,7 @@ const GererSalaries: FC<GestionSalarierProps> = ({ location, pageContext }) => {
 
   const { userFunder } = useUser();
   const SKIPNORECORDS = 0;
+  const LIMIT = 10;
   const [root, setRoot] = useState<boolean>(false);
   const [isShowModal, setShowModal] = useState<boolean>(false);
   const [citizenId, setCitizenId] = useState<string>();
@@ -70,20 +67,17 @@ const GererSalaries: FC<GestionSalarierProps> = ({ location, pageContext }) => {
   const [firstName, setFirstName] = useState<string>('');
   const [lastName, setLastName] = useState<string>('');
   const [salarieEmail, setSalarieEmail] = useState<string | undefined>('');
-  const [salarieAffiliation, setSalarieAffiliation] = useState<
-    affiliationSalarier | undefined
-  >();
   const [salarieBirthDate, setSalarieBirthDate] = useState<string | undefined>(
     ''
   );
-  const [userEntreprise, setUserEnterprise] = useState<Enterprise>({});
+  const [userEntreprise, setUserEnterprise] = useState<Funder>({});
   const [routeSelectedTab] = useQueryParam('tab', StringParam);
   const [selectedTab, setSelectedTab] = useState<string>(
     routeSelectedTab || AFFILIATION_STATUS.AFFILIATED
   );
   const [totalSalaries, setTotalSalaries] = useState<number>(0);
   const [skip, setSkip] = useState<number>(SKIPNORECORDS);
-  const [salaries, setSalaries] = useState<Citizen[]>([]);
+  const [salaries, setSalaries] = useState<PartialCitizen[]>([]);
   const [termSearch, setTermSearch] = useQueryParam('search', StringParam);
   const isManager: boolean = useRoleAccepted(Roles.MANAGERS);
   const isSupervisor: boolean = useRoleAccepted(Roles.SUPERVISORS);
@@ -108,43 +102,26 @@ const GererSalaries: FC<GestionSalarierProps> = ({ location, pageContext }) => {
   /**
    * FUNCTIONS
    *
-   * Get entreprise where hasManualAffiliation is true
+   * Get user funder
    */
-  const onGetEntreprisesList = (): void => {
-    getEntreprises<EntrepriseName[]>().then(
-      (result: EntrepriseName[]) => {
-        const companies: Enterprise[] = [];
-        result.forEach((item) =>
-          companies.push({
-            id: item.id,
-            hasManualAffiliation: item.hasManualAffiliation,
-          })
-        );
-        const onGetCompany = companies.find(
-          (item: { id: string }) => item.id === userFunder.funderId
-        );
-
-        setUserEnterprise(onGetCompany);
+  const onGetFunderById = (): void => {
+    getFunderById<Funder>(userFunder.funderId).then(
+      (result: Funder) => {
+        setUserEnterprise(result);
       },
       (error: any) => {}
     );
   };
 
   /**
-   *
-   *
    * USE EFFECTS
    */
   useEffect(() => {
-    onGetEntreprisesList();
+    onGetFunderById();
   }, []);
 
   /**
    * FUNCTIONS
-   *
-   *
-   *
-   *
    * Get Affiliated/Disaffiliated/ToAffiliate Salaries based on selected Tab and number of skipped elements
    */
   const getMatchedSalaries = async (
@@ -155,14 +132,19 @@ const GererSalaries: FC<GestionSalarierProps> = ({ location, pageContext }) => {
     let isMounted = true;
 
     setSkip(skipRecords);
-    await searchSalaries<Citizen[]>(selectedTab, lastName, skipRecords)
-      .then((res: { employees: Citizen[]; employeesCount: number }) => {
+    await searchSalaries<PartialCitizen[]>(
+      userFunder.funderId,
+      selectedTab,
+      lastName,
+      LIMIT,
+      skipRecords
+    )
+      .then((res: PartialCitizen[]) => {
         if (isMounted) {
           // check skip number and set employees array
           skipRecords === SKIPNORECORDS
-            ? setSalaries([...(res.employees as Citizen[])])
-            : setSalaries([...salaries, ...(res.employees as Citizen[])]);
-          setTotalSalaries(res.employeesCount);
+            ? setSalaries([...(res as PartialCitizen[])])
+            : setSalaries([...salaries, ...(res as PartialCitizen[])]);
         }
       })
       .catch((err: any) => {});
@@ -170,6 +152,29 @@ const GererSalaries: FC<GestionSalarierProps> = ({ location, pageContext }) => {
       isMounted = false;
     };
   };
+
+  /**
+   * get citizens count
+   * @param funderId funder Id
+   * @param lastName citizen lastName
+   */
+  const getCount = async (): Promise<void> => {
+    const result: CitizensCount = await getCitizensCount(
+      userFunder.funderId,
+      termSearch,
+      selectedTab
+    );
+
+    setTotalSalaries(result?.count);
+  };
+
+  /**
+   * triggered on a search or
+   *
+   */
+  useEffect(() => {
+    getCount();
+  }, [selectedTab, termSearch]);
 
   /*
    * Get More Affiliated/Disaffiliated/ToAffiliate Salaries based on previous skip number
@@ -199,32 +204,25 @@ const GererSalaries: FC<GestionSalarierProps> = ({ location, pageContext }) => {
   const renderSalaries = (): ReactNode => {
     if (salaries && salaries.length) {
       return salaries.map(
-        ({id, identity, personalInformation, affiliation}) => {
+        ({ id, firstName, lastName, enterpriseEmail, email, birthDate }) => {
           return (
             <CardLine key={id} classnames="salaries-card">
               <CardLineContent classnames="salaries-card__name span">
                 <CardLineColumn>
                   <span>{`${firstCharUpper(
-                    identity.firstName.value
-                  )} ${identity.lastName.value.toUpperCase()}`}</span>
+                    firstName
+                  )} ${lastName.toUpperCase()}`}</span>
                 </CardLineColumn>
                 {(isSupervisor || isManager) &&
                 selectedTab === AFFILIATION_STATUS.TO_AFFILIATE &&
-                userEntreprise?.hasManualAffiliation &&
-                !affiliation.enterpriseEmail ? (
+                userEntreprise?.enterpriseDetails?.hasManualAffiliation &&
+                !enterpriseEmail ? (
                   <CardLineColumn classnames="card-line__column salaries-card__gestionnaire-btn">
                     <div className="gestion-btn">
                       <Button
                         secondary
                         onClick={() => {
-                          openModal(
-                            id,
-                            identity.lastName.value,
-                            identity.firstName.value,
-                            personalInformation.email.value,
-                            identity.birthDate.value,
-                            affiliation
-                          );
+                          openModal(id, lastName, firstName, email, birthDate);
                         }}
                       >
                         {
@@ -255,7 +253,7 @@ const GererSalaries: FC<GestionSalarierProps> = ({ location, pageContext }) => {
                     <div className="supression-superviseur">
                       <Button
                         onClick={() => {
-                          openModal(id, identity.lastName.value, identity.firstName.value);
+                          openModal(id, lastName, firstName);
                         }}
                         secondary
                       >
@@ -292,7 +290,7 @@ const GererSalaries: FC<GestionSalarierProps> = ({ location, pageContext }) => {
                           <Button
                             secondary
                             onClick={() => {
-                              openModal(id, identity.lastName.value, identity.firstName.value);
+                              openModal(id, lastName, firstName);
                             }}
                           >
                             {
@@ -336,10 +334,10 @@ const GererSalaries: FC<GestionSalarierProps> = ({ location, pageContext }) => {
 
   /**
    * MODAL SETUP
-   * Call putCitizenDesaffiliation service
+   * Call requestCitizenDesaffiliation service
    */
   const onSubmit = () => {
-    putCitizenDesaffiliation(citizenId)
+    requestCitizenDesaffiliation(citizenId)
       .then(() => {
         toast.success(
           Strings['dashboard.management.employees.delete.modal.title']
@@ -359,7 +357,7 @@ const GererSalaries: FC<GestionSalarierProps> = ({ location, pageContext }) => {
    * Affiliate a citizen
    */
   const onSubmitAffiliate = () => {
-    putCitizenAffiliation(citizenId)
+    requestCitizenAffiliation(citizenId)
       .then(() => {
         toast.success(
           Strings['dashboard.management.employees.affiliate.action.success']
@@ -395,9 +393,7 @@ const GererSalaries: FC<GestionSalarierProps> = ({ location, pageContext }) => {
         },
         email: {
           name: Strings['dashboard.management.employees.modal.email'],
-          value: salarieAffiliation?.enterpriseEmail
-            ? salarieAffiliation!.enterpriseEmail
-            : salarieEmail!,
+          value: salarieEmail,
         },
         birthdate: {
           name: Strings['dashboard.management.employees.modal.birthdate'],
@@ -449,8 +445,7 @@ const GererSalaries: FC<GestionSalarierProps> = ({ location, pageContext }) => {
     lastName: string,
     firstName: string,
     email?: string,
-    birthdate?: string,
-    affiliation?: affiliationSalarier
+    birthdate?: string
   ) => {
     setShowModal(true);
     const name = `${capitalizeFirst(firstName)} ${lastName.toUpperCase()}  `;
@@ -459,7 +454,6 @@ const GererSalaries: FC<GestionSalarierProps> = ({ location, pageContext }) => {
     setLastName(capitalizeFirst(lastName));
     setSalarieBirthDate(birthdate);
     setSalarieEmail(email);
-    setSalarieAffiliation(affiliation);
     setCitizenId(citizen);
   };
 

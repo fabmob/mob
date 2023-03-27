@@ -1,9 +1,4 @@
-import {
-  createStubInstance,
-  expect,
-  sinon,
-  StubbedInstanceWithSinonAccessor,
-} from '@loopback/testlab';
+import {createStubInstance, expect, sinon, StubbedInstanceWithSinonAccessor} from '@loopback/testlab';
 
 import {EventEmitter} from 'events';
 

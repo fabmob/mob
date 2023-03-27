@@ -1,20 +1,20 @@
 {
   "http.loading.message": "Votre requête est en cours de traitement.",
   "handle.error.message.main.retry": "Il semble qu'il y ait un problème, votre requête n'a pas pu aboutir. Merci de réessayer ultérieurement.",
+  "handle.error.message.main.justification.badRequest": "Il semble qu'il y ait un problème, votre requête n'a pas pu aboutir. Verifiez votre requête.",
   "handle.error.message.afilliation": "Une ou plusieurs demandes sont en cours pour ce salarié, vous devez les traiter pour supprimer l'affiliation",
-  "handle.error.message.profssional.mail": "L'email professionnel renseigné ne correspond pas au format indiqué par votre entreprise.",
   "handle.error.message.justification.size": "Attention, un ou plusieurs de vos justificatifs dépassent la taille limite de 10 Mo",
   "handle.error.message.justification.type": "Attention un ou plusieurs de vos justificatifs ne respectent pas le format demandé (PNG, JPG, PDF, HEIC)",
-  "handle.error.message.justification.this": "Cette",
   "handle.error.message.justification.already.treated": "a déjà été traitée, la réponse ne peut pas être modifiée. S'il s'agit d'une erreur, vous pouvez nous contacter.",
   "handle.error.message.justification.corrupt": "Un ou plusieurs justificatifs transmis semblent corrompus ou vérolés. Merci de réitérer votre demande",
   "handle.error.message.justification.probleme.part1": "Il semble qu'il y ait un problème avec votre",
   "handle.error.message.justification.probleme.part2": ", votre requête n'a pas pu aboutir. Merci de réessayer ultérieurement.",
   "handle.error.message.justification.conflict.part1": "Il semble qu'il y ait un conflit avec votre",
-  "handle.error.message.justification.conflic.part2": ", votre requête n'a pas pu aboutir.",
+  "handle.error.message.justification.conflict.part2": ", votre requête n'a pas pu aboutir.",
   "handle.error.message.aides.unavailable": "Cette aide à la mobilité n'est plus disponible",
   "handle.error.message.resource.unavailable.part1": "Il semble que la ressource",
   "handle.error.message.resource.unavailable.part2": "n'existe pas, votre requête n'a pas pu aboutir.",
   "handle.error.message.encryptionKey": "L'ajout de justificatifs pour cette demande n'est pas disponible pour le moment. Merci de réessayer ultérieurement ou nous contacter.",
-  "handle.error.message.treated.affiliation": "Cette affiliation a déjà été traitée, la réponse ne peut pas être modifiée. S'il s'agit d'une erreur, vous pouvez nous contacter."
+  "handle.error.message.treated.affiliation": "Cette affiliation a déjà été traitée, la réponse ne peut pas être modifiée. S'il s'agit d'une erreur, vous pouvez nous contacter.",
+  "handle.error.message.justification.unsupportedMediaType": "Il semble l'extension du fichier ne respecte pas le format demandé."
 }

@@ -1,6 +1,7 @@
 import React from 'react';
 import { ErrorMessage } from '@hookform/error-message';
 import { FieldErrors } from 'react-hook-form';
+import TooltipInfoIcon from '@components/TooltipInfoIcon/TooltipInfoIcon';
 
 import SVG from '../SVG/SVG';
 import Strings from './locale/fr.json';
@@ -22,6 +23,7 @@ interface InputProps {
   required?: boolean;
   placeholder?: string;
   maxLength?: number;
+  tooltip?: React.ReactNode;
   onBlur?: React.FocusEventHandler<HTMLInputElement>;
   onChange?: React.ChangeEventHandler<HTMLInputElement>;
 }
@@ -40,6 +42,7 @@ const TextField = React.forwardRef<HTMLInputElement, InputProps>(
       required,
       placeholder,
       maxLength,
+      tooltip,
       onBlur,
       onChange,
     },
@@ -53,12 +56,21 @@ const TextField = React.forwardRef<HTMLInputElement, InputProps>(
       disabled_field: readOnly,
     });
 
+    const tooltipContent = (
+      <TooltipInfoIcon
+        tooltipContent={tooltip}
+        iconName="information"
+        iconSize={20}
+      />
+    );
+
     return (
       <div className={CSSClass}>
         {label && (
           <label className="field__label" htmlFor={id}>
             {label}
             {required && <span aria-hidden="true"> *</span>}
+            {tooltip && <span className="tooltip">{tooltipContent}</span>}
           </label>
         )}
         <input

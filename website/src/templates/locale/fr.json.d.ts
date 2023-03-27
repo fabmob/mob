@@ -1,4 +1,8 @@
 interface Fr {
+  'homePage.head.title': string;
+  'homePage.head.description': string;
+  'homePage.head.title.separator': string;
+  'homePage.head.title.siteName' : string;
   'homePage.title': string;
   'create.account': string;
   'title.help': string;

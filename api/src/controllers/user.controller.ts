@@ -1,52 +1,41 @@
-import {inject} from '@loopback/core';
-import {
-  Count,
-  CountSchema,
-  repository,
-  Where,
-  AnyObject,
-  Filter,
-} from '@loopback/repository';
-import {
-  post,
-  patch,
-  param,
-  get,
-  del,
-  getModelSchemaRef,
-  requestBody,
-} from '@loopback/rest';
+import {inject, intercept} from '@loopback/core';
+import {Count, CountSchema, repository, Where, AnyObject, Filter} from '@loopback/repository';
+import {post, patch, param, get, del, getModelSchemaRef, requestBody, RestBindings} from '@loopback/rest';
 import {SecurityBindings} from '@loopback/security';
 import {authenticate} from '@loopback/authentication';
 import {authorize} from '@loopback/authorization';
 
-import {head, omit, orderBy, capitalize, isEqual, intersection} from 'lodash';
+import {omit, orderBy, capitalize, intersection} from 'lodash';
 
 import {
   UserRepository,
   CommunityRepository,
   UserEntityRepository,
   KeycloakGroupRepository,
+  FunderRepository,
 } from '../repositories';
-import {FunderService, KeycloakService} from '../services';
-import {Community, CommunityRelations, KeycloakRole, User} from '../models';
+import {KeycloakService} from '../services';
+import {Community, CommunityRelations, Funder, KeycloakRole, User} from '../models';
 import {
-  ResourceName,
   StatusCode,
   SECURITY_SPEC_KC_PASSWORD,
   Roles,
-  FUNDER_TYPE,
   GROUPS,
   AUTH_STRATEGY,
   IUsersResult,
-  IFunder,
-  ICreate,
   IUser,
+  Logger,
+  FUNDER_TYPE,
 } from '../utils';
-import {ValidationError} from '../validationError';
+import {ForbiddenError} from '../validationError';
 import {RequiredActionAlias} from 'keycloak-admin/lib/defs/requiredActionProviderRepresentation';
+import {defaultSwaggerError} from './utils/swagger-errors';
+import {UserInterceptor} from '../interceptors';
+import express, {Request, Response} from 'express';
+@intercept(UserInterceptor.BINDING_KEY)
 export class UserController {
   constructor(
+    @inject(RestBindings.Http.RESPONSE) private response: Response,
     @repository(UserRepository)
     public userRepository: UserRepository,
     @repository(KeycloakGroupRepository)
@@ -55,10 +44,10 @@ export class UserController {
     public userEntityRepository: UserEntityRepository,
     @repository(CommunityRepository)
     public communityRepository: CommunityRepository,
+    @repository(FunderRepository)
+    public funderRepository: FunderRepository,
     @inject('services.KeycloakService')
     public kcService: KeycloakService,
-    @inject('services.FunderService')
-    public funderService: FunderService,
     @inject(SecurityBindings.USER)
     private currentUser: IUser,
   ) {}
@@ -71,13 +60,14 @@ export class UserController {
     security: SECURITY_SPEC_KC_PASSWORD,
     responses: {
       [StatusCode.Success]: {
-        description: 'User model count',
+        description: "Le nombre d'utilisateurs financeurs",
         content: {
           'application/json': {
             schema: {...CountSchema, ...{title: 'Count'}},
           },
         },
       },
+      ...defaultSwaggerError,
     },
   })
   async count(@param.where(User) where?: Where<User>): Promise<Count> {
@@ -92,7 +82,7 @@ export class UserController {
     security: SECURITY_SPEC_KC_PASSWORD,
     responses: {
       [StatusCode.Success]: {
-        description: 'Array of User model instances',
+        description: 'La liste des utilisateurs financeurs',
         content: {
           'application/json': {
             schema: {
@@ -102,74 +92,84 @@ export class UserController {
           },
         },
       },
+      ...defaultSwaggerError,
     },
   })
   async find(@param.filter(User) filter?: Filter<User>): Promise<IUsersResult[]> {
-    const funders = await this.funderService.getFunders();
-    const users: User[] = await this.userRepository.find(filter);
+    try {
+      const funderList: Funder[] = await this.funderRepository.find();
+      Logger.debug(UserController.name, this.find.name, 'Funders data', funderList);
 
-    const usersResult: Promise<IUsersResult>[] =
-      users &&
-      users.map(async (user: User) => {
-        const funder: IFunder | undefined =
-          funders && funders.find((fnd: IFunder) => fnd.id === user.funderId);
+      const users: User[] = await this.userRepository.find(filter);
+      Logger.debug(UserController.name, this.find.name, 'Users data', users);
 
-        let communities = undefined;
-        if (user.communityIds && user.communityIds.length >= 0) {
-          communities = await Promise.all(
-            user.communityIds?.map((id: string) =>
-              this.communityRepository.find({
-                where: {id},
-                fields: {name: true},
-              }),
-            ),
+      const usersResult: Promise<IUsersResult>[] =
+        users &&
+        users.map(async (user: User) => {
+          const funder: Funder | undefined =
+            funderList && funderList.find((fnd: Funder) => fnd.id === user.funderId);
+
+          let communities = undefined;
+          if (user.communityIds && user.communityIds.length >= 0) {
+            communities = await Promise.all(
+              user.communityIds?.map((id: string) =>
+                this.communityRepository.find({
+                  where: {id},
+                  fields: {name: true},
+                }),
+              ),
+            );
+          }
+
+          const community: string[] | undefined = communities?.map(
+            (res: (Community & CommunityRelations)[]) => res[0].name,
           );
-        }
+          Logger.debug(UserController.name, this.find.name, 'Community data', community);
 
-        const community: string[] | undefined = communities?.map(
-          (res: (Community & CommunityRelations)[]) => res[0].name,
-        );
+          const roles: KeycloakRole[] = await this.userEntityRepository.getUserRoles(user.id);
+          Logger.debug(UserController.name, this.find.name, 'Roles data', roles);
 
-        const roles: KeycloakRole[] = await this.userEntityRepository.getUserRoles(
-          user.id,
-        );
+          const rolesFormatted: string[] = roles.map(({name}) => name);
 
-        const rolesFormatted: string[] = roles.map(({name}) => name);
+          const funderRoles: string[] = await this.keycloakGroupRepository.getSubGroupFunderRoles();
+          Logger.debug(UserController.name, this.find.name, 'Funders Roles data', funderRoles);
 
-        const funderRoles: string[] =
-          await this.keycloakGroupRepository.getSubGroupFunderRoles();
+          const funderRolesUser: string[] = intersection(rolesFormatted, funderRoles).filter(x => x);
+          Logger.debug(UserController.name, this.find.name, 'Funders Roles users data', funderRolesUser);
 
-        const funderRolesUser: string[] = intersection(
-          rolesFormatted,
-          funderRoles,
-        ).filter(x => x);
+          const rolesMatchedAndMapped =
+            funderRolesUser &&
+            funderRolesUser.map((elt: string) => capitalize(elt.replace(/s$/, ''))).join(' ; ');
 
-        const rolesMatchedAndMapped =
-          funderRolesUser &&
-          funderRolesUser
-            .map((elt: string) => capitalize(elt.replace(/s$/, '')))
-            .join(' ; ');
+          Logger.debug(
+            UserController.name,
+            this.find.name,
+            'Roles matched and mapped data',
+            rolesMatchedAndMapped,
+          );
 
-        return {
-          ...user,
-          funderType: capitalize(funder?.funderType),
-          communityName: community
-            ? community.join(' ; ')
-            : rolesMatchedAndMapped === 'Superviseur'
-            ? ''
-            : funderRolesUser
-            ? 'Ensemble du périmètre financeur'
-            : null,
-          funderName: funder?.name,
-          roles: rolesMatchedAndMapped,
-        };
-      });
+          return {
+            ...user,
+            funderType: capitalize(funder?.type),
+            communityName: community
+              ? community.join(' ; ')
+              : rolesMatchedAndMapped === 'Superviseur'
+              ? ''
+              : funderRolesUser
+              ? 'Ensemble du périmètre financeur'
+              : null,
+            funderName: funder?.name,
+            roles: rolesMatchedAndMapped,
+          };
+        });
 
-    const resolved = await Promise.all(
-      orderBy(usersResult, ['funderName', 'lastName'], ['asc']),
-    );
-
-    return resolved;
+      const resolved = await Promise.all(orderBy(usersResult, ['funderName', 'lastName'], ['asc']));
+      Logger.debug(UserController.name, this.find.name, 'Users result ordered', resolved);
+      return resolved;
+    } catch (error) {
+      Logger.error(UserController.name, this.find.name, 'Error', error);
+      throw error;
+    }
   }
 
   @authenticate(AUTH_STRATEGY.KEYCLOAK)
@@ -179,159 +179,80 @@ export class UserController {
     summary: 'Crée un utilisateur financeur',
     security: SECURITY_SPEC_KC_PASSWORD,
     responses: {
-      [StatusCode.Success]: {
-        description: 'User financeur model instance',
+      [StatusCode.Created]: {
+        description: "L'utilisateur financeur est crée",
         content: {'application/json': {schema: getModelSchemaRef(User)}},
       },
-      [StatusCode.PreconditionFailed]: {
-        description: `Votre entreprise n'accepte pas l'affiliation manuelle`,
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 412,
-                name: 'Error',
-                message: 'users.funder.manualAffiliation.refuse',
-                path: '/users',
-              },
-            },
-          },
-        },
-      },
+      ...defaultSwaggerError,
     },
   })
   async create(
     @requestBody({
       content: {
         'application/json': {
-          schema: getModelSchemaRef(User),
+          schema: getModelSchemaRef(User, {
+            exclude: ['id'],
+            title: 'CreateUser',
+          }),
         },
       },
     })
     user: User,
-  ): Promise<{id: string} | undefined> {
+  ): Promise<{id: string}> {
+    this.response.status(201);
     let keycloakResult: {id: string} = {id: ''};
     try {
-      const funders = await this.funderService.getFunders();
-      const fundersFiltered = head(funders.filter(({id}) => id === user.funderId));
+      const funder: Funder = await this.funderRepository.findById(user.funderId);
+      Logger.debug(UserController.name, this.create.name, 'Funders data', funder);
 
-      /**
-       * Check if this user's company accepts manual affiliation
-       */
-      if (!fundersFiltered?.hasManualAffiliation && user.canReceiveAffiliationMail) {
-        throw new ValidationError(
-          `users.funder.manualAffiliation.refuse`,
-          `/users`,
-          StatusCode.PreconditionFailed,
-          ResourceName.User,
-        );
-      }
+      const FUNDER_TO_GROUPS: {[key: string]: GROUPS} = {
+        [FUNDER_TYPE.ENTERPRISE]: GROUPS.enterprises,
+        [FUNDER_TYPE.COLLECTIVITY]: GROUPS.collectivities,
+        [FUNDER_TYPE.NATIONAL]: GROUPS.administrations_nationales,
+      };
 
-      if (fundersFiltered) {
-        const {name, funderType, emailFormat} = fundersFiltered;
-        if (
-          funderType === FUNDER_TYPE.collectivity ||
-          emailFormat?.some((format: string) => user.email.endsWith(format))
-        ) {
-          const availableRoles =
-            await this.keycloakGroupRepository.getSubGroupFunderRoles();
-          const {roles, funderId, communityIds} = user;
+      const {roles} = user;
 
-          if (isEqual(intersection(availableRoles, roles).sort(), roles.sort())) {
-            const availableCommunities: Community[] =
-              await this.communityRepository.findByFunderId(funderId);
-            const conditionNoCommunities =
-              (!communityIds || communityIds.length === 0) &&
-              availableCommunities &&
-              availableCommunities.length === 0;
-
-            const conditionMismatch =
-              !conditionNoCommunities &&
-              communityIds &&
-              isEqual(
-                intersection(
-                  availableCommunities.map(({id}) => id),
-                  communityIds,
-                ).sort(),
-                communityIds.sort(),
-              );
-
-            if (
-              !roles.includes(Roles.MANAGERS) ||
-              (roles.includes(Roles.MANAGERS) &&
-                (conditionNoCommunities || conditionMismatch))
-            ) {
-              const actions: RequiredActionAlias[] = [
-                RequiredActionAlias.VERIFY_EMAIL,
-                RequiredActionAlias.UPDATE_PASSWORD,
-              ];
-              keycloakResult = await this.kcService.createUserKc(
-                new User(user),
-                [
-                  `/${
-                    funderType === FUNDER_TYPE.collectivity
-                      ? GROUPS.collectivities
-                      : GROUPS.enterprises
-                  }/${name}`,
-                  ...user.roles.map(role => `${GROUPS.funders}/${role}`),
-                ],
-                actions,
-              );
-              if (keycloakResult && keycloakResult.id) {
-                user.id = keycloakResult.id;
-                const propertiesToOmit = roles.includes(Roles.MANAGERS)
-                  ? ['password', 'roles']
-                  : ['password', 'roles', 'communityIds'];
-                const userRepo = omit(user, propertiesToOmit);
-
-                await this.userRepository.create(userRepo);
-
-                // Send mail to set password and activate account.
-                await this.kcService.sendExecuteActionsEmailUserKc(
-                  keycloakResult.id,
-                  actions,
-                );
-
-                // returning id because of react-admin specifications
-                return {
-                  id: userRepo.id!,
-                };
-              }
-              return keycloakResult;
-            }
-            throw new ValidationError(
-              `users.error.communities.mismatch`,
-              `/users`,
-              StatusCode.UnprocessableEntity,
-              ResourceName.User,
-            );
-          }
-          throw new ValidationError(
-            `users.error.roles.mismatch`,
-            `/users`,
-            StatusCode.UnprocessableEntity,
-            ResourceName.User,
-          );
-        }
-
-        throw new ValidationError(
-          `email.error.emailFormat`,
-          `/users`,
-          StatusCode.UnprocessableEntity,
-          ResourceName.User,
-        );
-      }
-      throw new ValidationError(
-        `users.error.funders.missed`,
-        `/users`,
-        StatusCode.UnprocessableEntity,
-        ResourceName.User,
+      const actions: RequiredActionAlias[] = [
+        RequiredActionAlias.VERIFY_EMAIL,
+        RequiredActionAlias.UPDATE_PASSWORD,
+      ];
+      keycloakResult = await this.kcService.createUserKc(
+        new User(user),
+        [
+          `/${FUNDER_TO_GROUPS[funder.type]}/${funder.name}`,
+          ...user.roles.map(role => `${GROUPS.funders}/${role}`),
+        ],
+        actions,
       );
+
+      if (keycloakResult && keycloakResult.id) {
+        Logger.info(UserController.name, this.create.name, 'Funder created in KC', keycloakResult.id);
+
+        user.id = keycloakResult.id;
+        const propertiesToOmit = roles.includes(Roles.MANAGERS)
+          ? ['password', 'roles']
+          : ['password', 'roles', 'communityIds'];
+        const userRepo = omit(user, propertiesToOmit);
+
+        await this.userRepository.create(userRepo);
+        Logger.info(UserController.name, this.create.name, 'Funder created in Mongo', keycloakResult.id);
+
+        // Send mail to set password and activate account.
+        await this.kcService.sendExecuteActionsEmailUserKc(keycloakResult.id, actions);
+        Logger.info(UserController.name, this.create.name, 'Execute action email sent', keycloakResult.id);
+
+        // returning id because of react-admin specifications
+        return {
+          id: userRepo.id!,
+        };
+      }
+      return keycloakResult;
     } catch (error) {
       if (keycloakResult && keycloakResult.id) {
         await this.kcService.deleteUserKc(keycloakResult.id);
       }
+      Logger.error(UserController.name, this.create.name, 'Error', error);
       throw error;
     }
   }
@@ -344,22 +265,29 @@ export class UserController {
     security: SECURITY_SPEC_KC_PASSWORD,
     responses: {
       [StatusCode.Success]: {
-        description: 'Array of roles',
+        description: 'La liste des rôles des utilisateurs financeurs',
         content: {
           'application/json': {
             schema: {
               type: 'array',
               items: {
                 type: 'string',
+                example: '',
               },
             },
           },
         },
       },
+      ...defaultSwaggerError,
     },
   })
   async getRolesForUsers(): Promise<String[]> {
-    return this.keycloakGroupRepository.getSubGroupFunderRoles();
+    try {
+      return await this.keycloakGroupRepository.getSubGroupFunderRoles();
+    } catch (error) {
+      Logger.error(UserController.name, this.getRolesForUsers.name, 'Error', error);
+      throw error;
+    }
   }
 
   @authenticate(AUTH_STRATEGY.KEYCLOAK)
@@ -372,13 +300,14 @@ export class UserController {
     security: SECURITY_SPEC_KC_PASSWORD,
     responses: {
       [StatusCode.Success]: {
-        description: 'User model instance',
+        description: "Les informations de l'utilisateur financeur",
         content: {
           'application/json': {
             schema: getModelSchemaRef(User),
           },
         },
       },
+      ...defaultSwaggerError,
     },
   })
   async findUserById(
@@ -387,24 +316,35 @@ export class UserController {
     })
     userId: string,
   ): Promise<AnyObject> {
-    const isContentEditor = this.currentUser?.roles?.includes(Roles.CONTENT_EDITOR);
+    try {
+      const isContentEditor = this.currentUser?.roles?.includes(Roles.CONTENT_EDITOR);
+      Logger.debug(UserController.name, this.findUserById.name, 'Is content editor', isContentEditor);
 
-    if (this.currentUser?.id !== userId && !isContentEditor) {
-      throw new ValidationError(`Access Denied`, `/authorization`, StatusCode.Forbidden);
+      if (this.currentUser?.id !== userId && !isContentEditor) {
+        throw new ForbiddenError(UserController.name, this.findUserById.name, {
+          currentUserId: this.currentUser?.id,
+          isContentEditor: isContentEditor,
+        });
+      }
+
+      const rolesQuery: KeycloakRole[] = await this.userEntityRepository.getUserRoles(userId);
+
+      const rolesFormatted: string[] = rolesQuery.map(({name}) => name);
+      Logger.debug(UserController.name, this.findUserById.name, 'Roles data', rolesFormatted);
+
+      const user: User = await this.userRepository.findById(userId);
+      Logger.debug(UserController.name, this.findUserById.name, 'User data', user);
+
+      const res: any = {
+        ...user,
+        roles: rolesFormatted,
+      };
+
+      return res;
+    } catch (error) {
+      Logger.error(UserController.name, this.findUserById.name, 'Error', error);
+      throw error;
     }
-
-    const rolesQuery: KeycloakRole[] = await this.userEntityRepository.getUserRoles(
-      userId,
-    );
-    const rolesFormatted: string[] = rolesQuery.map(({name}) => name);
-    const user: User = await this.userRepository.findById(userId);
-
-    const res: any = {
-      ...user,
-      roles: rolesFormatted,
-    };
-
-    return res;
   }
 
   @authenticate(AUTH_STRATEGY.KEYCLOAK)
@@ -414,74 +354,10 @@ export class UserController {
     summary: 'Modifie un utilisateur financeur',
     security: SECURITY_SPEC_KC_PASSWORD,
     responses: {
-      [StatusCode.Success]: {
+      [StatusCode.NoContent]: {
         description: "Modification de l'utilisateur financeur reussie",
       },
-      [StatusCode.Unauthorized]: {
-        description: "L'utilisateur est non connecté",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: StatusCode.Unauthorized,
-                name: 'Error',
-                message: 'Authorization header not found',
-                path: '/authorization',
-              },
-            },
-          },
-        },
-      },
-      [StatusCode.Forbidden]: {
-        description: "L'utilisateur n'a pas les droits pour modifier cet utilisateur",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: StatusCode.Forbidden,
-                name: 'Error',
-                message: 'Access denied',
-              },
-            },
-          },
-        },
-      },
-      [StatusCode.NotFound]: {
-        description: "L'utilisateur n'a pas les droits pour modifier cet utilisateur",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: StatusCode.NotFound,
-                name: 'Error',
-                message: 'users.not.found',
-                path: '/users',
-                resource: ResourceName.User,
-              },
-            },
-          },
-        },
-      },
-      [StatusCode.PreconditionFailed]: {
-        description: `Votre entreprise n'accepte pas l'affiliation manuelle`,
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: StatusCode.PreconditionFailed,
-                name: 'Error',
-                message: 'users.funder.manualAffiliation.refuse',
-                path: '/users',
-                resource: ResourceName.User,
-              },
-            },
-          },
-        },
-      },
+      ...defaultSwaggerError,
     },
   })
   async updateById(
@@ -498,25 +374,10 @@ export class UserController {
     })
     user: User,
   ): Promise<void> {
-    /**
-     * Check if this user's company accepts manual affiliation
-     */
-    if (user?.canReceiveAffiliationMail) {
-      const funders = await this.funderService.getFunders();
-      const filteredFunder = head(funders.filter(({id}) => id === user.funderId));
+    try {
+      const userRepo: User = await this.userRepository.findById(userId);
+      Logger.debug(UserController.name, this.updateById.name, 'User data', userRepo);
 
-      if (!filteredFunder?.hasManualAffiliation) {
-        throw new ValidationError(
-          `users.funder.manualAffiliation.refuse`,
-          `/users`,
-          StatusCode.PreconditionFailed,
-          ResourceName.User,
-        );
-      }
-    }
-
-    const userRepo: User = await this.userRepository.findById(userId);
-    if (userRepo) {
       const {roles} = user;
 
       if (user.communityIds) {
@@ -524,15 +385,16 @@ export class UserController {
       }
 
       await this.kcService.updateUserGroupsKc(userId, roles);
+      Logger.info(UserController.name, this.updateById.name, 'User group updated', userId);
+
       await this.kcService.updateUserKC(userId, Object.assign(userRepo, user));
+      Logger.info(UserController.name, this.updateById.name, 'User updated in KC', userId);
+
       await this.userRepository.updateById(userId, user);
-    } else {
-      throw new ValidationError(
-        `users.not.found`,
-        `/users`,
-        StatusCode.NotFound,
-        ResourceName.User,
-      );
+      Logger.info(UserController.name, this.updateById.name, 'User updated in Mongo', userId);
+    } catch (error) {
+      Logger.error(UserController.name, this.updateById.name, 'Error', error);
+      throw error;
     }
   }
 
@@ -543,9 +405,10 @@ export class UserController {
     summary: 'Supprime un utilisateur financeur',
     security: SECURITY_SPEC_KC_PASSWORD,
     responses: {
-      [StatusCode.Success]: {
-        description: 'utilisateur DELETE success',
+      [StatusCode.NoContent]: {
+        description: "Supprimer l'utilisateur financeur",
       },
+      ...defaultSwaggerError,
     },
   })
   async deleteById(
@@ -554,8 +417,17 @@ export class UserController {
     })
     userId: string,
   ): Promise<{id: string}> {
-    await this.kcService.deleteUserKc(userId);
-    await this.userRepository.deleteById(userId);
-    return {id: userId};
+    try {
+      await this.kcService.deleteUserKc(userId);
+      Logger.info(UserController.name, this.deleteById.name, 'User deleted in KC', userId);
+
+      await this.userRepository.deleteById(userId);
+      Logger.info(UserController.name, this.deleteById.name, 'User deleted in Mongo', userId);
+
+      return {id: userId};
+    } catch (error) {
+      Logger.error(UserController.name, this.deleteById.name, 'Error', error);
+      throw error;
+    }
   }
 }

@@ -1,38 +1,8 @@
-<?xml version="1.0" encoding="iso-8859-1"?>
-<!-- Generator: Adobe Illustrator 19.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
-<svg version="1.1" id="Capa_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
-	 viewBox="0 0 50 50" style="enable-background:new 0 0 50 50;" xml:space="preserve">
-<circle style="fill:#25AE88;" cx="25" cy="25" r="25"/>
-<polyline style="fill:none;stroke:#FFFFFF;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;" points="
-	38,15 22,33 12,25 "/>
-<g>
-</g>
-<g>
-</g>
-<g>
-</g>
-<g>
-</g>
-<g>
-</g>
-<g>
-</g>
-<g>
-</g>
-<g>
-</g>
-<g>
-</g>
-<g>
-</g>
-<g>
-</g>
-<g>
-</g>
-<g>
-</g>
-<g>
-</g>
-<g>
-</g>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="20px" height="20px" viewBox="0 0 20 20" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Icons/Active</title>
+    <g id="Icons/Active" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <circle id="Oval" fill="#01BF7D" cx="10" cy="10" r="10"></circle>
+        <path d="M13.680355,7.1715765 C14.0013205,6.92201068 14.4654187,6.94469848 14.7603601,7.23963991 C15.07988,7.55915978 15.07988,8.07720385 14.7603601,8.39672373 L14.7603601,8.39672373 L9.85126918,13.3058146 L9.77419045,13.373878 C9.45322492,13.6234439 8.98912678,13.6007561 8.69418536,13.3058146 C8.6649253,13.2765546 8.63834473,13.2456297 8.61444365,13.2133449 C8.61009928,13.2108064 8.60594433,13.2076393 8.60181309,13.204427 L8.52473436,13.1363636 L6.23963991,10.8512692 C5.92012003,10.5317493 5.92012003,10.0137052 6.23963991,9.69418536 C6.53458133,9.39924394 6.99867947,9.37655614 7.319645,9.62612196 L7.39672373,9.69418536 L9.272,11.57 L13.6032763,7.23963991 Z" id="Combined-Shape" fill="#FFFFFF" fill-rule="nonzero"></path>
+    </g>
 </svg>

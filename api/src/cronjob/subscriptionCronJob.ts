@@ -4,7 +4,7 @@ import {CronJob, cronJob} from '@loopback/cron';
 import {CronJobService, SubscriptionService} from '../services';
 import {CronJob as CronJobModel} from '../models';
 
-import {logger, CRON_TYPES} from '../utils';
+import {CRON_TYPES, Logger} from '../utils';
 import {isAfterDate} from '../utils/date';
 
 @cronJob()
@@ -21,10 +21,10 @@ export class SubscriptionCronJob extends CronJob {
     super({
       name: 'subscription-job',
       onTick: async () => {
-        logger.info(`${SubscriptionCronJob.name} - ticked`);
+        Logger.info(SubscriptionCronJob.name, 'onTick', 'ticked');
         await this.performJob();
       },
-      cronTime: '0 2 * * *',
+      cronTime: '0 0 5 * * 0', // At 05:00 on Sunday
       start: false,
     });
   }
@@ -34,11 +34,12 @@ export class SubscriptionCronJob extends CronJob {
     let createdCronId: CronJobModel | null = null;
     try {
       createdCronId = await this.cronJobService.createCronLog(this.cronType);
-      logger.info(`${SubscriptionCronJob.name} created`);
+      Logger.info(SubscriptionCronJob.name, this.createCron.name, 'created');
       await this.subscriptionService.deleteSubscription();
       await this.cronJobService.delCronLog(this.cronType);
-      logger.info(`${SubscriptionCronJob.name} finished`);
+      Logger.info(SubscriptionCronJob.name, this.createCron.name, 'finished');
     } catch (error) {
+      Logger.error(SubscriptionCronJob.name, this.createCron.name, 'Error', error);
       if (createdCronId && createdCronId.id) {
         await this.cronJobService.delCronLogById(createdCronId.id);
       }
@@ -58,17 +59,15 @@ export class SubscriptionCronJob extends CronJob {
       const cronAlreadyInUse: CronJobModel[] | [] = activeCronList.filter(
         (cron: CronJobModel) => cron.type === this.cronType,
       );
-      if (
-        cronAlreadyInUse?.[0]?.createdAt &&
-        isAfterDate(cronAlreadyInUse?.[0]?.createdAt, 2)
-      ) {
+      if (cronAlreadyInUse?.[0]?.createdAt && isAfterDate(cronAlreadyInUse?.[0]?.createdAt, 2)) {
         // Delete old log
         await this.cronJobService.delCronLog(this.cronType);
       }
 
       await this.createCron();
     } catch (err) {
-      logger.error(`${SubscriptionCronJob.name}: ${err}`);
+      Logger.error(SubscriptionCronJob.name, this.performJob.name, 'Error', err);
+      throw err;
     }
   }
 }

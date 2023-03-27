@@ -17,10 +17,7 @@ export class AuthorizationProvider implements Provider<Authorizer> {
     return this.authorize.bind(this);
   }
 
-  async authorize(
-    authorizationCtx: AuthorizationContext,
-    metadata: AuthorizationMetadata,
-  ) {
+  async authorize(authorizationCtx: AuthorizationContext, metadata: AuthorizationMetadata) {
     const user = authorizationCtx.principals[0] as IUser;
     const userRoles = user.roles;
     const allowedRoles = metadata.allowedRoles;

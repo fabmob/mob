@@ -1,4 +1,6 @@
-import {HttpErrors, param, toInterceptor} from '@loopback/rest';
+/* eslint-disable max-len */
+import {TAG_MAAS} from '../../constants';
+import {HttpErrors, param, toInterceptor, RestBindings} from '@loopback/rest';
 import {inject, intercept, service} from '@loopback/core';
 import {repository} from '@loopback/repository';
 import {get, post, getModelSchemaRef, requestBody} from '@loopback/rest';
@@ -29,19 +31,17 @@ import {
   Metadata,
   Citizen,
   EncryptionKey,
-  Collectivity,
-  Enterprise,
   IncentiveEligibilityChecks,
   CommonRejection,
+  Enterprise,
+  Funder,
 } from '../../models';
 import {
   IncentiveRepository,
   SubscriptionRepository,
-  CommunityRepository,
-  EnterpriseRepository,
   MetadataRepository,
-  CollectivityRepository,
   IncentiveEligibilityChecksRepository,
+  FunderRepository,
 } from '../../repositories';
 import {
   checkMaas,
@@ -62,7 +62,7 @@ import {
   MaasSubscriptionList,
   IUser,
   AdditionalProps,
-  logger,
+  Logger,
 } from '../../utils';
 import {generatePdfInvoices} from '../../utils/invoice';
 import {
@@ -73,23 +73,22 @@ import {
   SUBSCRIPTION_CHECK_MODE,
 } from '../../utils/enum';
 import {encryptFileHybrid, generateAESKey, encryptAESKey} from '../../utils/encryption';
+import {defaultSwaggerError} from '../utils/swagger-errors';
+import express, {Request, Response} from 'express';
 
 const multerInterceptor = toInterceptor(multer({storage: multer.memoryStorage()}).any());
 @authenticate(AUTH_STRATEGY.KEYCLOAK)
 export class SubscriptionV1Controller {
   constructor(
+    @inject(RestBindings.Http.RESPONSE) private response: Response,
     @repository(SubscriptionRepository)
     public subscriptionRepository: SubscriptionRepository,
     @repository(IncentiveRepository)
     public incentiveRepository: IncentiveRepository,
     @repository(MetadataRepository)
     public metadataRepository: MetadataRepository,
-    @repository(EnterpriseRepository)
-    public enterpriseRepository: EnterpriseRepository,
-    @repository(CommunityRepository)
-    public communityRepository: CommunityRepository,
-    @repository(CollectivityRepository)
-    public collectivityRepository: CollectivityRepository,
+    @repository(FunderRepository)
+    public funderRepository: FunderRepository,
     @repository(IncentiveEligibilityChecksRepository)
     public incentiveEligibilityChecksRepository: IncentiveEligibilityChecksRepository,
     @service(RabbitmqService)
@@ -106,6 +105,10 @@ export class SubscriptionV1Controller {
     public citizenService: CitizenService,
   ) {}
 
+  /**
+   * TODO: REMOVING DEPRECATED ENDPOINT v1/maas/subscriptions.
+   * Remove this endpoint
+   */
   @authorize({allowedRoles: [Roles.MAAS, Roles.PLATFORM], voters: [checkMaas]})
   @intercept(AffiliationInterceptor.BINDING_KEY)
   @intercept(SubscriptionV1Interceptor.BINDING_KEY)
@@ -113,10 +116,11 @@ export class SubscriptionV1Controller {
     'x-controller-name': 'Subscriptions',
     summary: 'Crée une souscription',
     security: SECURITY_SPEC_JWT_KC_PASSWORD,
+    description: "Création initiale d'une souscription où additionalProp correspond aux champs spécifiques",
+    deprecated: true,
     responses: {
-      [StatusCode.Success]: {
-        description:
-          "Création initiale d'une demande d'aide où additionalProp correspond aux champs spécifiques",
+      [StatusCode.Created]: {
+        description: 'La souscription est créée',
         content: {
           'application/json': {
             schema: {
@@ -131,18 +135,10 @@ export class SubscriptionV1Controller {
           },
         },
       },
-      [StatusCode.Unauthorized]: {
-        description: "L'utilisateur est non connecté",
-      },
-      [StatusCode.Forbidden]: {
-        description: "L'utilisateur n'a pas les droits pour souscrire à cette aide",
-      },
-      [StatusCode.UnprocessableEntity]: {
-        description: 'La demande ne peut pas être traitée',
-      },
+      ...defaultSwaggerError,
     },
   })
-  async createSubscription(
+  async createMaasSubscription(
     @requestBody({
       content: {
         'application/json': {
@@ -152,13 +148,24 @@ export class SubscriptionV1Controller {
     })
     subscription: CreateSubscription,
   ): Promise<{id: string} | HttpErrors.HttpError> {
+    this.response.status(201);
     try {
-      const incentive: Incentive = await this.incentiveRepository.findById(
-        subscription.incentiveId,
+      Logger.warn(
+        SubscriptionV1Controller.name,
+        this.createMaasSubscription.name,
+        'DEPRECATED ENDPOINT - WONT BE UPDATED',
       );
-      const citizen: Citizen = await this.citizenService.getCitizenWithAffiliationById(
-        this.currentUser.id,
+      const incentive: Incentive = await this.incentiveRepository.findById(subscription.incentiveId);
+      Logger.debug(
+        SubscriptionV1Controller.name,
+        this.createMaasSubscription.name,
+        'Incentive data',
+        incentive,
       );
+
+      const citizen: Citizen = await this.citizenService.getCitizenWithAffiliationById(this.currentUser.id);
+      Logger.debug(SubscriptionV1Controller.name, this.createMaasSubscription.name, 'Citizen data', citizen);
+
       const newSubscription = new Subscription({
         ...subscription,
         incentiveTitle: incentive.title,
@@ -183,16 +190,38 @@ export class SubscriptionV1Controller {
       }
 
       const result = await this.subscriptionRepository.create(newSubscription);
+      Logger.info(
+        SubscriptionV1Controller.name,
+        this.createMaasSubscription.name,
+        'Subscription created',
+        result.id,
+      );
+
       // timestamped subscription
       if (incentive?.isCertifiedTimestampRequired) {
-        await this.subscriptionService.createSubscriptionTimestamp(result);
+        await this.subscriptionService.createSubscriptionTimestamp(
+          result,
+          'POST v1/maas/subscriptions',
+          this.currentUser.clientName,
+        );
+        Logger.info(
+          SubscriptionV1Controller.name,
+          this.createMaasSubscription.name,
+          'Timestamp created for subscriptionId',
+          result.id,
+        );
       }
       return {id: result.id};
     } catch (error) {
+      Logger.error(SubscriptionV1Controller.name, this.createMaasSubscription.name, 'Error', error);
       return validationErrorExternalHandler(error);
     }
   }
 
+  /**
+   * TODO: REMOVING DEPRECATED ENDPOINT v1/maas/subscriptions/{subscriptionId}/attachments.
+   * Remove this endpoint
+   */
   @authorize({allowedRoles: [Roles.MAAS, Roles.PLATFORM], voters: [checkMaas]})
   @intercept(multerInterceptor)
   @intercept(AffiliationInterceptor.BINDING_KEY)
@@ -201,10 +230,11 @@ export class SubscriptionV1Controller {
     'x-controller-name': 'Subscriptions',
     summary: 'Ajoute des justificatifs à une souscription',
     security: SECURITY_SPEC_JWT_KC_PASSWORD,
+    deprecated: true,
+    tags: ['Subscriptions'],
     responses: {
-      [StatusCode.Success]: {
-        description:
-          "Ajouter les justificatifs pour une demande d'aide avec un status brouillon",
+      [StatusCode.Created]: {
+        description: 'Ajout de justificatifs à une souscription au statut brouillon',
         content: {
           'application/json': {
             schema: {
@@ -219,44 +249,14 @@ export class SubscriptionV1Controller {
           },
         },
       },
-      [StatusCode.Unauthorized]: {
-        description: "L'utilisateur est non connecté",
-      },
-      [StatusCode.Forbidden]: {
-        description:
-          "L'utilisateur n'a pas les droits pour ajouter des justificatifs à la demande",
-      },
-      [StatusCode.NotFound]: {
-        description: "Cette demande n'existe pas",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 404,
-                name: 'Error',
-                message: 'Subscription not found',
-                path: '/subscriptionNotFound',
-                resourceName: 'Subscription',
-              },
-            },
-          },
-        },
-      },
-      [StatusCode.PreconditionFailed]: {
-        description:
-          'La demande ou les justificatifs ne rencontrent pas les bonnes conditions',
-      },
-      [StatusCode.UnprocessableEntity]: {
-        description: 'Les justificatifs ne peuvent pas être traités',
-      },
+      ...defaultSwaggerError,
     },
   })
   async addAttachments(
-    @param.path.string('subscriptionId', {description: `L'identifiant de la demande`})
+    @param.path.string('subscriptionId', {description: `L'identifiant de la souscription`})
     subscriptionId: string,
     @requestBody({
-      description: `Multipart/form-data pour la creation d'une demande`,
+      description: `Multipart/form-data pour la creation d'une souscription`,
       content: {
         'multipart/form-data': {
           // Skip body parsing
@@ -265,7 +265,7 @@ export class SubscriptionV1Controller {
             type: 'object',
             properties: {
               attachmentExample: {
-                description: `Exemple d'ajout d'un document justificatif`,
+                description: `Exemple d'ajout d'un document justificatif ('image/jpeg', 'image/jpg', 'image/png', 'application/pdf', 'image/heic')`,
                 type: 'array',
                 items: {
                   format: 'binary',
@@ -281,7 +281,7 @@ export class SubscriptionV1Controller {
                   },
                 },
                 example: {
-                  metadataId: '',
+                  metadataId: 'string',
                 },
               },
             },
@@ -291,169 +291,208 @@ export class SubscriptionV1Controller {
     })
     attachmentData?: any,
   ): Promise<{id: string} | HttpErrors.HttpError> {
+    this.response.status(201);
     try {
-      const subscription: Subscription = await this.subscriptionRepository.findById(
-        subscriptionId,
+      Logger.warn(
+        SubscriptionV1Controller.name,
+        this.addAttachments.name,
+        'DEPRECATED ENDPOINT - WONT BE UPDATED',
       );
-      let encryptionKey: EncryptionKey | undefined = undefined;
-      const collectivity: Collectivity | null = await this.collectivityRepository.findOne(
-        {
-          where: {id: subscription.funderId},
-        },
-      );
-      const enterprise: Enterprise | null = await this.enterpriseRepository.findOne({
-        where: {id: subscription.funderId},
-      });
 
-      encryptionKey = collectivity
-        ? collectivity.encryptionKey
-        : enterprise
-        ? enterprise.encryptionKey
-        : undefined;
+      const subscription: Subscription = await this.subscriptionRepository.findById(subscriptionId);
+      Logger.debug(
+        SubscriptionV1Controller.name,
+        this.addAttachments.name,
+        'Subscription data',
+        subscription,
+      );
+
+      let encryptionKey: EncryptionKey | undefined = undefined;
+      const funder: Funder = await this.funderRepository.findById(subscription.funderId);
+      Logger.debug(SubscriptionV1Controller.name, this.addAttachments.name, 'Funder data', funder);
+
+      encryptionKey = funder.encryptionKey;
 
       const metadataId: string | undefined = attachmentData.body.data
         ? JSON.parse(attachmentData.body.data)?.metadataId
         : undefined;
-      const citizen: Citizen = await this.citizenService.getCitizenWithAffiliationById(
-        this.currentUser.id,
-      );
+
+      const citizen: Citizen = await this.citizenService.getCitizenWithAffiliationById(this.currentUser.id);
+      Logger.debug(SubscriptionV1Controller.name, this.addAttachments.name, 'Citizen data', citizen);
+
       let formattedSubscriptionAttachments: AttachmentType[] = [];
       let invoicesPdf: Express.Multer.File[] = [];
-      let createSubscriptionAttachments: Express.Multer.File[] = [];
+      let createMaasSubscriptionAttachments: Express.Multer.File[] = [];
       let attachments: Express.Multer.File[] = [];
 
       const {key, iv}: {key: Buffer; iv: Buffer} = generateAESKey();
-      const {encryptKey, encryptIV}: {encryptKey: Buffer; encryptIV: Buffer} =
-        encryptAESKey(encryptionKey!.publicKey, key, iv);
+      const {encryptKey, encryptIV}: {encryptKey: Buffer; encryptIV: Buffer} = encryptAESKey(
+        encryptionKey!.publicKey,
+        key,
+        iv,
+      );
 
       if (attachmentData) {
-        createSubscriptionAttachments = attachmentData.files as Express.Multer.File[];
-        createSubscriptionAttachments.forEach((attachment: Express.Multer.File) => {
+        createMaasSubscriptionAttachments = attachmentData.files as Express.Multer.File[];
+        createMaasSubscriptionAttachments.forEach((attachment: Express.Multer.File) => {
           attachment.buffer = encryptFileHybrid(attachment.buffer, key, iv);
         });
+        Logger.info(SubscriptionV1Controller.name, this.addAttachments.name, 'Attachment data encrypted');
       }
 
       if (metadataId) {
         const metadata: Metadata = await this.metadataRepository.findById(metadataId);
         invoicesPdf = await generatePdfInvoices(metadata.attachmentMetadata.invoices);
+        Logger.info(
+          SubscriptionV1Controller.name,
+          this.addAttachments.name,
+          'Metadata pdf generated',
+          metadataId,
+        );
+
         invoicesPdf.forEach((invoicePdf: Express.Multer.File) => {
           invoicePdf.buffer = encryptFileHybrid(invoicePdf.buffer, key, iv);
         });
+        Logger.info(SubscriptionV1Controller.name, this.addAttachments.name, 'Attachment data encrypted');
       }
 
-      attachments = [...createSubscriptionAttachments, ...invoicesPdf];
+      attachments = [...createMaasSubscriptionAttachments, ...invoicesPdf];
       const formattedAttachments: Express.Multer.File[] =
         this.subscriptionService.formatAttachments(attachments);
-      formattedSubscriptionAttachments = formattedAttachments?.map(
-        (file: Express.Multer.File) => {
-          return {
-            originalName: file.originalname,
-            uploadDate: new Date(),
-            proofType: file.fieldname,
-            mimeType: file.mimetype,
-          };
-        },
-      );
+      formattedSubscriptionAttachments = formattedAttachments?.map((file: Express.Multer.File) => {
+        return {
+          originalName: file.originalname,
+          uploadDate: new Date(),
+          proofType: file.fieldname,
+          mimeType: file.mimetype,
+        };
+      });
 
       if (attachments.length > 0) {
-        await this.s3Service.uploadFileListIntoBucket(
-          citizen.id,
-          subscriptionId,
-          formattedAttachments,
-        );
+        await this.s3Service.uploadFileListIntoBucket(citizen.id, subscriptionId, formattedAttachments);
+        Logger.info(SubscriptionV1Controller.name, this.addAttachments.name, 'Attachments uploaded');
+
         await this.subscriptionRepository.updateById(subscriptionId, {
           attachments: formattedSubscriptionAttachments,
           encryptedAESKey: encryptKey.toString('base64'),
           encryptedIV: encryptIV.toString('base64'),
           encryptionKeyId: encryptionKey!.id,
           encryptionKeyVersion: encryptionKey!.version,
-          privateKeyAccess: encryptionKey!.privateKeyAccess
-            ? encryptionKey!.privateKeyAccess
-            : undefined,
+          privateKeyAccess: encryptionKey!.privateKeyAccess ? encryptionKey!.privateKeyAccess : undefined,
         });
+        Logger.info(
+          SubscriptionV1Controller.name,
+          this.addAttachments.name,
+          'Subscription updated',
+          subscriptionId,
+        );
       }
 
       // Delete metadata once subscription is updated with files
       if (metadataId) {
         await this.metadataRepository.deleteById(metadataId);
+        Logger.info(SubscriptionV1Controller.name, this.addAttachments.name, 'Metadata deleted', metadataId);
       }
       return {id: subscriptionId};
     } catch (error) {
+      Logger.error(SubscriptionV1Controller.name, this.addAttachments.name, 'Error', error);
       return validationErrorExternalHandler(error);
     }
   }
 
+  /**
+   * TODO: REMOVING DEPRECATED ENDPOINT v1/maas/subscriptions/{subscriptionId}/verify.
+   * Remove this endpoint
+   */
   @authorize({allowedRoles: [Roles.MAAS, Roles.PLATFORM], voters: [checkMaas]})
   @intercept(AffiliationInterceptor.BINDING_KEY)
   @intercept(SubscriptionV1FinalizeInterceptor.BINDING_KEY)
   @post('v1/maas/subscriptions/{subscriptionId}/verify', {
     'x-controller-name': 'Subscriptions',
     summary: 'Finalise une souscription',
+    deprecated: true,
     security: SECURITY_SPEC_JWT_KC_PASSWORD,
     responses: {
       [StatusCode.Success]: {
-        description: 'Finalisation de la demande',
+        description: 'Finalisation de la souscription',
         content: {
           'application/json': {
             schema: {
               type: 'object',
-              properties: {
-                id: {
-                  type: 'string',
-                  example: '',
+              oneOf: [
+                {
+                  type: 'object',
+                  properties: {
+                    id: {
+                      type: 'string',
+                      example: '',
+                    },
+                    status: {
+                      type: 'string',
+                      example: SUBSCRIPTION_STATUS.VALIDATED,
+                      items: {
+                        type: 'string',
+                        enum: [SUBSCRIPTION_STATUS.VALIDATED, SUBSCRIPTION_STATUS.TO_PROCESS],
+                      },
+                    },
+                  },
                 },
-              },
+                {
+                  type: 'object',
+                  properties: {
+                    id: {
+                      type: 'string',
+                      example: '',
+                    },
+                    status: {
+                      type: 'string',
+                      enum: [SUBSCRIPTION_STATUS.REJECTED],
+                      example: SUBSCRIPTION_STATUS.REJECTED,
+                    },
+                    rejectionReason: {
+                      type: 'string',
+                      items: {
+                        type: 'string',
+                        enum: [REJECTION_REASON.INVALID_RPC_CEE_REQUEST, REJECTION_REASON.NOT_FRANCECONNECT],
+                      },
+                    },
+                    comments: {
+                      type: 'string',
+                      example: '',
+                    },
+                  },
+                },
+              ],
             },
           },
         },
       },
-      [StatusCode.Unauthorized]: {
-        description: "L'utilisateur est non connecté",
-      },
-      [StatusCode.Forbidden]: {
-        description: "L'utilisateur n'a pas les droits pour finaliser la demande",
-      },
-      [StatusCode.NotFound]: {
-        description: "Cette demande n'existe pas",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 404,
-                name: 'Error',
-                message: 'Subscription not found',
-                path: '/subscriptionNotFound',
-                resourceName: 'Subscription',
-              },
-            },
-          },
-        },
-      },
-      [StatusCode.PreconditionFailed]: {
-        description: "La demande n'est pas au bon statut",
-      },
+      ...defaultSwaggerError,
     },
   })
-  async finalizeSubscription(
-    @param.path.string('subscriptionId', {description: `L'identifiant de la demande`})
+  async finalizeSubscriptionMaas(
+    @param.path.string('subscriptionId', {description: `L'identifiant de la souscription`})
     subscriptionId: string,
   ): Promise<
     | {
         id: string;
         status: SUBSCRIPTION_STATUS;
         rejectionReason?: REJECTION_REASON;
-        comment?: string;
+        comments?: string;
       }
     | HttpErrors.HttpError
   > {
     try {
-      const subscription = await this.subscriptionRepository.findById(subscriptionId);
-      const incentive: Incentive = await this.incentiveRepository.findById(
-        subscription.incentiveId,
+      Logger.warn(
+        SubscriptionV1Controller.name,
+        this.finalizeSubscriptionMaas.name,
+        'DEPRECATED ENDPOINT - WONT BE LOGGED',
       );
 
-      let comment: string | undefined, // This returns the message to send.
+      const subscription: Subscription = await this.subscriptionRepository.findById(subscriptionId);
+      const incentive: Incentive = await this.incentiveRepository.findById(subscription.incentiveId);
+
+      let comments: string | undefined, // This returns the message to send.
         rejectionReason: REJECTION_REASON | undefined, // This returns the first rejection reason encountred.
         status: SUBSCRIPTION_STATUS; // This returns the subscription status
 
@@ -490,13 +529,8 @@ export class SubscriptionV1Controller {
           [ELIGIBILITY_CHECKS_LABEL.FRANCE_CONNECT]: () =>
             this.subscriptionService.checkFranceConnectIdentity(this.currentUser.id),
           [ELIGIBILITY_CHECKS_LABEL.RPC_CEE_REQUEST]: () =>
-            this.subscriptionService.checkCEEValidity(
-              incentive,
-              subscription,
-              application_timestamp,
-            ),
-          [ELIGIBILITY_CHECKS_LABEL.EXCLUSION]: () =>
-            this.subscriptionService.checkOfferExclusitivity(),
+            this.subscriptionService.checkCEEValidity(incentive, subscription, application_timestamp),
+          [ELIGIBILITY_CHECKS_LABEL.EXCLUSION]: () => this.subscriptionService.checkOfferExclusitivity(),
         };
 
         let isEligible: Boolean = false; // This returns a Boolean indicating the eligibility check.
@@ -516,9 +550,9 @@ export class SubscriptionV1Controller {
           }
           if (result === false || result.status === 'error') {
             isEligible = false;
-            comment = result?.message;
+            comments = result?.message;
             if (result.code) {
-              comment = 'HTTP ' + result.code + (' - ' + comment || '');
+              comments = 'HTTP ' + result.code + (' - ' + comments || '');
             }
             if (control.motifRejet) {
               rejectionReason = control.motifRejet as REJECTION_REASON;
@@ -546,7 +580,7 @@ export class SubscriptionV1Controller {
             {
               additionalProperties: additionalProps,
               type: rejectionReason,
-              comments: comment,
+              comments: comments,
             } as CommonRejection,
             subscription,
             application_timestamp,
@@ -563,8 +597,7 @@ export class SubscriptionV1Controller {
         /**
          * get the incentive notification boolean
          */
-        const isCitizenNotificationsDisabled: Boolean =
-          incentive?.isCitizenNotificationsDisabled;
+        const isCitizenNotificationsDisabled: Boolean = incentive?.isCitizenNotificationsDisabled;
         // Send a notification as an email
         if (!isCitizenNotificationsDisabled) {
           const dashboardLink = `${WEBSITE_FQDN}/mon-dashboard`;
@@ -582,10 +615,10 @@ export class SubscriptionV1Controller {
 
         // check if the funder is entreprise and if its HRIS to publish msg to rabbitmq
         if (subscription?.incentiveType === INCENTIVE_TYPE.EMPLOYER_INCENTIVE) {
-          const enterprise = await this.enterpriseRepository.findById(
+          const enterprise: Enterprise | null = await this.funderRepository.getEnterpriseById(
             subscription?.funderId,
           );
-          if (enterprise?.isHris) {
+          if (enterprise?.enterpriseDetails.isHris) {
             const payload = await this.subscriptionService.preparePayLoad(subscription);
             // Publish to rabbitmq
             await this.rabbitmqService.publishMessage(payload, enterprise?.name);
@@ -593,25 +626,14 @@ export class SubscriptionV1Controller {
         }
       }
 
-      // timestamped subscription
-      if (incentive?.isCertifiedTimestampRequired) {
-        const updatedSubscription: Subscription =
-          await this.subscriptionRepository.findById(subscriptionId);
-        await this.subscriptionService.createSubscriptionTimestamp(updatedSubscription);
-      }
-
       return {
         id: subscriptionId,
         status: status,
         rejectionReason: rejectionReason,
-        comment: comment,
+        comments: comments,
       };
     } catch (error) {
-      logger.error(
-        `${SubscriptionV1Controller.name} -${
-          this.finalizeSubscription.name
-        }  error : ${error.message!}`,
-      );
+      Logger.error(SubscriptionV1Controller.name, this.finalizeSubscriptionMaas.name, 'Error', error);
       return validationErrorExternalHandler(error);
     }
   }
@@ -621,10 +643,10 @@ export class SubscriptionV1Controller {
     'x-controller-name': 'Subscriptions',
     summary: 'Retourne les souscriptions',
     security: SECURITY_SPEC_JWT,
+    deprecated: true,
     responses: {
       [StatusCode.Success]: {
-        description:
-          "Ce service permet au citoyen de consulter l'ensemble de ses demandes réalisées",
+        description: 'La liste des souscriptions',
         content: {
           'application/json': {
             schema: {
@@ -704,54 +726,65 @@ export class SubscriptionV1Controller {
           },
         },
       },
+      ...defaultSwaggerError,
     },
   })
   async findMaasSubscription(): Promise<MaasSubscriptionList[]> {
-    // get current user id
-    const userId: string = this.currentUser.id;
+    try {
+      // get current user id
+      const userId: string = this.currentUser.id;
 
-    // get incentives
-    const incentiveList: Incentive[] = await this.incentiveRepository.find({
-      fields: {id: true, contact: true},
-    });
-
-    // get current users subscriptions
-    const userSubcriptionList: Subscription[] = await this.subscriptionRepository.find({
-      where: {citizenId: userId, status: {neq: SUBSCRIPTION_STATUS.DRAFT}},
-      fields: {
-        id: true,
-        incentiveId: true,
-        incentiveTitle: true,
-        funderName: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-        subscriptionValidation: true,
-        subscriptionRejection: true,
-      },
-    });
-
-    // add help contact info to subscriptions
-    const response: MaasSubscriptionList[] =
-      userSubcriptionList &&
-      userSubcriptionList.map((subscription: Subscription) => {
-        const newSubscription: Subscription = subscription;
-        const incentive =
-          incentiveList &&
-          incentiveList.find(
-            (incentive: Incentive) =>
-              newSubscription.incentiveId.toString() === incentive.id,
-          );
-        newSubscription.status === SUBSCRIPTION_STATUS.VALIDATED &&
-          delete newSubscription.subscriptionRejection;
-        newSubscription.status === SUBSCRIPTION_STATUS.REJECTED &&
-          delete newSubscription.subscriptionValidation;
-        return {
-          ...newSubscription,
-          contact: incentive?.contact,
-        };
+      // get incentives
+      const incentiveList: Incentive[] = await this.incentiveRepository.find({
+        fields: {id: true, contact: true},
       });
 
-    return response;
+      // get current users subscriptions
+      const userSubcriptionList: Subscription[] = await this.subscriptionRepository.find({
+        where: {citizenId: userId, status: {neq: SUBSCRIPTION_STATUS.DRAFT}},
+        fields: {
+          id: true,
+          incentiveId: true,
+          incentiveTitle: true,
+          funderName: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+          subscriptionValidation: true,
+          subscriptionRejection: true,
+        },
+      });
+      Logger.debug(
+        SubscriptionV1Controller.name,
+        this.findMaasSubscription.name,
+        'Subscription list data',
+        userSubcriptionList,
+      );
+
+      // add help contact info to subscriptions
+      const response: MaasSubscriptionList[] =
+        userSubcriptionList &&
+        userSubcriptionList.map((subscription: Subscription) => {
+          const newSubscription: Subscription = subscription;
+          const incentive =
+            incentiveList &&
+            incentiveList.find(
+              (incentive: Incentive) => newSubscription.incentiveId.toString() === incentive.id,
+            );
+          newSubscription.status === SUBSCRIPTION_STATUS.VALIDATED &&
+            delete newSubscription.subscriptionRejection;
+          newSubscription.status === SUBSCRIPTION_STATUS.REJECTED &&
+            delete newSubscription.subscriptionValidation;
+          return {
+            ...newSubscription,
+            contact: incentive?.contact,
+          };
+        });
+
+      return response;
+    } catch (error) {
+      Logger.error(SubscriptionV1Controller.name, this.findMaasSubscription.name, 'Error', error);
+      throw error;
+    }
   }
 }

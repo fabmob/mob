@@ -1,19 +1,15 @@
-import {
-  createStubInstance,
-  expect,
-  StubbedInstanceWithSinonAccessor,
-} from '@loopback/testlab';
+import {createStubInstance, expect, StubbedInstanceWithSinonAccessor} from '@loopback/testlab';
 
 import amqp, {Channel} from 'amqplib';
 import KeycloakAdminClient from 'keycloak-admin';
 import sinon from 'sinon';
 import {EventEmitter} from 'stream';
-
 import {Enterprise} from '../../models';
-import {EnterpriseRepository} from '../../repositories';
+import {FunderRepository} from '../../repositories';
+
 import {RabbitmqService, SubscriptionService} from '../../services';
 import {KeycloakService} from '../../services/keycloak.service';
-import {EVENT_MESSAGE, ISubscriptionPublishPayload} from '../../utils';
+import {EVENT_MESSAGE, ISubscriptionPublishPayload, StatusCode} from '../../utils';
 
 describe('Rabbitmq service', () => {
   let rabbitmqService: any = null;
@@ -21,13 +17,13 @@ describe('Rabbitmq service', () => {
   let kcAdminAuth: any = null;
   let spy: any,
     subscriptionService: StubbedInstanceWithSinonAccessor<SubscriptionService>,
-    enterpriseRepository: StubbedInstanceWithSinonAccessor<EnterpriseRepository>,
+    funderRepository: StubbedInstanceWithSinonAccessor<FunderRepository>,
     keycloakService: StubbedInstanceWithSinonAccessor<KeycloakService>,
     parentProcessService: any;
 
   beforeEach(() => {
     subscriptionService = createStubInstance(SubscriptionService);
-    enterpriseRepository = createStubInstance(EnterpriseRepository);
+    funderRepository = createStubInstance(FunderRepository);
     keycloakService = createStubInstance(KeycloakService);
 
     keycloakService.keycloakAdmin = new KeycloakAdminClient();
@@ -37,7 +33,7 @@ describe('Rabbitmq service', () => {
 
     rabbitmqService = new RabbitmqService(
       subscriptionService,
-      enterpriseRepository,
+      funderRepository,
       parentProcessService,
       keycloakService,
     );
@@ -54,11 +50,13 @@ describe('Rabbitmq service', () => {
 
   it('RabbitMQService getHRISEnterpriseNameList : error', async () => {
     try {
-      enterpriseRepository.stubs.getHRISEnterpriseNameList.rejects();
+      funderRepository.stubs.getEnterpriseHRISNameList.rejects();
       await rabbitmqService.getHRISEnterpriseNameList();
     } catch (error) {
-      expect(error.message).to.equal('rabbitmq error getting HRIS enterprises');
-      enterpriseRepository.stubs.getHRISEnterpriseNameList.restore();
+      expect(error.message).to.equal('Error');
+      expect(error.statusCode).to.equal(StatusCode.InternalServerError);
+
+      funderRepository.stubs.getEnterpriseHRISNameList.restore();
     }
   });
 
@@ -68,13 +66,10 @@ describe('Rabbitmq service', () => {
     });
     const enterpriseRepositoryList: Pick<Enterprise, 'name'>[] = [enterprise];
     const enterpriseRepositoryResult: string[] = [enterprise.name.toLowerCase()];
-    enterpriseRepository.stubs.getHRISEnterpriseNameList.resolves(
-      enterpriseRepositoryList,
-    );
-    const enterpriseNameList: string[] =
-      await rabbitmqService.getHRISEnterpriseNameList();
+    funderRepository.stubs.getEnterpriseHRISNameList.resolves(enterpriseRepositoryList);
+    const enterpriseNameList: string[] = await rabbitmqService.getHRISEnterpriseNameList();
     expect(enterpriseNameList).to.deepEqual(enterpriseRepositoryResult);
-    enterpriseRepository.stubs.getHRISEnterpriseNameList.restore();
+    funderRepository.stubs.getEnterpriseHRISNameList.restore();
   });
 
   it('RabbitMQService connect : error', async () => {
@@ -83,7 +78,8 @@ describe('Rabbitmq service', () => {
       amqpTest = sinon.stub(amqp, 'connect').rejects('err');
       await rabbitmqService.connect();
     } catch (error) {
-      expect(error.message).to.equal('rabbitmq init connection error');
+      expect(error.message).to.equal('Error');
+      expect(error.statusCode).to.equal(StatusCode.InternalServerError);
       amqpTest.restore();
       kcAdminAuth.restore();
     }
@@ -114,7 +110,8 @@ describe('Rabbitmq service', () => {
       await rabbitmqService.connect();
       await rabbitmqService.disconnect();
     } catch (error) {
-      expect(error.message).to.equal('rabbitmq disconnect error');
+      expect(error.message).to.equal('Error');
+      expect(error.statusCode).to.equal(StatusCode.InternalServerError);
       amqpTest.restore();
       kcAdminAuth.restore();
     }
@@ -146,7 +143,8 @@ describe('Rabbitmq service', () => {
       await rabbitmqService.connect();
       await rabbitmqService.openConnectionChannel();
     } catch (error) {
-      expect(error.message).to.equal(`rabbitmq connect to channel error`);
+      expect(error.message).to.equal('Error');
+      expect(error.statusCode).to.equal(StatusCode.InternalServerError);
       amqpTest.restore();
       kcAdminAuth.restore();
     }
@@ -187,7 +185,8 @@ describe('Rabbitmq service', () => {
       await rabbitmqService.openConnectionChannel();
       await rabbitmqService.closeConnectionChannel(channel);
     } catch (error) {
-      expect(error.message).to.equal('rabbitmq close channel error');
+      expect(error.message).to.equal('Error');
+      expect(error.statusCode).to.equal(StatusCode.InternalServerError);
       amqpTest.restore();
       kcAdminAuth.restore();
     }
@@ -224,7 +223,8 @@ describe('Rabbitmq service', () => {
       kcAdminAuth = sinon.stub(keycloakService.keycloakAdmin, 'auth').resolves();
       await rabbitmqService.publishMessage('test');
     } catch (error) {
-      expect(error.message).to.equal('rabbitmq publish message error');
+      expect(error.message).to.equal('Error');
+      expect(error.statusCode).to.equal(StatusCode.InternalServerError);
       expect(spy.openConnectionChannel.calledOnce).true();
       amqpTest.restore();
       kcAdminAuth.restore();
@@ -264,7 +264,8 @@ describe('Rabbitmq service', () => {
       subscriptionService.stubs.handleMessage.rejects();
       await rabbitmqService.consumeMessage(message);
     } catch (error) {
-      expect(error.message).to.equal('rabbitmq consume message error');
+      expect(error.message).to.equal('Error');
+      expect(error.statusCode).to.equal(StatusCode.InternalServerError);
       subscriptionService.stubs.handleMessage.restore();
     }
   });
@@ -314,7 +315,8 @@ describe('Rabbitmq service', () => {
       });
       await rabbitmqService.consumeMessage(message);
     } catch (err) {
-      expect(err.message).to.equal('rabbitmq consume message error');
+      expect(err.message).to.equal('Error');
+      expect(err.statusCode).to.equal(StatusCode.InternalServerError);
       subscriptionService.stubs.handleMessage.restore();
       subscriptionService.stubs.getSubscriptionPayload.restore();
       amqpTest.restore();

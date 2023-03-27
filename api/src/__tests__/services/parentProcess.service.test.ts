@@ -46,11 +46,7 @@ describe('ParentProcessService', () => {
     const parentProcessService: any = new ParentProcessService();
     sinon.spy(parentProcessService, 'emit');
     parentProcessService.child.emit('message', message);
-    sinon.assert.calledWithExactly(
-      parentProcessService.emit,
-      EVENT_MESSAGE.READY,
-      undefined,
-    );
+    sinon.assert.calledWithExactly(parentProcessService.emit, EVENT_MESSAGE.READY, undefined);
   });
 
   it('ParentProcessService fork child process : error', async () => {

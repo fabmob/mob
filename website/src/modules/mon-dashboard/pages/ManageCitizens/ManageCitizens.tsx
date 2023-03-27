@@ -13,16 +13,19 @@ import CardLineContent from '@components/CardLine/CardLineContent';
 import Button from '@components/Button/Button';
 import TooltipInfoIcon from '@components/TooltipInfoIcon/TooltipInfoIcon';
 
-import { getCitizens, Citizen } from '@api/CitizenService';
+import { getCitizensCount, getCitizens, Citizen } from '@api/CitizenService';
 
 import { useRoleAccepted } from '@utils/keycloakUtils';
 import { firstCharUpper } from '@utils/helpers';
+
+import { useUser } from '@context';
 
 import Strings from './locale/fr.json';
 
 import { Roles } from '../../../../constants';
 
 import './_manageCitizens.scss';
+import { PartialCitizen } from 'src/utils/citoyens';
 
 interface ManageCitizensProps {
   pageContext: { breadcrumb: { crumbs: Crumb[] } };
@@ -33,9 +36,8 @@ interface Crumb {
   pathname: string;
 }
 
-interface CitizensResponse {
-  totalCitizens: number;
-  citizensData: [];
+interface CitizensCount {
+  count: number;
 }
 
 /**
@@ -45,11 +47,13 @@ interface CitizensResponse {
  */
 
 const ManageCitizens: FC<ManageCitizensProps> = ({ pageContext }) => {
-  const [citizens, setCitizens] = useState<Citizen[]>([]);
+  const LIMIT = 10;
+  const [citizens, setCitizens] = useState<PartialCitizen[]>([]);
   const [totalCitizens, setTotalCitizens] = useState<number>(0);
   const [searchByLastName, setSearchByLastName] = useState<string>('');
   const [pagination, setPagination] = useState<number>(0);
   const [pageContent, setPageContent] = useState<ReactNode>();
+  const { userFunder } = useUser();
 
   const isManager: boolean = useRoleAccepted(Roles.MANAGERS);
 
@@ -59,17 +63,33 @@ const ManageCitizens: FC<ManageCitizensProps> = ({ pageContext }) => {
 
   /**
    * get citizens list
+   * @param funderId funder Id
    * @param lastName citizen lastName
    * @param skip demandes skipped
    */
   const getCitizensList = async (): Promise<void> => {
-    const result: CitizensResponse = await getCitizens(
+    const result: PartialCitizen[] = await getCitizens(
+      userFunder.funderId,
       searchByLastName,
+      LIMIT,
       pagination
     );
 
-    setCitizens([...citizens, ...result.citizensData]);
-    setTotalCitizens(result.totalCitizens ?? 0);
+    setCitizens([...citizens, ...result]);
+  };
+
+  /**
+   * get citizens count
+   * @param funderId funder Id
+   * @param lastName citizen lastName
+   */
+  const getCount = async (): Promise<void> => {
+    const result: CitizensCount = await getCitizensCount(
+      userFunder.funderId,
+      searchByLastName
+    );
+
+    setTotalCitizens(result?.count);
   };
 
   /**
@@ -79,6 +99,14 @@ const ManageCitizens: FC<ManageCitizensProps> = ({ pageContext }) => {
   useEffect(() => {
     getCitizensList();
   }, [pagination, searchByLastName]);
+
+  /**
+   * triggered a search
+   *
+   */
+  useEffect(() => {
+    getCount();
+  }, [searchByLastName]);
 
   /**
    * on click btn see more
@@ -109,8 +137,8 @@ const ManageCitizens: FC<ManageCitizensProps> = ({ pageContext }) => {
     );
     if (citizens && citizens.length) {
       JSXNode = citizens.map(
-        ({ citizenId, firstName, lastName, isCitizenDeleted }) => (
-          <CardLine classnames="citizens-card" key={citizenId}>
+        ({ id, firstName, lastName, isCitizenDeleted }) => (
+          <CardLine classnames="citizens-card" key={id}>
             <CardLineContent classnames="citizens-card__name span">
               <CardLineColumn classnames="citizens-card__error-icon">
                 {isCitizenDeleted && (
@@ -130,8 +158,8 @@ const ManageCitizens: FC<ManageCitizensProps> = ({ pageContext }) => {
                 <>
                   <CardLineColumn>
                     <Link
-                      id={`gerer-citoyens-${citizenId}`}
-                      to={`/gerer-citoyens/${citizenId}`}
+                      id={`gerer-citoyens-${id}`}
+                      to={`/gerer-citoyens/${id}`}
                       state={{ firstName, lastName, isCitizenDeleted }}
                     >
                       <Button secondary>

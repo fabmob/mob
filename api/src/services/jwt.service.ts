@@ -2,8 +2,8 @@ import {injectable, BindingScope} from '@loopback/core';
 import jwt from 'jsonwebtoken';
 
 import {Citizen} from '../models';
-import {ResourceName, StatusCode} from '../utils';
-import {ValidationError} from '../validationError';
+import {Logger, ResourceName} from '../utils';
+import {InternalServerError, UnprocessableEntityError} from '../validationError';
 
 export interface AffiliationAccessTokenPayload {
   id: string;
@@ -23,11 +23,13 @@ export class JwtService {
    */
   generateAffiliationAccessToken = (citizen: Citizen): string => {
     if (!citizen?.affiliation) {
-      throw new ValidationError(
+      throw new UnprocessableEntityError(
+        JwtService.name,
+        this.generateAffiliationAccessToken.name,
         'jwt.error.no.affiliation',
         '/jwtNoAffiliation',
-        StatusCode.PreconditionFailed,
         ResourceName.Affiliation,
+        citizen.id,
       );
     }
     const citizenAccessTokenPayloads: AffiliationAccessTokenPayload = {
@@ -45,8 +47,10 @@ export class JwtService {
   verifyAffiliationAccessToken = (token: string): boolean => {
     try {
       const decodedToken: any = jwt.verify(token, TOKEN_KEY, {algorithms: [ALGORITHM]});
+      Logger.debug(JwtService.name, this.verifyAffiliationAccessToken.name, 'Decoded token ', decodedToken);
       return Boolean(decodedToken.id && decodedToken.enterpriseId);
     } catch (err) {
+      Logger.error(JwtService.name, this.verifyAffiliationAccessToken.name, 'Error', err);
       return false;
     }
   };
@@ -60,12 +64,9 @@ export class JwtService {
   decodeAffiliationAccessToken = (token: string): AffiliationAccessTokenPayload => {
     try {
       const decodedToken: any = jwt.verify(token, TOKEN_KEY, {algorithms: [ALGORITHM]});
-      return Object.assign(
-        {},
-        {id: decodedToken.id, enterpriseId: decodedToken.enterpriseId},
-      );
+      return Object.assign({}, {id: decodedToken.id, enterpriseId: decodedToken.enterpriseId});
     } catch (err) {
-      throw new Error(err);
+      throw new InternalServerError(JwtService.name, this.decodeAffiliationAccessToken.name, err);
     }
   };
 }

@@ -70,6 +70,13 @@ const SubscriptionsListSection: FC<SubscriptionsListSectionProps> = ({
           ],
         value: INCENTIVE_TYPE.EMPLOYER_INCENTIVE,
       },
+      {
+        label:
+          Strings[
+            'dashboard.citizen.subscriptions.funderType.label.national'
+          ],
+        value: INCENTIVE_TYPE.NATIONAL_INCENTIVE,
+      },
     ];
   };
 

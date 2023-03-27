@@ -52,6 +52,7 @@ interface Fr {
   'dashboard.citizen.subscriptions.subscription.rejected.title': string;
   'dashboard.citizen.subscriptions.funderType.label.collectivity': string;
   'dashboard.citizen.subscriptions.funderType.label.enterprise': string;
+  'dashboard.citizen.subscriptions.funderType.label.national': string;
   'dashboard.citizens.subscription.tab.current.mobility': string;
   'dashboard.citizens.subscription.tab.my.requests': string;
   'dashboard.citizens.subscription.tab.activated.resources': string;

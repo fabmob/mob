@@ -1,4 +1,4 @@
-import {Citizen, EligibilityCheck, Incentive, Territory} from '../models';
+import {Citizen, EligibilityCheck, Incentive} from '../models';
 import {AFFILIATION_STATUS, CITIZEN_STATUS, SUBSCRIPTION_CHECK_MODE} from '../utils';
 
 export const createIncentive = (updatedFields: Partial<Incentive>): Incentive => {
@@ -6,7 +6,7 @@ export const createIncentive = (updatedFields: Partial<Incentive>): Incentive =>
 };
 
 const baseIncentive = {
-  territory: {name: 'Toulouse', id: 'test'} as Territory,
+  territoryIds: ['test'],
   additionalInfos: 'test',
   funderName: 'Mairie',
   allocatedAmount: '200 €',

@@ -1,6 +1,7 @@
 import {BindingScope, inject, injectable, service} from '@loopback/core';
-import {repository, AnyObject} from '@loopback/repository';
+import {repository, AnyObject, Count} from '@loopback/repository';
 import {getJsonSchema} from '@loopback/repository-json-schema';
+import {SecurityBindings, UserProfile} from '@loopback/security';
 import qs from 'qs';
 import {compareAsc, add, sub, parse} from 'date-fns';
 import * as Excel from 'exceljs';
@@ -9,15 +10,18 @@ import _ from 'lodash';
 import axios, {AxiosRequestConfig, AxiosResponse} from 'axios';
 import {Schema, Validator, ValidatorResult} from 'jsonschema';
 import {capitalize} from 'lodash';
+const pkijs = require('pkijs');
+const asn1js = require('asn1js');
 
 import {
   AffiliationRepository,
   CommunityRepository,
-  EnterpriseRepository,
+  FunderRepository,
   IncentiveRepository,
   SubscriptionRepository,
   SubscriptionTimestampRepository,
   UserEntityRepository,
+  UserRepository,
 } from '../repositories';
 import {
   CommonRejection,
@@ -31,6 +35,7 @@ import {
   ValidationNoPayment,
   Incentive,
   Affiliation,
+  Enterprise,
 } from '../models';
 import {S3Service} from './s3.service';
 import {MailService} from './mail.service';
@@ -43,7 +48,6 @@ import {
   ISubscriptionBusError,
   ISubscriptionPublishPayload,
   IDataInterface,
-  logger,
   PAYMENT_MODE,
   REASON_REJECT_TEXT,
   REJECTION_REASON,
@@ -56,11 +60,14 @@ import {
   SOURCES,
   formatDateInFrenchNotation,
   GROUPS,
+  Logger,
+  CitizensQueryParams,
+  PartialCitizen,
 } from '../utils';
 import {formatDateInTimezone} from '../utils/date';
 import {sha256} from '../utils/encryption';
 import {convertSpecificFields} from '../utils/subscription';
-import {ValidationError} from '../validationError';
+import {BadRequestError, UnprocessableEntityError} from '../validationError';
 import {API_FQDN, WEBSITE_FQDN} from '../constants';
 import {getListEmails} from '../controllers/utils/helpers';
 import {BusError} from '../busError';
@@ -76,12 +83,14 @@ export class SubscriptionService {
     public subscriptionTimestampRepository: SubscriptionTimestampRepository,
     @repository(CommunityRepository)
     public communityRepository: CommunityRepository,
-    @repository(EnterpriseRepository)
-    public enterpriseRepository: EnterpriseRepository,
+    @repository(FunderRepository)
+    public funderRepository: FunderRepository,
     @repository(AffiliationRepository)
     public affiliationRepository: AffiliationRepository,
     @repository(UserEntityRepository)
     private userEntityRepository: UserEntityRepository,
+    @repository(UserRepository)
+    private userRepository: UserRepository,
     @inject('services.MailService')
     public mailService: MailService,
     @service(CitizenService)
@@ -90,6 +99,8 @@ export class SubscriptionService {
     public keycloakService: KeycloakService,
     @repository(IncentiveRepository)
     public incentiveRepository: IncentiveRepository,
+    @inject(SecurityBindings.USER, {optional: true})
+    private currentUser: UserProfile,
   ) {}
 
   /**
@@ -111,7 +122,7 @@ export class SubscriptionService {
             CONSUMER_ERROR.DATE_ERROR,
             'lastPayment',
             '/lastPayment',
-            StatusCode.PreconditionFailed,
+            StatusCode.BadRequest,
             ResourceName.Subscription,
           );
         }
@@ -165,157 +176,225 @@ export class SubscriptionService {
 
   async generateExcelValidatedIncentives(subscriptionList: any[]) {
     // Creation du excel book
-    if (subscriptionList && subscriptionList.length > 0) {
-      const workbook = new Excel.Workbook();
-      // Creation de la Sheet (pour chaque incentiveId)
-      const ListOfSheets: any[] = [];
+    const workbook = new Excel.Workbook();
+    // Creation de la Sheet (pour chaque incentiveId)
+    const ListOfSheets: any[] = [];
+    for (const subscription of subscriptionList) {
+      if (ListOfSheets.indexOf(subscription.incentiveId.toString()) === -1)
+        ListOfSheets.push(subscription.incentiveId.toString());
+    }
+    for (const sheet of ListOfSheets) {
+      // Ajouter une nouvelle Sheet
+      const newSheet = workbook.addWorksheet(sheet);
+      let actualRow = newSheet.rowCount;
+      // Ajouter les incentives
       for (const subscription of subscriptionList) {
-        if (ListOfSheets.indexOf(subscription.incentiveId.toString()) === -1)
-          ListOfSheets.push(subscription.incentiveId.toString());
-      }
-      for (const sheet of ListOfSheets) {
-        // Ajouter une nouvelle Sheet
-        const newSheet = workbook.addWorksheet(sheet);
-        let actualRow = newSheet.rowCount;
-        // Ajouter les incentives
-        for (const subscription of subscriptionList) {
-          if (subscription.incentiveId.toString() === sheet) {
-            // Gestion des specifics fields
-            // Header
-            const mainCols = [
-              "NOM DE L'AIDE",
-              'NOM DU CITOYEN',
-              'PRENOM DU CITOYEN',
-              'DATE DE NAISSANCE',
-              'DATE DE LA DEMANDE',
-              'DATE DE LA VALIDATION',
-              'MONTANT ACCORDE',
-              'FREQUENCE DE VERSEMENT',
-              'DATE DU DERNIER VERSEMENT',
-            ];
-            if (subscription && subscription.specificFields) {
-              const keysSpecs = Object.keys(subscription.specificFields);
-              const specFields = keysSpecs.map(key => key.toUpperCase());
-              mainCols.push(...specFields);
-            }
-            const headerRowFirst = newSheet.getRow(1);
-            headerRowFirst.values = [...mainCols];
-            headerRowFirst.eachCell((cell: Excel.Cell) => {
-              cell.alignment = {
-                vertical: 'middle',
-                horizontal: 'center',
-              };
-              cell.fill = {
-                type: 'pattern',
-                pattern: 'solid',
-                fgColor: {argb: '1ee146'},
-              };
-              cell.font = {
-                size: 10,
-                bold: true,
-              };
-            });
-            const subscriptionRow = newSheet.getRow(actualRow + 2);
-            const colToAdd = [];
-            colToAdd.push(
-              subscription.incentiveTitle,
-              subscription.firstName,
-              subscription.lastName,
-              subscription.birthdate,
-              formatDateInFrenchNotation(subscription.createdAt),
-              formatDateInFrenchNotation(subscription.updatedAt),
-              subscription.subscriptionValidation?.amount
-                ? subscription.subscriptionValidation.amount
-                : '',
-              subscription.subscriptionValidation?.frequency
-                ? subscription.subscriptionValidation.frequency
-                : '',
-              subscription.subscriptionValidation?.lastPayment
-                ? subscription.subscriptionValidation.lastPayment
-                : '',
-            );
-            if (subscription.specificFields) {
-              colToAdd.push(...Object.values(subscription.specificFields));
-            }
-            subscriptionRow.values = [...colToAdd];
-            actualRow++;
+        if (subscription.incentiveId.toString() === sheet) {
+          // Gestion des specifics fields
+          // Header
+          const mainCols = [
+            "NOM DE L'AIDE",
+            'NOM DU CITOYEN',
+            'PRENOM DU CITOYEN',
+            'DATE DE NAISSANCE',
+            'DATE DE LA DEMANDE',
+            'DATE DE LA VALIDATION',
+            'MONTANT ACCORDE',
+            'FREQUENCE DE VERSEMENT',
+            'DATE DU DERNIER VERSEMENT',
+          ];
+          if (subscription && subscription.specificFields) {
+            const keysSpecs = Object.keys(subscription.specificFields);
+            const specFields = keysSpecs.map(key => key.toUpperCase());
+            mainCols.push(...specFields);
           }
+          const headerRowFirst = newSheet.getRow(1);
+          headerRowFirst.values = [...mainCols];
+          headerRowFirst.eachCell((cell: Excel.Cell) => {
+            cell.alignment = {
+              vertical: 'middle',
+              horizontal: 'center',
+            };
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: {argb: '1ee146'},
+            };
+            cell.font = {
+              size: 10,
+              bold: true,
+            };
+          });
+          const subscriptionRow = newSheet.getRow(actualRow + 2);
+          const colToAdd = [];
+          colToAdd.push(
+            subscription.incentiveTitle,
+            subscription.firstName,
+            subscription.lastName,
+            subscription.birthdate,
+            formatDateInFrenchNotation(subscription.createdAt),
+            formatDateInFrenchNotation(subscription.updatedAt),
+            subscription.subscriptionValidation?.amount ? subscription.subscriptionValidation.amount : '',
+            subscription.subscriptionValidation?.frequency
+              ? subscription.subscriptionValidation.frequency
+              : '',
+            subscription.subscriptionValidation?.lastPayment
+              ? subscription.subscriptionValidation.lastPayment
+              : '',
+          );
+          if (subscription.specificFields) {
+            colToAdd.push(...Object.values(subscription.specificFields));
+          }
+          subscriptionRow.values = [...colToAdd];
+          actualRow++;
         }
       }
-      // send buffer
-      const buffer = await workbook.xlsx.writeBuffer();
-      return buffer;
-    } else {
-      throw new ValidationError(
-        'subscriptions.error.bad.buffer',
-        '/subscriptionBadBuffer',
-        StatusCode.PreconditionFailed,
-        ResourceName.Buffer,
-      );
     }
+    // send buffer
+    const buffer = await workbook.xlsx.writeBuffer();
+    return buffer;
   }
 
   /**
-   * get citizens with at least one subscription & total count
-   * @param match params
-   * @param skip pagination
-   * @returns object of citizens and total citizens
+   * Get citizens with at least one subscription
+   * @param CitizensQueryParams
+   * @returns list of citizens
    */
-  async getCitizensWithSubscription(match: object[], skip: number | undefined) {
-    const queryAllSubscriptions = await this.subscriptionRepository
-      .execute('Subscription', 'aggregate', [
-        {
-          $match: {
-            $and: match,
-          },
+  async getCitizensWithSubscription({
+    funderId,
+    lastName,
+    skip,
+    limit,
+  }: CitizensQueryParams): Promise<PartialCitizen[]> {
+    // Initialize pipeline
+    const pipeline: Array<{[key: string]: unknown}> = [];
+
+    const communityIds: string[] | undefined = (
+      await this.userRepository.findOne({where: {id: this.currentUser.id}})
+    )?.communityIds;
+
+    if (communityIds && communityIds?.length > 0) {
+      // addFields stage should be before match
+      pipeline.push({
+        $addFields: {
+          stringCommunityId: {$toString: '$communityId'},
         },
-        {
-          $facet: {
-            citizensTotal: [
-              {
-                $group: {
-                  _id: '$citizenId',
-                },
-              },
-              {$count: 'count'},
-            ],
-            citizensData: [
-              {
-                $group: {
-                  _id: {
-                    citizenId: '$citizenId',
-                    lastName: {$toLower: '$lastName'},
-                    firstName: {$toLower: '$firstName'},
-                    isCitizenDeleted: '$isCitizenDeleted',
-                  },
-                  citizenId: {$first: '$citizenId'},
-                  lastName: {$first: '$lastName'},
-                  firstName: {$first: '$firstName'},
-                  isCitizenDeleted: {$first: '$isCitizenDeleted'},
-                },
-              },
-              {$sort: {'_id.lastName': 1, '_id.firstName': 1}},
-              {
-                $project: {
-                  _id: 0,
-                },
-              },
-              {$skip: skip ?? 0},
-              {$limit: 10},
-            ],
-          },
+      });
+      // Return only the subscriptions that fall within the manager's scope
+      pipeline.push({
+        $match: {
+          stringCommunityId: {$in: communityIds},
         },
-        {
-          $project: {
-            // Get total from the first element of the citizensTotal array
-            totalCitizens: {$ifNull: [{$arrayElemAt: ['$citizensTotal.count', 0]}, 0]},
-            citizensData: 1,
-          },
+      });
+    }
+
+    pipeline.push(
+      {
+        $match: {
+          funderId,
+          status: {$ne: SUBSCRIPTION_STATUS.DRAFT},
         },
-      ])
-      .then((res: AnyObject) => res.get())
-      .catch(err => err);
-    return queryAllSubscriptions?.[0];
+      },
+      {
+        $group: {
+          _id: `$citizenId`,
+          firstName: {$first: '$firstName'},
+          lastName: {$first: '$lastName'},
+          isCitizenDeleted: {$first: '$isCitizenDeleted'},
+          email: {$first: '$email'},
+          enterpriseEmail: {$first: '$enterpriseEmail'},
+          birthdate: {$first: 'birthdate'},
+        },
+      },
+      {
+        $sort: {
+          lastName: 1,
+          firstName: 1,
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          id: '$_id',
+          lastName: 1,
+          firstName: 1,
+          birthdate: 1,
+          email: 1,
+          enterpriseEmail: 1,
+          isCitizenDeleted: 1,
+        },
+      },
+    );
+
+    if (lastName) {
+      pipeline.push({$match: {lastName: new RegExp('.*' + lastName + '.*', 'i')}});
+    }
+
+    if (skip) {
+      pipeline.push({$skip: skip});
+    }
+
+    if (limit) {
+      pipeline.push({$limit: limit});
+    }
+
+    const result = await this.subscriptionRepository.execute('Subscription', 'aggregate', pipeline);
+    return result.get();
+  }
+
+  /**
+   * get citizens count with at least one subscription & total count
+   * @param CitizensQueryParams
+   * @returns total of citizens
+   */
+  async getCitizensWithSubscriptionCount({funderId, lastName}: CitizensQueryParams): Promise<Count> {
+    // Initialize pipeline
+    const pipeline: Array<{[key: string]: unknown}> = [];
+
+    const communityIds: string[] | undefined = (
+      await this.userRepository.findOne({where: {id: this.currentUser.id}})
+    )?.communityIds;
+
+    if (communityIds && communityIds?.length > 0) {
+      // addFields stage should be before match
+      pipeline.push({
+        $addFields: {
+          stringCommunityId: {$toString: '$communityId'},
+        },
+      });
+      // Return only the subscriptions that fall within the manager's scope
+      pipeline.push({
+        $match: {
+          stringCommunityId: {$in: communityIds},
+        },
+      });
+    }
+
+    // match should be before count stage
+    if (lastName) {
+      pipeline.push({$match: {lastName: new RegExp('.*' + lastName + '.*', 'i')}});
+    }
+
+    pipeline.push(
+      {
+        $match: {
+          funderId,
+          status: {$ne: SUBSCRIPTION_STATUS.DRAFT},
+        },
+      },
+      {
+        $group: {
+          _id: `$citizenId`,
+        },
+      },
+      {$count: 'count'},
+    );
+
+    const result: Count[] | [] = await this.subscriptionRepository
+      .execute('Subscription', 'aggregate', pipeline)
+      .then((res: AnyObject) => res.get());
+
+    return result[0] ? result[0] : {count: 0};
   }
 
   /**
@@ -347,9 +426,7 @@ export class SubscriptionService {
     await mailService.sendMailAsHtml(
       email!,
       `Votre demande d’aide a été ${mode}`,
-      mode === SEND_MODE.VALIDATION
-        ? 'subscription-validation'
-        : 'subscription-rejection',
+      mode === SEND_MODE.VALIDATION ? 'subscription-validation' : 'subscription-rejection',
       {
         incentiveTitle: incentiveTitle,
         date: date,
@@ -395,15 +472,15 @@ export class SubscriptionService {
 
   async handleMessage(data: IDataInterface): Promise<void> {
     try {
+      Logger.debug(SubscriptionService.name, this.handleMessage.name, 'Payload data', data);
+
       const initialSubscription = new SubscriptionConsumePayload({
         citizenId: data.citizenId,
         subscriptionId: data.subscriptionId,
         status: data.status,
       });
       // Check if the subscription exists
-      const subscription = await this.subscriptionRepository.findById(
-        data.subscriptionId,
-      );
+      const subscription = await this.subscriptionRepository.findById(data.subscriptionId);
       // Check if user has access to his subscription
       if (!canAccessHisSubscriptionData(subscription.citizenId, data.citizenId)) {
         throw new BusError(
@@ -421,6 +498,12 @@ export class SubscriptionService {
           comments: CONSUMER_ERROR.ERROR_MESSAGE,
         };
         await this.rejectSubscription(motif as OtherReason, subscription);
+        Logger.info(
+          SubscriptionService.name,
+          this.handleMessage.name,
+          'Subscription rejected',
+          data.subscriptionId,
+        );
       } else {
         const resultCompare = new Validator().validate(initialSubscription, {
           ...getJsonSchema(SubscriptionConsumePayload),
@@ -431,7 +514,7 @@ export class SubscriptionService {
             'subscriptions.error.bad.status',
             'status',
             '/subscriptionBadStatus',
-            StatusCode.PreconditionFailed,
+            StatusCode.Conflict,
             ResourceName.Subscription,
           );
         }
@@ -444,13 +527,17 @@ export class SubscriptionService {
             comments: data.comments,
           };
 
-          Object.keys(payment).forEach(
-            key => payment[key] === undefined && delete payment[key],
-          );
+          Object.keys(payment).forEach(key => payment[key] === undefined && delete payment[key]);
 
           const dataPayment = payment as SubscriptionValidation;
           const paymentPayload = this.checkPayment(dataPayment);
           await this.validateSubscription(paymentPayload, subscription);
+          Logger.info(
+            SubscriptionService.name,
+            this.handleMessage.name,
+            'Subscription validated',
+            data.subscriptionId,
+          );
         }
         if (data.status === SUBSCRIPTION_STATUS.REJECTED) {
           const motif = {
@@ -461,10 +548,16 @@ export class SubscriptionService {
           const rejection = motif as OtherReason;
           const reasonPayload = this.checkRefusMotif(rejection);
           await this.rejectSubscription(reasonPayload, subscription);
+          Logger.info(
+            SubscriptionService.name,
+            this.handleMessage.name,
+            'Subscription rejected',
+            data.subscriptionId,
+          );
         }
       }
     } catch (error) {
-      logger.error(`Failed to handle the payload: ${error}`);
+      Logger.error(SubscriptionService.name, this.handleMessage.name, 'Failed to handle the payload', error);
       throw error;
     }
   }
@@ -479,29 +572,36 @@ export class SubscriptionService {
     subscription: Subscription,
     updatedAt?: string | null,
   ): Promise<void> {
+    Logger.debug(
+      SubscriptionService.name,
+      this.validateSubscription.name,
+      'Get result check payment',
+      result,
+    );
     // Mise à jour du statut de la subscription
     subscription.status = SUBSCRIPTION_STATUS.VALIDATED;
     // Mise à jour des informations de versement
     subscription.subscriptionValidation = result;
     subscription.updatedAt = updatedAt ? new Date(updatedAt) : new Date();
-    await this.subscriptionRepository.updateById(
+    await this.subscriptionRepository.updateById(subscription.id, _.pickBy(subscription, _.identity));
+    Logger.info(
+      SubscriptionService.name,
+      this.validateSubscription.name,
+      'Subscription updated',
       subscription.id,
-      _.pickBy(subscription, _.identity),
     );
 
     /**
      * format date as [DD/MM/YYYY] à [HH h MM]
      */
-    const date = formatDateInTimezone(
-      new Date(subscription.createdAt!),
-      "dd/MM/yyyy à H'h'mm",
-    );
+    const date = formatDateInTimezone(new Date(subscription.createdAt!), "dd/MM/yyyy à H'h'mm");
 
     /**
      * get the incentive notification boolean
      */
-    const {isCitizenNotificationsDisabled}: Incentive =
-      await this.incentiveRepository.findById(subscription.incentiveId);
+    const {isCitizenNotificationsDisabled}: Incentive = await this.incentiveRepository.findById(
+      subscription.incentiveId,
+    );
 
     /**
      * get list of emails
@@ -525,6 +625,12 @@ export class SubscriptionService {
           result?.amount,
         ),
       );
+      Logger.info(
+        SubscriptionService.name,
+        this.validateSubscription.name,
+        'Subscription validation email sent',
+        subscription.id,
+      );
     }
   }
 
@@ -538,6 +644,7 @@ export class SubscriptionService {
     subscription: Subscription,
     updatedAt?: string | null,
   ): Promise<void> {
+    Logger.debug(SubscriptionService.name, this.rejectSubscription.name, 'Refuse reason data', result);
     // Mise à jour du statut de la subscription
     subscription.status = SUBSCRIPTION_STATUS.REJECTED;
     // Check if updated value has a value or not
@@ -548,20 +655,26 @@ export class SubscriptionService {
       (await this.s3Service.deleteObjectFile(subscription.citizenId, subscription.id)) &&
       subscription.specificFields &&
       delete subscription.specificFields;
+    Logger.info(
+      SubscriptionService.name,
+      this.rejectSubscription.name,
+      'Subscription attachments deleted',
+      subscription.id,
+    );
     // Mise à jour des informations du motif
     subscription.subscriptionRejection = result;
-    await this.subscriptionRepository.updateById(
+    await this.subscriptionRepository.updateById(subscription.id, _.pickBy(subscription, _.identity));
+    Logger.info(
+      SubscriptionService.name,
+      this.rejectSubscription.name,
+      'Subscription updated',
       subscription.id,
-      _.pickBy(subscription, _.identity),
     );
 
     /**
      * format date as [DD/MM/YYYY] à [HH h MM]
      */
-    const date = formatDateInTimezone(
-      new Date(subscription.createdAt!),
-      "dd/MM/yyyy à H'h'mm",
-    );
+    const date = formatDateInTimezone(new Date(subscription.createdAt!), "dd/MM/yyyy à H'h'mm");
 
     /**
      * Get list of emails
@@ -571,46 +684,36 @@ export class SubscriptionService {
     /**
      * get the rejection motif
      */
-    let subscriptionRejectionMessage: string | undefined;
-    switch (subscription.subscriptionRejection!.type) {
-      case REJECTION_REASON.CONDITION:
-        subscriptionRejectionMessage = REASON_REJECT_TEXT.CONDITION;
-        break;
-      case REJECTION_REASON.INVALID_PROOF:
-        subscriptionRejectionMessage = REASON_REJECT_TEXT.INVALID_PROOF;
-        break;
-      case REJECTION_REASON.MISSING_PROOF:
-        subscriptionRejectionMessage = REASON_REJECT_TEXT.MISSING_PROOF;
-        break;
-      case REJECTION_REASON.NOT_FRANCECONNECT:
-        subscriptionRejectionMessage = REASON_REJECT_TEXT.NOT_FRANCECONNECT;
-        break;
-      case REJECTION_REASON.INVALID_RPC_CEE_REQUEST:
-        subscriptionRejectionMessage = REASON_REJECT_TEXT.INVALID_RPC_CEE_REQUEST;
-        break;
-      case REJECTION_REASON.VALID_SUBSCRIPTION_EXISTS:
-        subscriptionRejectionMessage = REASON_REJECT_TEXT.VALID_SUBSCRIPTION_EXISTS;
-        break;
-      case REJECTION_REASON.OTHER:
-        {
-          const data = result as OtherReason;
-          subscriptionRejectionMessage = data.other;
-        }
-        break;
-      default:
-        throw new ValidationError(
-          'subscriptionRejection.type.not.found',
-          '/subscriptionRejectionNotFound',
-          StatusCode.NotFound,
-          ResourceName.Affiliation,
-        );
+    const rejectionMessages: {[key in REJECTION_REASON]: string} = {
+      [REJECTION_REASON.CONDITION]: REASON_REJECT_TEXT.CONDITION,
+      [REJECTION_REASON.INVALID_PROOF]: REASON_REJECT_TEXT.INVALID_PROOF,
+      [REJECTION_REASON.MISSING_PROOF]: REASON_REJECT_TEXT.MISSING_PROOF,
+      [REJECTION_REASON.NOT_FRANCECONNECT]: REASON_REJECT_TEXT.NOT_FRANCECONNECT,
+      [REJECTION_REASON.INVALID_RPC_CEE_REQUEST]: REASON_REJECT_TEXT.INVALID_RPC_CEE_REQUEST,
+      [REJECTION_REASON.VALID_SUBSCRIPTION_EXISTS]: REASON_REJECT_TEXT.VALID_SUBSCRIPTION_EXISTS,
+      [REJECTION_REASON.OTHER]: (result as OtherReason).other,
+    };
+
+    const subscriptionRejectionMessage: string =
+      rejectionMessages[subscription.subscriptionRejection!.type as REJECTION_REASON];
+
+    if (!subscriptionRejectionMessage) {
+      throw new BadRequestError(
+        SubscriptionService.name,
+        this.rejectSubscription.name,
+        'subscriptionRejection.type.not.found',
+        '/subscriptionRejectionNotFound',
+        ResourceName.Subscription,
+        subscription.subscriptionRejection!.type,
+      );
     }
 
     /**
      * get the incentive notification boolean
      */
-    const {isCitizenNotificationsDisabled}: Incentive =
-      await this.incentiveRepository.findById(subscription.incentiveId);
+    const {isCitizenNotificationsDisabled}: Incentive = await this.incentiveRepository.findById(
+      subscription.incentiveId,
+    );
 
     /**
      * send the Rejection mail for each email on the list
@@ -628,6 +731,12 @@ export class SubscriptionService {
           result.comments,
         ),
       );
+      Logger.info(
+        SubscriptionService.name,
+        this.rejectSubscription.name,
+        'Subscription rejection email sent',
+        subscription.id,
+      );
     }
   }
 
@@ -640,12 +749,14 @@ export class SubscriptionService {
     subscriptionId: string,
     errorMessage: ISubscriptionBusError,
   ): Promise<IPublishPayload> {
-    const subscription = await this.subscriptionRepository.findById(subscriptionId);
-    const enterprise = await this.enterpriseRepository.findById(subscription.funderId);
+    const subscription: Subscription = await this.subscriptionRepository.findById(subscriptionId);
+    const enterprise: Enterprise | null = await this.funderRepository.getEnterpriseById(
+      subscription.funderId,
+    );
     const payload = await this.preparePayLoad(subscription, errorMessage);
     return {
       subscription: payload,
-      enterprise: enterprise.name,
+      enterprise: enterprise!.name,
     };
   }
 
@@ -684,9 +795,7 @@ export class SubscriptionService {
       email: affiliation!.enterpriseEmail ? affiliation!.enterpriseEmail : '',
       status: SUBSCRIPTION_STATUS.TO_PROCESS,
       communityName: community ? community.name : '',
-      specificFields: subscription.specificFields
-        ? JSON.stringify(subscription.specificFields)
-        : '',
+      specificFields: subscription.specificFields ? JSON.stringify(subscription.specificFields) : '',
       attachments: urlAttachmentsList,
       error: errorMessage,
       encryptionKeyId: subscription.encryptionKeyId,
@@ -708,7 +817,7 @@ export class SubscriptionService {
           ? resultCompare.errors[0].path[0].toString()
           : resultCompare.errors[0].argument,
         resultCompare.errors[0].path?.toString(),
-        StatusCode.PreconditionFailed,
+        StatusCode.UnprocessableEntity,
         ResourceName.Subscription,
       );
     }
@@ -731,16 +840,30 @@ export class SubscriptionService {
       await Promise.all(
         olderSubscriptions.map(async subscription => {
           if (subscription.attachments?.length) {
-            await this.s3Service.deleteObjectFile(
-              subscription.citizenId,
-              subscription.id,
-            );
+            await this.s3Service.deleteObjectFile(subscription.citizenId, subscription.id);
           }
-          logger.info(`subscription with id ${subscription.id} will be deleted`);
+          Logger.info(
+            SubscriptionService.name,
+            this.deleteSubscription.name,
+            'Subscription attachment deleted',
+            subscription.id,
+          );
           await this.subscriptionRepository.deleteById(subscription.id);
+          Logger.info(
+            SubscriptionService.name,
+            this.deleteSubscription.name,
+            'Subscription deleted',
+            subscription.id,
+          );
           await this.subscriptionTimestampRepository.deleteAll({
             subscriptionId: subscription.id,
           });
+          Logger.info(
+            SubscriptionService.name,
+            this.deleteSubscription.name,
+            'Subscription timestamps deleted',
+            subscription.id,
+          );
         }),
       );
     }
@@ -752,11 +875,7 @@ export class SubscriptionService {
    * @param url :string
    * @param token : string
    */
-  async callCEEApi(
-    data: OperatorData,
-    url: string,
-    token: string,
-  ): Promise<RpcReturnedData> {
+  async callCEEApi(data: OperatorData, url: string, token: string): Promise<RpcReturnedData> {
     const config: AxiosRequestConfig = {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -772,12 +891,11 @@ export class SubscriptionService {
     } catch (error) {
       // Error
       if (error.response) {
-        logger.error(
-          `RPC CEE Call failed with status ${error.response.status} returning ${
-            error.response.data instanceof Object
-              ? JSON.stringify(error.response.data)
-              : error.response.data
-          }`,
+        Logger.error(
+          SubscriptionService.name,
+          this.callCEEApi.name,
+          `RPC CEE Call failed with status ${error.response.status}`,
+          error.response.data,
         );
         const errorData: RpcReturnedData = {status: 'error', code: error.response.status};
         switch (error.response.status) {
@@ -799,7 +917,12 @@ export class SubscriptionService {
             };
         }
       }
-      logger.error(`Something wrong happened in the request : ${error.message}`);
+      Logger.error(
+        SubscriptionService.name,
+        this.callCEEApi.name,
+        'Something wrong happened in the request',
+        error.message,
+      );
       return {status: 'error', message: error.message};
     }
   }
@@ -827,50 +950,41 @@ export class SubscriptionService {
    * @param  incentive: Incentive object
    * @param subscription: Subscription object
    */
-  async checkCEEValidity(
-    incentive: Incentive,
-    subscription: Subscription,
-    application_timestamp: string,
-  ) {
+  async checkCEEValidity(incentive: Incentive, subscription: Subscription, application_timestamp: string) {
     const attributeNames = ['RPC_CEE_TOKEN'];
     const attributes = await this.keycloakService.getAttributesFromGroup(
       attributeNames,
-      incentive.funderName,
+      incentive.funderName!,
       incentive?.funderId,
     );
 
     if (!('RPC_CEE_TOKEN' in attributes) || !attributes['RPC_CEE_TOKEN']) {
-      throw new ValidationError(
+      throw new UnprocessableEntityError(
+        SubscriptionService.name,
+        this.checkCEEValidity.name,
         'group.token.notFound',
         '/subscriptionTokenNotFound',
-        StatusCode.NotFound,
         ResourceName.Subscription,
+        attributes,
       );
     }
 
     const token = attributes.RPC_CEE_TOKEN;
-    const url =
-      (process.env.RPC_CEE_URL || 'https://api.demo.covoiturage.beta.gouv.fr/v3') +
-      '/policies/cee';
+    const url = (process.env.RPC_CEE_URL || 'https://api.demo.covoiturage.beta.gouv.fr/v3') + '/policies/cee';
 
     const data: OperatorData = convertSpecificFields(
       subscription.specificFields,
       subscription.lastName,
       application_timestamp,
     );
-    logger.info(
-      `${SubscriptionService.name} -${
-        this.checkCEEValidity.name
-      }  OperatorData information for CEE post : ${JSON.stringify(data)}`,
+    Logger.debug(
+      SubscriptionService.name,
+      this.checkCEEValidity.name,
+      'Operator data information for CEE post',
+      data,
     );
-
     const result = await this.callCEEApi(data, url, token!);
-    logger.info(
-      `${SubscriptionService.name} -${
-        this.checkCEEValidity.name
-      } CEE post result values: ${JSON.stringify(result)}`,
-    );
-
+    Logger.debug(SubscriptionService.name, this.checkCEEValidity.name, 'CEE post result values', result);
     return result;
   }
 
@@ -884,8 +998,14 @@ export class SubscriptionService {
   /**
    * timestamp a subscription
    * @param subscription subscription to timestamp
+   * @param client client
+   * @param endpoint endpoint using createSubscriptionTimestamp
    */
-  async createSubscriptionTimestamp(subscription: Subscription) {
+  async createSubscriptionTimestamp(
+    subscription: Subscription,
+    endpoint: string,
+    client?: string | undefined,
+  ) {
     // encode auth token
     const encodedBase64Token = Buffer.from(
       `${process.env.TIMESTAMP_USERNAME}:${process.env.TIMESTAMP_PASSWORD}`,
@@ -896,31 +1016,73 @@ export class SubscriptionService {
         Authorization: authorization,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
+      responseType: 'arraybuffer',
     };
     try {
       // encrypte subscription
       const encryptedSubscription = sha256(subscription);
+
       const payload = {
         certReq: 'true',
         hashAlgorithm: 'SHA256',
         hashedMessage: encryptedSubscription,
       };
       const url = process.env.TIMESTAMP_URL || 'https://timestamp.dhimyotis.com/api/v1/';
-      const response: AxiosResponse = await axios.post(
-        url,
-        qs.stringify(payload),
-        config,
+      const response: AxiosResponse = await axios.post(url, qs.stringify(payload), config);
+
+      const asn1: Record<string, unknown> = await asn1js.fromBER(response.data);
+
+      // Wrap in a content Info
+      const contentInfo: Record<string, unknown> = new pkijs.ContentInfo({
+        schema: asn1.result,
+      });
+
+      // Wrap in a Signed data
+      const signedData: any = new pkijs.SignedData({
+        schema: contentInfo.content,
+      });
+
+      const signerInfo: any = signedData?.signerInfos[0];
+
+      const signerInfoAttrs: any = signerInfo.signedAttrs.attributes;
+
+      // in ASN1, all data has a unique OID, this corresponds to the timestamp time
+      const SIGNINGTIME_OID: string = '1.2.840.113549.1.9.5';
+
+      // get OID signing time
+      const attr: any = signerInfoAttrs.find(
+        (signerInfoAttr: any) => signerInfoAttr.type === SIGNINGTIME_OID,
       );
+
+      // get signed time
+      const signedTime: Date = new Date(attr.values[0].toDate());
+
       // Success
       await this.subscriptionTimestampRepository.create({
         subscriptionId: subscription.id,
-        subscription,
+        subscription: subscription,
+        timestampedData: JSON.stringify(subscription),
         hashedSubscription: encryptedSubscription,
-        timestampReply: response.data,
+        timestampToken: response.data,
+        signingTime: signedTime,
+        request: {
+          client,
+          endpoint,
+        },
       });
     } catch (error) {
-      logger.error(`Failed to timestamp the subscription: ${error}`);
-      logger.error(`error: ${error.response.data}`);
+      Logger.error(
+        SubscriptionService.name,
+        this.createSubscriptionTimestamp.name,
+        'Failed to timestamp',
+        error,
+      );
+      Logger.error(
+        SubscriptionService.name,
+        this.createSubscriptionTimestamp.name,
+        'Error',
+        error.response.data,
+      );
     }
   }
 }

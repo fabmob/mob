@@ -1,38 +1,35 @@
-import {
-  createStubInstance,
-  expect,
-  StubbedInstanceWithSinonAccessor,
-} from '@loopback/testlab';
+import {createStubInstance, expect, StubbedInstanceWithSinonAccessor} from '@loopback/testlab';
 import {AnyObject} from '@loopback/repository';
 import {securityId} from '@loopback/security';
 
 import {DashboardController} from '../../controllers';
-import {SubscriptionRepository, UserRepository} from '../../repositories';
-import {Subscription, User} from '../../models';
-import {IUser, SUBSCRIPTION_STATUS} from '../../utils';
+import {FunderRepository, SubscriptionRepository, UserRepository} from '../../repositories';
+import {Enterprise, Funder, Subscription, User} from '../../models';
+import {FUNDER_TYPE, IUser, SUBSCRIPTION_STATUS} from '../../utils';
 
 describe('Dashboard Controller', () => {
   let subscriptionRepository: StubbedInstanceWithSinonAccessor<SubscriptionRepository>,
-    userRepository: StubbedInstanceWithSinonAccessor<UserRepository>;
+    userRepository: StubbedInstanceWithSinonAccessor<UserRepository>,
+    funderRepository: StubbedInstanceWithSinonAccessor<FunderRepository>;
 
   beforeEach(() => {
     subscriptionRepository = createStubInstance(SubscriptionRepository);
     userRepository = createStubInstance(UserRepository);
+    funderRepository = createStubInstance(FunderRepository);
   });
 
   it('get(/v1/dashboards/citizens) success', done => {
     const controller = new DashboardController(
       subscriptionRepository,
       userRepository,
+      funderRepository,
       currentUser,
     );
 
     userRepository.stubs.findOne.resolves(mockUser);
-    subscriptionRepository.stubs.find.resolves([
-      mockSubscriptions1,
-      mockSubscriptions2,
-      mockSubscriptions3,
-    ]);
+    funderRepository.stubs.getFunderByNameAndType.resolves(mockFunder);
+
+    subscriptionRepository.stubs.find.resolves([mockSubscriptions1, mockSubscriptions2, mockSubscriptions3]);
 
     const citizenDashboardService = controller
       .findCitizen('2020', 'all')
@@ -47,8 +44,10 @@ describe('Dashboard Controller', () => {
     const controller = new DashboardController(
       subscriptionRepository,
       userRepository,
+      funderRepository,
       currentUser,
     );
+    funderRepository.stubs.getFunderByNameAndType.resolves(mockFunder);
 
     subscriptionRepository.stubs.find.rejects(mockSubscriptionDashboardError);
 
@@ -65,15 +64,14 @@ describe('Dashboard Controller', () => {
     const controller = new DashboardController(
       subscriptionRepository,
       userRepository,
+      funderRepository,
       currentUser,
     );
 
     userRepository.stubs.findOne.resolves(mockUser);
-    subscriptionRepository.stubs.find.resolves([
-      mockSubscriptions1,
-      mockSubscriptions2,
-      mockSubscriptions3,
-    ]);
+    funderRepository.stubs.getFunderByNameAndType.resolves(mockFunder);
+
+    subscriptionRepository.stubs.find.resolves([mockSubscriptions1, mockSubscriptions2, mockSubscriptions3]);
 
     const subscriptionDashboardResult = controller
       .find('2019', 'all')
@@ -88,15 +86,14 @@ describe('Dashboard Controller', () => {
     const controller = new DashboardController(
       subscriptionRepository,
       userRepository,
+      funderRepository,
       currentUser,
     );
 
     userRepository.stubs.findOne.resolves(mockUser);
-    subscriptionRepository.stubs.find.resolves([
-      mockSubscriptions1,
-      mockSubscriptions2,
-      mockSubscriptions3,
-    ]);
+    funderRepository.stubs.getFunderByNameAndType.resolves(mockFunder);
+
+    subscriptionRepository.stubs.find.resolves([mockSubscriptions1, mockSubscriptions2, mockSubscriptions3]);
 
     const subscriptionDashboardResult = controller
       .find('2019', '1')
@@ -111,15 +108,14 @@ describe('Dashboard Controller', () => {
     const controller = new DashboardController(
       subscriptionRepository,
       userRepository,
+      funderRepository,
       currentUser,
     );
 
     userRepository.stubs.findOne.resolves(mockUser);
-    subscriptionRepository.stubs.find.resolves([
-      mockSubscriptions1,
-      mockSubscriptions2,
-      mockSubscriptions3,
-    ]);
+    funderRepository.stubs.getFunderByNameAndType.resolves(mockFunder);
+
+    subscriptionRepository.stubs.find.resolves([mockSubscriptions1, mockSubscriptions2, mockSubscriptions3]);
 
     const subscriptionDashboardResult = controller
       .find('2019', '2')
@@ -134,15 +130,14 @@ describe('Dashboard Controller', () => {
     const controller = new DashboardController(
       subscriptionRepository,
       userRepository,
+      funderRepository,
       currentUser,
     );
 
     userRepository.stubs.findOne.resolves(mockUser);
-    subscriptionRepository.stubs.find.resolves([
-      mockSubscriptions1,
-      mockSubscriptions2,
-      mockSubscriptions3,
-    ]);
+    funderRepository.stubs.getFunderByNameAndType.resolves(mockFunder);
+
+    subscriptionRepository.stubs.find.resolves([mockSubscriptions1, mockSubscriptions2, mockSubscriptions3]);
 
     const subscriptionDashboardResult = controller
       .find('2019', '2')
@@ -157,20 +152,35 @@ describe('Dashboard Controller', () => {
     const controller = new DashboardController(
       subscriptionRepository,
       userRepository,
+      funderRepository,
       currentUser,
     );
 
     userRepository.stubs.findOne.resolves(mockUser);
-    subscriptionRepository.stubs.find.resolves([
-      mockSubscriptions1,
-      mockSubscriptions2,
-      mockSubscriptions3,
-    ]);
+    funderRepository.stubs.getFunderByNameAndType.resolves(mockFunder);
+
+    subscriptionRepository.stubs.find.resolves([mockSubscriptions1, mockSubscriptions2, mockSubscriptions3]);
 
     const subscriptionDashboardResult = controller.find('2019', '2');
 
     expect(subscriptionDashboardResult).to.deepEqual(mockSubscriptionDashboardError);
     done();
+  });
+
+  it('get(/v1/dashboards/subscriptions) ERROR', async () => {
+    const controller = new DashboardController(
+      subscriptionRepository,
+      userRepository,
+      funderRepository,
+      currentUser,
+    );
+
+    try {
+      userRepository.stubs.findOne.rejects(new Error('Error'));
+      await controller.find('2019', '2');
+    } catch (err) {
+      expect(err.message).to.equal('Error');
+    }
   });
 });
 
@@ -194,7 +204,7 @@ const mockSubscriptionDashboardError: Promise<AnyObject> = new Promise(() => {
 const mockSubscriptions1 = new Subscription({
   id: 'randomInputId1',
   incentiveId: 'incentiveId1',
-  funderName: 'funderName',
+  funderId: 'randomFunderId',
   incentiveType: 'AideEmployeur',
   incentiveTitle: 'incentiveTitle',
   citizenId: '7654321',
@@ -212,7 +222,7 @@ const mockSubscriptions1 = new Subscription({
 const mockSubscriptions2 = new Subscription({
   id: 'randomInputId2',
   incentiveId: 'incentiveId1',
-  funderName: 'funderName',
+  funderId: 'randomFunderId',
   incentiveType: 'AideEmployeur',
   incentiveTitle: 'incentiveTitle',
   citizenId: '1234567',
@@ -230,7 +240,7 @@ const mockSubscriptions2 = new Subscription({
 const mockSubscriptions3 = new Subscription({
   id: 'randomInputId3',
   incentiveId: 'incentiveId2',
-  funderName: 'funderName',
+  funderId: 'randomFunderId',
   incentiveType: 'AideEmployeur',
   incentiveTitle: 'incentiveTitle',
   citizenId: '1234567',
@@ -259,7 +269,13 @@ const mockUser = new User({
   email: 'random@random.fr',
   firstName: 'firstName',
   lastName: 'lastName',
-  funderId: 'random',
+  funderId: 'randomFunderId',
   roles: ['gestionnaires'],
   communityIds: ['id1', 'id2'],
 });
+
+const mockFunder = new Enterprise({
+  id: 'randomFunderId',
+  name: 'funderName',
+  type: FUNDER_TYPE.ENTERPRISE,
+}) as Funder;

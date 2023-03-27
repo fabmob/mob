@@ -97,6 +97,15 @@
   }
 }
 
+.profile-form-title-container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  div.identity-container {
+    margin: 0 0 12px 15px;
+  }
+}
+
 .field {
   flex: 1;
 }

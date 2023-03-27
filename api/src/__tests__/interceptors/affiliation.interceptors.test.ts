@@ -1,29 +1,16 @@
-import {
-  createStubInstance,
-  expect,
-  StubbedInstanceWithSinonAccessor,
-  sinon,
-} from '@loopback/testlab';
+import {createStubInstance, expect, StubbedInstanceWithSinonAccessor, sinon} from '@loopback/testlab';
 import {securityId} from '@loopback/security';
 
 import {AffiliationInterceptor} from '../../interceptors';
-import {ValidationError} from '../../validationError';
-import {IncentiveRepository, SubscriptionRepository} from '../../repositories';
-import {CitizenService, FunderService} from '../../services';
-import {Affiliation, Incentive, Citizen, Subscription, Territory} from '../../models';
-import {
-  AFFILIATION_STATUS,
-  FUNDER_TYPE,
-  IUser,
-  ResourceName,
-  Roles,
-  StatusCode,
-} from '../../utils';
+import {FunderRepository, IncentiveRepository, SubscriptionRepository} from '../../repositories';
+import {CitizenService} from '../../services';
+import {Affiliation, Incentive, Citizen, Subscription, Funder} from '../../models';
+import {AFFILIATION_STATUS, FUNDER_TYPE, IUser, Roles, StatusCode} from '../../utils';
 
 describe('affiliation Interceptor', () => {
   let interceptor: any = null;
   let incentiveRepository: StubbedInstanceWithSinonAccessor<IncentiveRepository>,
-    funderService: StubbedInstanceWithSinonAccessor<FunderService>,
+    funderRepository: StubbedInstanceWithSinonAccessor<FunderRepository>,
     currentUserProfile: IUser,
     citizenService: StubbedInstanceWithSinonAccessor<CitizenService>,
     subscriptionRepository: StubbedInstanceWithSinonAccessor<SubscriptionRepository>;
@@ -33,16 +20,11 @@ describe('affiliation Interceptor', () => {
     interceptor = new AffiliationInterceptor(
       incentiveRepository,
       subscriptionRepository,
-      funderService,
+      funderRepository,
       citizenService,
       currentUserProfile,
     );
   });
-  const error = new ValidationError(
-    'Access denied',
-    '/authorization',
-    StatusCode.Forbidden,
-  );
 
   it('AffiliationInterceptor value', async () => {
     const res = 'successful binding';
@@ -54,27 +36,28 @@ describe('affiliation Interceptor', () => {
   });
   it('AffiliationInterceptor: error"', async () => {
     try {
-      funderService.stubs.getFunders.resolves([
-        {funderType: FUNDER_TYPE.collectivity, name: 'maasName'},
-      ]);
+      funderRepository.stubs.findById.resolves(
+        new Funder({type: FUNDER_TYPE.COLLECTIVITY, name: 'maasName'}),
+      );
 
       citizenService.stubs.getCitizenWithAffiliationById.resolves(undefined);
 
       await interceptor.intercept(invocationCtx, () => {});
     } catch (err) {
-      expect(err).to.deepEqual(error);
+      expect(err.message).to.equal('Access denied');
+      expect(err.statusCode).to.equal(StatusCode.Forbidden);
     }
 
-    funderService.stubs.getFunders.restore();
+    funderRepository.stubs.findById.restore();
     citizenService.stubs.getCitizenWithAffiliationById.restore();
   });
 
   it('AffiliationInterceptor Create Subscription: error"', async () => {
     try {
       const incentive = new Incentive({id: '78952215', funderId: 'someFunderId'});
-      funderService.stubs.getFunders.resolves([
-        {funderType: FUNDER_TYPE.collectivity, name: 'maasName'},
-      ]);
+      funderRepository.stubs.findById.resolves(
+        new Funder({type: FUNDER_TYPE.COLLECTIVITY, name: 'maasName'}),
+      );
 
       incentiveRepository.stubs.findOne.resolves(incentive);
 
@@ -82,19 +65,20 @@ describe('affiliation Interceptor', () => {
 
       await interceptor.intercept(invocationCtxCreateSubscription, () => {});
     } catch (err) {
-      expect(err).to.deepEqual(error);
+      expect(err.message).to.equal('Access denied');
+      expect(err.statusCode).to.equal(StatusCode.Forbidden);
     }
 
-    funderService.stubs.getFunders.restore();
+    funderRepository.stubs.findById.restore();
     citizenService.stubs.getCitizenWithAffiliationById.restore();
     incentiveRepository.stubs.findOne.restore();
   });
 
   it('AffiliationInterceptor Create Subscription: error 2"', async () => {
     try {
-      funderService.stubs.getFunders.resolves([
-        {funderType: FUNDER_TYPE.collectivity, name: 'maasName'},
-      ]);
+      funderRepository.stubs.findById.resolves(
+        new Funder({type: FUNDER_TYPE.COLLECTIVITY, name: 'maasName'}),
+      );
 
       incentiveRepository.stubs.findOne.resolves(null);
 
@@ -102,10 +86,11 @@ describe('affiliation Interceptor', () => {
 
       await interceptor.intercept(invocationCtxCreateSubscription2, () => {});
     } catch (err) {
-      expect(err).to.deepEqual(error);
+      expect(err.message).to.equal('Access denied');
+      expect(err.statusCode).to.equal(StatusCode.Forbidden);
     }
 
-    funderService.stubs.getFunders.restore();
+    funderRepository.stubs.findById.restore();
     citizenService.stubs.getCitizenWithAffiliationById.restore();
     incentiveRepository.stubs.findOne.restore();
   });
@@ -115,9 +100,9 @@ describe('affiliation Interceptor', () => {
       const subscription = new Subscription({id: '5654555', incentiveId: '5854235'});
       const incentive = new Incentive({id: '78952215', funderId: 'someFunderId'});
 
-      funderService.stubs.getFunders.resolves([
-        {funderType: FUNDER_TYPE.collectivity, name: 'maasName'},
-      ]);
+      funderRepository.stubs.findById.resolves(
+        new Funder({type: FUNDER_TYPE.COLLECTIVITY, name: 'maasName'}),
+      );
 
       incentiveRepository.stubs.findOne.resolves(incentive);
       subscriptionRepository.stubs.findOne.resolves(subscription);
@@ -126,10 +111,11 @@ describe('affiliation Interceptor', () => {
 
       await interceptor.intercept(invocationCtxAddFiles, () => {});
     } catch (err) {
-      expect(err).to.deepEqual(error);
+      expect(err.message).to.equal('Access denied');
+      expect(err.statusCode).to.equal(StatusCode.Forbidden);
     }
 
-    funderService.stubs.getFunders.restore();
+    funderRepository.stubs.findById.restore();
     citizenService.stubs.getCitizenWithAffiliationById.restore();
     incentiveRepository.stubs.findOne.restore();
     subscriptionRepository.stubs.findOne.restore();
@@ -140,9 +126,9 @@ describe('affiliation Interceptor', () => {
       const subscription = new Subscription({id: '5654555'});
       const incentive = new Incentive({id: '78952215'});
 
-      funderService.stubs.getFunders.resolves([
-        {funderType: FUNDER_TYPE.collectivity, name: 'maasName'},
-      ]);
+      funderRepository.stubs.findById.resolves(
+        new Funder({type: FUNDER_TYPE.COLLECTIVITY, name: 'maasName'}),
+      );
 
       incentiveRepository.stubs.findOne.resolves(incentive);
       subscriptionRepository.stubs.findOne.resolves(subscription);
@@ -151,19 +137,21 @@ describe('affiliation Interceptor', () => {
 
       await interceptor.intercept(invocationCtxAddFiles, () => {});
     } catch (err) {
-      expect(err).to.deepEqual(error);
+      expect(err.message).to.equal('Access denied');
+      expect(err.statusCode).to.equal(StatusCode.Forbidden);
     }
 
-    funderService.stubs.getFunders.restore();
+    funderRepository.stubs.findById.restore();
     citizenService.stubs.getCitizenWithAffiliationById.restore();
     subscriptionRepository.stubs.findOne.restore();
     incentiveRepository.stubs.findOne.restore();
   });
 
   it('AffiliationInterceptor: OK', async () => {
-    funderService.stubs.getFunders.resolves([
-      {id: 'testFunder', funderType: FUNDER_TYPE.collectivity, name: 'testName'},
-    ]);
+    funderRepository.stubs.findById.resolves(
+      new Funder({id: 'testFunder', type: FUNDER_TYPE.COLLECTIVITY, name: 'maasName'}),
+    );
+
     const affiliation = new Affiliation(
       Object.assign({enterpriseId: 'funderId', enterpriseEmail: 'test@test.com'}),
     );
@@ -177,15 +165,15 @@ describe('affiliation Interceptor', () => {
     const result = await interceptor.intercept(invocationCtx, () => {});
     expect(result).to.Null;
 
-    funderService.stubs.getFunders.restore();
+    funderRepository.stubs.findById.restore();
     citizenService.stubs.getCitizenWithAffiliationById.restore();
   });
 
   it('AffiliationInterceptor find id incentive territory"', async () => {
     try {
-      funderService.stubs.getFunders.resolves([
-        {funderType: FUNDER_TYPE.collectivity, name: 'maasName'},
-      ]);
+      funderRepository.stubs.findById.resolves(
+        new Funder({type: FUNDER_TYPE.COLLECTIVITY, name: 'maasName'}),
+      );
 
       const affiliation = new Affiliation(
         Object.assign({enterpriseId: 'funderId', enterpriseEmail: 'test@test.com'}),
@@ -200,19 +188,20 @@ describe('affiliation Interceptor', () => {
 
       await interceptor.intercept(invocationCtxFindId, () => {});
     } catch (err) {
-      expect(err).to.deepEqual(error);
+      expect(err.message).to.equal('Access denied');
+      expect(err.statusCode).to.equal(StatusCode.Forbidden);
     }
 
-    funderService.stubs.getFunders.restore();
+    funderRepository.stubs.findById.restore();
     citizenService.stubs.getCitizenWithAffiliationById.restore();
     incentiveRepository.stubs.findOne.restore();
   });
 
   it('AffiliationInterceptor find id incentive"', async () => {
     try {
-      funderService.stubs.getFunders.resolves([
-        {funderType: FUNDER_TYPE.collectivity, name: 'maasName'},
-      ]);
+      funderRepository.stubs.findById.resolves(
+        new Funder({type: FUNDER_TYPE.COLLECTIVITY, name: 'maasName'}),
+      );
 
       const affiliation = new Affiliation(
         Object.assign({enterpriseId: 'funderId', enterpriseEmail: 'test@test.com'}),
@@ -227,10 +216,11 @@ describe('affiliation Interceptor', () => {
 
       await interceptor.intercept(invocationCtxFindId, () => {});
     } catch (err) {
-      expect(err).to.deepEqual(error);
+      expect(err.message).to.equal('Access denied');
+      expect(err.statusCode).to.equal(StatusCode.Forbidden);
     }
 
-    funderService.stubs.getFunders.restore();
+    funderRepository.stubs.findById.restore();
     citizenService.stubs.getCitizenWithAffiliationById.restore();
     incentiveRepository.stubs.findOne.restore();
   });
@@ -246,13 +236,27 @@ describe('affiliation Interceptor', () => {
     incentiveRepository.stubs.findOne.restore();
   });
 
+  it('AffiliationInterceptor findIncentiveById incentive not found"', async () => {
+    try {
+      const contentEditor = currentUserProfile;
+      contentEditor.roles = [Roles.CONTENT_EDITOR];
+
+      incentiveRepository.stubs.findOne.resolves(undefined);
+      await interceptor.intercept(invocationCtxFindId, () => {});
+    } catch (err) {
+      expect(err.message).to.equal('Incentive not found');
+      expect(err.statusCode).to.equal(StatusCode.NotFound);
+    }
+  });
+
   it('AffiliationInterceptor addAttachments: subscription not found', async () => {
     try {
       subscriptionRepository.stubs.findOne.resolves(null);
 
       await interceptor.intercept(invocationCtxAddAttachments, () => {});
     } catch (err) {
-      expect(err).to.deepEqual(errorNotFound);
+      expect(err.message).to.equal('Subscription not found');
+      expect(err.statusCode).to.equal(StatusCode.NotFound);
     }
     incentiveRepository.stubs.findOne.restore();
   });
@@ -263,7 +267,8 @@ describe('affiliation Interceptor', () => {
 
       await interceptor.intercept(invocationCtxFinalizeSubscription, () => {});
     } catch (err) {
-      expect(err).to.deepEqual(errorNotFound);
+      expect(err.message).to.equal('Subscription not found');
+      expect(err.statusCode).to.equal(StatusCode.NotFound);
     }
     incentiveRepository.stubs.findOne.restore();
   });
@@ -272,7 +277,7 @@ describe('affiliation Interceptor', () => {
     citizenService = createStubInstance(CitizenService);
     incentiveRepository = createStubInstance(IncentiveRepository);
     subscriptionRepository = createStubInstance(SubscriptionRepository);
-    funderService = createStubInstance(FunderService);
+    funderRepository = createStubInstance(FunderRepository);
     currentUserProfile = {
       id: 'testId',
       clientName: 'testName-client',
@@ -319,7 +324,7 @@ const invocationCtxFinalizeSubscription = {
 };
 
 const mockPublicIncentive = new Incentive({
-  territory: {name: 'Toulouse', id: 'test'} as Territory,
+  territoryIds: ['test'],
   additionalInfos: 'test',
   funderName: 'Mairie',
   allocatedAmount: '200 €',
@@ -341,7 +346,7 @@ const mockPublicIncentive = new Incentive({
 });
 
 const mockPrivateIncentive = new Incentive({
-  territory: {name: 'Toulouse', id: 'test'} as Territory,
+  territoryIds: ['test'],
   additionalInfos: 'test',
   funderName: 'Mairie',
   allocatedAmount: '200 €',
@@ -362,10 +367,3 @@ const mockPrivateIncentive = new Incentive({
   isMCMStaff: true,
   funderId: 'funderId',
 });
-
-const errorNotFound = new ValidationError(
-  `Subscription not found`,
-  '/subscriptionNotFound',
-  StatusCode.NotFound,
-  ResourceName.Subscription,
-);

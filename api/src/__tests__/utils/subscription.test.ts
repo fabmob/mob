@@ -11,11 +11,7 @@ describe('Subscription functions', () => {
       test: 34,
     };
 
-    const convertedSF = convertSpecificFields(
-      specificFields,
-      'EL',
-      '2023-01-10T13:45:06.540Z',
-    );
+    const convertedSF = convertSpecificFields(specificFields, 'EL', '2023-01-10T13:45:06.540Z');
     expect(convertedSF).to.containEql({
       journey_type: 'long',
       driving_license: '12345678',
@@ -32,11 +28,7 @@ describe('Subscription functions', () => {
       'Identifiant du   Trajet  ': '23456789',
     };
 
-    const convertedSF = convertSpecificFields(
-      specificFields,
-      'LastName',
-      '2023-01-10T13:45:06.540Z',
-    );
+    const convertedSF = convertSpecificFields(specificFields, 'LastName', '2023-01-10T13:45:06.540Z');
     expect(convertedSF).to.containEql({
       journey_type: 'short',
       driving_license: '12345678',
@@ -46,11 +38,7 @@ describe('Subscription functions', () => {
   });
 
   it('convertSpecificFields : undefined specificFields', () => {
-    const convertedSF = convertSpecificFields(
-      undefined,
-      'LastName',
-      '2023-01-10T13:45:06.540Z',
-    );
+    const convertedSF = convertSpecificFields(undefined, 'LastName', '2023-01-10T13:45:06.540Z');
     expect(convertedSF).to.containEql({
       last_name_trunc: 'LAS',
     });

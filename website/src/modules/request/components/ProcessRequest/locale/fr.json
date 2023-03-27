@@ -2,7 +2,7 @@
   "subscription.processRequest.crumb.label.new.request": "Nouvelle demande",
   "subscription.processRequest.visualize": "Veuillez vérifier que les informations et justificatifs fournis sont en adéquation avec les conditions d'obtention de l'aide.",
   "subscription.processRequest.validate": "Les informations fournies sont conformes aux conditions d'obtention de l'aide",
-  "subscription.processRequest.reject": "Le rejet de cette demande d'aide entrainera la suppresion des informations et justificatifs envoyés. Seul le motif de rejet sera conservé dans MOB",
+  "subscription.processRequest.reject": "Le rejet de cette demande d'aide entrainera la suppression des informations et justificatifs envoyés. Seul le motif de rejet sera conservé dans moB",
   "subscription.processRequest.confirmValidate": "L'aide a bien été activée",
   "subscription.processRequest.confirmReject": "La demande d'aide a bien été rejetée",
   "subscription.processRequest.confirmValidate.modal.title": "Activer le dispositif",
@@ -29,6 +29,4 @@
   "request.information.no.file.to.download": "Pas de fichiers telechargables",
   "request.information.reject.request": "Rejeter la demande",
   "request.information.validate.informations.conforrmity": "Valider la conformité des informations"
-
-} 
-
+}

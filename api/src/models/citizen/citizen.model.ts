@@ -98,6 +98,36 @@ export class Citizen extends Entity {
   terms_and_conditions: number;
 
   @property({
+    type: 'number',
+    description: `Timestamp de la dernière date de modification`,
+    hidden: true,
+    jsonSchema: {
+      example: 1670504459406,
+    },
+  })
+  updatedAt: number;
+
+  @property({
+    type: 'number',
+    description: `Timestamp de la dernière date de connexion`,
+    hidden: true,
+    jsonSchema: {
+      example: 1670504459406,
+    },
+  })
+  lastLoginAt: number;
+
+  @property({
+    type: 'boolean',
+    description: `Notification de suppression de compte envoyée`,
+    hidden: true,
+    jsonSchema: {
+      example: false,
+    },
+  })
+  isInactivityNotificationSent?: boolean;
+
+  @property({
     description: `Objet d'affiliation du citoyen à une entreprise`,
   })
   affiliation: Affiliation;
@@ -147,9 +177,7 @@ export class Citizen extends Entity {
         'identity.birthPlace': JSON.stringify(this.identity.birthPlace),
         'identity.birthCountry': JSON.stringify(this.identity.birthCountry),
         'personalInformation.email': JSON.stringify(this.personalInformation.email),
-        'personalInformation.primaryPhoneNumber': JSON.stringify(
-          this.personalInformation.primaryPhoneNumber,
-        ),
+        'personalInformation.primaryPhoneNumber': JSON.stringify(this.personalInformation.primaryPhoneNumber),
         'personalInformation.secondaryPhoneNumber': JSON.stringify(
           this.personalInformation.secondaryPhoneNumber,
         ),
@@ -166,6 +194,8 @@ export class Citizen extends Entity {
         tos1: this.tos1,
         tos2: this.tos2,
         updatedAt: Date.now(),
+        lastLoginAt: this.lastLoginAt,
+        isInactivityNotificationSent: this.isInactivityNotificationSent,
       },
     };
 

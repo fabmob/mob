@@ -97,11 +97,11 @@ useStaticQuery.mockImplementation(() => ({
 }));
 
 describe('<AideSearchList />', () => {
-  test('Check presents of green card', async () => {
+  test('Check presents of green card disconnected', async () => {
     const { getByText } = render(<AideSearchList items={[]} greenCard />);
     expect(
       getByText(
-        'Découvrez les aides proposées par votre employeur en créant votre compte.'
+        'Connectez-vous ou créez votre compte pour :'
       ).closest('.mcm-card--green')
     ).toBeInTheDocument();
   });
@@ -120,7 +120,7 @@ describe('<AideSearchList />', () => {
     const { queryByText } = render(<AideSearchList items={aideList} />);
     expect(
       queryByText(
-        'Découvrez les aides proposées par votre employeur en créant votre compte.'
+        'Connectez-vous ou créez votre compte pour :'
       )
     ).toBeNull();
   });

@@ -147,7 +147,6 @@ statefulSet:
         io.kompose.service: idp
       name: idp
     spec:
-      replicas: 1
       selector:
         matchLabels:
           io.kompose.service: idp
@@ -197,6 +196,8 @@ statefulSet:
               LANDSCAPE: ${LANDSCAPE}
               BASE_DOMAIN: ${BASE_DOMAIN}
               MATOMO_FQDN: ${MATOMO_FQDN}
+              URL_LOGOUT_FC: ${IDP_URL_LOGOUT_FC}
+              URL_FC: ${IDP_URL_FC}
               JGROUPS_DISCOVERY_PROTOCOL: kubernetes.KUBE_PING
               JGROUPS_TRANSPORT_STACK: tcp
               KC_CACHE_STACK: kubernetes

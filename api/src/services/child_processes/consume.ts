@@ -3,7 +3,7 @@ import {isEmpty} from 'lodash';
 import process from 'process';
 
 import {RabbitmqConfig} from '../../config';
-import {EVENT_MESSAGE, IMessage, logger, UPDATE_MODE} from '../../utils';
+import {EVENT_MESSAGE, IMessage, Logger, UPDATE_MODE} from '../../utils';
 import {connect, createChannel} from './connect';
 
 export class ConsumeProcess {
@@ -30,9 +30,7 @@ export class ConsumeProcess {
 
         // Handle message reception from parent
         process.on('message', async (message: IMessage) => {
-          logger.info(
-            `${ConsumeProcess.name} - Message from parent: ${JSON.stringify(message)}`,
-          );
+          Logger.info(ConsumeProcess.name, this.start.name, 'Message from parent', message);
           if (message.type === EVENT_MESSAGE.UPDATE) {
             await this.bulkCancelConsumer(message.data[UPDATE_MODE.DELETE]);
             await this.bulkAddConsumer(message.data[UPDATE_MODE.ADD]);
@@ -46,7 +44,7 @@ export class ConsumeProcess {
         this.addChannelErrorListeners();
       }
     } catch (err) {
-      logger.error(`${ConsumeProcess.name} - ${err}`);
+      Logger.error(ConsumeProcess.name, this.start.name, 'Error', err);
       await this.retryConnection();
     }
   }
@@ -56,16 +54,16 @@ export class ConsumeProcess {
    */
   private addConnectionErrorListeners(): void {
     this.connection.on('error', (err: any) => {
-      logger.error(`${ConsumeProcess.name} - Connection - Error : ${err}`);
+      Logger.error(ConsumeProcess.name, this.addConnectionErrorListeners.name, 'Error', err);
     });
 
     this.connection.on('exit', async (code: number) => {
-      logger.error(`${ConsumeProcess.name} - Connection - Exited with code : ${code}`);
+      Logger.error(ConsumeProcess.name, this.addConnectionErrorListeners.name, 'Exited with code', code);
       await this.retryConnection();
     });
 
     this.connection.on('close', async (err: any) => {
-      logger.error(`${ConsumeProcess.name} - Connection - Closed : ${err}`);
+      Logger.error(ConsumeProcess.name, this.addConnectionErrorListeners.name, 'Closed', err);
       await this.retryConnection();
     });
   }
@@ -75,17 +73,17 @@ export class ConsumeProcess {
    */
   private addChannelErrorListeners(): void {
     this.channel.on('error', async (err: any) => {
-      logger.error(`${ConsumeProcess.name} - Channel - Error : ${err}`);
+      Logger.error(ConsumeProcess.name, this.addChannelErrorListeners.name, 'Error', err);
       await this.retryChannel();
     });
 
     this.channel.on('exit', async (code: number) => {
-      logger.error(`${ConsumeProcess.name} - Channel - Exited with code: ${code}`);
+      Logger.error(ConsumeProcess.name, this.addChannelErrorListeners.name, 'Exited with code', code);
       await this.retryChannel();
     });
 
     this.channel.on('close', (err: any) => {
-      logger.error(`${ConsumeProcess.name} - Channel - Closed: ${err}`);
+      Logger.error(ConsumeProcess.name, this.addChannelErrorListeners.name, 'Closed', err);
     });
   }
 
@@ -101,10 +99,12 @@ export class ConsumeProcess {
           const consumer: Replies.Consume = await this.channel.consume(
             this.rabbitmqConfig.getConsumerQueue(enterpriseName),
             (msg: ConsumeMessage | null) => {
-              logger.info(`${
-                ConsumeProcess.name
-              } - RabbitMQ Consumer received message from: \
-                ${this.rabbitmqConfig.getConsumerQueue(enterpriseName)}`);
+              Logger.info(
+                ConsumeProcess.name,
+                this.bulkAddConsumer.name,
+                'RabbitMQ Consumer received message from',
+                this.rabbitmqConfig.getConsumerQueue(enterpriseName),
+              );
               process.send!({
                 type: EVENT_MESSAGE.CONSUME,
                 data: msg,
@@ -115,14 +115,16 @@ export class ConsumeProcess {
           Object.assign(this.hashMapConsumerEnterprise, {
             [enterpriseName]: consumer.consumerTag,
           });
-          logger.info(`${ConsumeProcess.name} - RabbitMQ Consumer created: \
-              ${consumer.consumerTag} - ${this.rabbitmqConfig.getConsumerQueue(
-            enterpriseName,
-          )}`);
+          Logger.info(
+            ConsumeProcess.name,
+            this.bulkAddConsumer.name,
+            'RabbitMQ Consumer created',
+            consumer.consumerTag,
+          );
         }
       }),
     ).catch(err => {
-      logger.error(`${ConsumeProcess.name} - ${err}`);
+      Logger.error(ConsumeProcess.name, this.bulkAddConsumer.name, 'Error', err);
     });
   }
 
@@ -137,15 +139,23 @@ export class ConsumeProcess {
         if (await this.checkExistingQueue(enterpriseName)) {
           await this.channel.cancel(consumerTag);
           delete this.hashMapConsumerEnterprise[enterpriseName];
-          logger.info(`${ConsumeProcess.name} - RabbitMQ Consumer canceled: \
-              ${consumerTag} - ${this.rabbitmqConfig.getConsumerQueue(enterpriseName)}`);
+          Logger.info(
+            ConsumeProcess.name,
+            this.bulkCancelConsumer.name,
+            'RabbitMQ Consumer canceled',
+            consumerTag,
+          );
         } else {
-          logger.info(`${ConsumeProcess.name} - RabbitMQ Consumer cannot be canceled : \
-              ${consumerTag} - ${this.rabbitmqConfig.getConsumerQueue(enterpriseName)}`);
+          Logger.info(
+            ConsumeProcess.name,
+            this.bulkCancelConsumer.name,
+            'RabbitMQ Consumer cannot be canceled',
+            consumerTag,
+          );
         }
       }),
     ).catch(err => {
-      logger.error(`${ConsumeProcess.name} - ${err}`);
+      Logger.error(ConsumeProcess.name, this.bulkCancelConsumer.name, 'Error', err);
     });
   }
 
@@ -156,14 +166,22 @@ export class ConsumeProcess {
   private async checkExistingQueue(enterpriseName: string): Promise<boolean> {
     const channelTest: Channel = await createChannel(this.connection, true);
     channelTest.on('error', (err: any) => {
-      logger.info(`${ConsumeProcess.name} - RabbitMQ Queue does not exists: \
-            ${this.rabbitmqConfig.getConsumerQueue(enterpriseName)}`);
+      Logger.info(
+        ConsumeProcess.name,
+        this.checkExistingQueue.name,
+        'RabbitMQ Queue does not exists',
+        this.rabbitmqConfig.getConsumerQueue(enterpriseName),
+      );
       return false;
     });
 
     channelTest.on('exit', (code: number) => {
-      logger.info(`${ConsumeProcess.name} - RabbitMQ Queue does not exists: \
-            ${this.rabbitmqConfig.getConsumerQueue(enterpriseName)}`);
+      Logger.info(
+        ConsumeProcess.name,
+        this.checkExistingQueue.name,
+        'RabbitMQ Queue does not exists',
+        this.rabbitmqConfig.getConsumerQueue(enterpriseName),
+      );
       return false;
     });
     await channelTest.checkQueue(this.rabbitmqConfig.getConsumerQueue(enterpriseName));
@@ -175,11 +193,7 @@ export class ConsumeProcess {
    * Restart registered consumers in hashmap
    */
   private async restartConsumers(): Promise<void> {
-    if (
-      !isEmpty(this.channel) &&
-      !isEmpty(this.connection) &&
-      this.hashMapConsumerEnterprise
-    ) {
+    if (!isEmpty(this.channel) && !isEmpty(this.connection) && this.hashMapConsumerEnterprise) {
       await this.bulkAddConsumer(Object.keys(this.hashMapConsumerEnterprise));
     }
   }
@@ -189,7 +203,7 @@ export class ConsumeProcess {
    */
   private async retryConnection(): Promise<void> {
     if (process.env.LANDSCAPE && process.env.LANDSCAPE !== 'preview') {
-      logger.info(`${ConsumeProcess.name} - Process will restart`);
+      Logger.info(ConsumeProcess.name, this.retryConnection.name, 'Process will restart');
       setTimeout(async () => {
         this.connection = {} as Connection;
         this.channel = {} as Channel;
@@ -204,7 +218,7 @@ export class ConsumeProcess {
    * Retry channel
    */
   private async retryChannel(): Promise<void> {
-    logger.info(`${ConsumeProcess.name} - Channel will restart`);
+    Logger.info(ConsumeProcess.name, this.retryChannel.name, 'Channel will restart');
     setTimeout(async () => {
       this.channel = await createChannel(this.connection);
       this.addChannelErrorListeners();

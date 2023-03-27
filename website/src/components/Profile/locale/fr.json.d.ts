@@ -7,7 +7,7 @@ interface Fr {
   'citoyens.error.required': string;
   'citoyens.error.postcode.type': string;
   'citoyens.error.postcode.format': string;
-  'citoyens.error.emailCompany.pattern': string;
+  'citizen.email.professional.error.format': string;
   'email.error.format': string;
   'email.resend.affiliation.notification.success': string;
   'update.notification.success': string;
@@ -37,6 +37,7 @@ interface Fr {
   'profile.label.pro.status2': string;
   'profile.label.enterprise': string;
   'profile.label.collectivity': string;
+  'profile.label.nationalAdministration': string;
   'profile.label.pro.email': string;
   'profile.label.affiliation.status': string;
   'profile.label.gender': string;
@@ -79,6 +80,10 @@ interface Fr {
   'citizen.who.to.link.account': string;
   'citizen.consent.actif': string;
   'citizen.deleteAccount.toaster': string;
+  'profile.unextended.login.FC.message': string;
+  'profile.Extended.login.FC.question': string;
+  'profile.Extended.login.FC.message1': string;
+  'profile.Extended.login.FC.message2': string;
 }
 
 declare const value: Fr;

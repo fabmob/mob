@@ -1,13 +1,9 @@
-import {
-  createStubInstance,
-  expect,
-  StubbedInstanceWithSinonAccessor,
-} from '@loopback/testlab';
+import {createStubInstance, expect, StubbedInstanceWithSinonAccessor} from '@loopback/testlab';
 import {ContactController} from '../../controllers/contact.controller';
 import {ContactService, MailService} from '../../services';
 
 import {Contact} from '../../models';
-import {USERTYPE} from '../../utils';
+import {StatusCode, USERTYPE} from '../../utils';
 
 describe('Contact Controller ', () => {
   let contactService: StubbedInstanceWithSinonAccessor<ContactService>,
@@ -18,11 +14,30 @@ describe('Contact Controller ', () => {
     controller = new ContactController(contactService, mailService);
   });
 
-  it('post(v1/contact)', async () => {
+  it('post(v1/contact) ERROR', async () => {
+    contactService.stubs.sendMailClient.rejects(new Error('Error'));
+    try {
+      await controller.create(mockContact);
+    } catch (err) {
+      expect(err.message).to.equal('Error');
+    }
+  });
+
+  it('post(v1/contact) success', async () => {
     contactService.stubs.sendMailClient.resolves(mockContact);
     const result = await controller.create(mockContact);
 
     expect(result).to.deepEqual(mockContact);
+  });
+
+  it('post(v1/contact) tos ERROR', async () => {
+    try {
+      mockContact.tos = false;
+      await controller.create(mockContact);
+    } catch (err) {
+      expect(err.message).to.equal('User must agree to terms of services');
+      expect(err.statusCode).to.equal(StatusCode.UnprocessableEntity);
+    }
   });
 
   function givenStubbedService() {

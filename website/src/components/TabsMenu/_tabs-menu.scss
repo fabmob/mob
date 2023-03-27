@@ -39,7 +39,6 @@
 
   &__content {
     background-color: var(--color-grey-ultralight);
-    min-height: 200px;
     padding: 40px 0;
 
     @media screen and (min-width: 1024px) {
@@ -52,19 +51,29 @@
     }
 
     .page-container {
-      @media screen and (max-width:576px) {
+      display: flex;
+      @media screen and (max-width: 768px) {
         flex-direction: column;
       }
       > .content-list {
-        text-align: justify;  
+        text-align: justify;
+        padding-right: 20px;
+
         @media screen and (min-width: 1024px) {
           width: 50%;
           margin-right: 60px;
         }
       }
+      a {
+        color: blue;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
 
-      .show-more {
-        display: none;
+      .show-more,
+      .has-show-more {
+        display: flex;
         position: absolute;
         background: linear-gradient(
           180deg,
@@ -87,27 +96,25 @@
       }
     }
 
-    &.has-show-more {
-      .tab {
-        max-height: 700px;
-        overflow-y: hidden;
-      }
-
-      .show-more {
-        display: flex;
-      }
-    }
-
-    &.is-expanded {
+    .tab {
+      max-height: none;
+      overflow-y: visible;
       padding-bottom: 40px;
 
-      .show-more {
-        display: none;
-      }
+      &.not-expanded {
+        max-height: 700px;
+        overflow-y: hidden;
 
-      .tab {
+        .has-show-more {
+          display: flex;
+        }
+      }
+      &.is-expanded {
         max-height: none;
         overflow-y: visible;
+        .show-more {
+          display: none;
+        }
       }
     }
 
@@ -120,13 +127,16 @@
         border-radius: 8px;
         margin-top: 24px;
         display: block;
-        @media screen and (min-width: 1024px) {
+        word-wrap: break-word;
+        width: 500px;
+        @media screen and (max-width: 768px) {
           display: block;
           right: 24px;
           top: 0;
-          width: 90%;
+          width: 100%;
           margin-top: 0;
           margin-bottom: 40px;
+          word-wrap: break-word;
         }
 
         &__header {

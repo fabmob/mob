@@ -6,25 +6,16 @@ import {RequiredActionAlias} from 'keycloak-admin/lib/defs/requiredActionProvide
 import UserRepresentation from 'keycloak-admin/lib/defs/userRepresentation';
 import {head, startCase} from 'lodash';
 
-import {
-  Citizen,
-  GroupAttribute,
-  KeycloakGroup,
-  KeycloakGroupRelations,
-  User,
-} from '../models';
+import {Citizen, GroupAttribute, KeycloakGroup, KeycloakGroupRelations, User} from '../models';
 
 import {baseUrl, realmName, credentials} from '../constants';
+import {ResourceName, StatusCode, GROUPS, Consent, IUser, IDP_EMAIL_TEMPLATE, Logger} from '../utils';
 import {
-  ResourceName,
-  StatusCode,
-  GROUPS,
-  Consent,
-  IUser,
-  IDP_EMAIL_TEMPLATE,
-  logger,
-} from '../utils';
-import {ValidationError} from '../validationError';
+  BadRequestError,
+  ConflictError,
+  InternalServerError,
+  UnprocessableEntityError,
+} from '../validationError';
 import {KeycloakGroupRepository, UserEntityRepository} from '../repositories';
 
 @injectable({scope: BindingScope.TRANSIENT})
@@ -93,30 +84,30 @@ export class KeycloakService {
       .auth(credentials)
       .then(() => this.keycloakAdmin.users.create(userToCreate))
       .catch(err => {
-        logger.error(`${KeycloakService.name}: ${err}`);
         if (err && err.response) {
           const {status, data} = err.response;
 
-          if (status === StatusCode.Conflict)
-            throw new ValidationError(
+          if (status === StatusCode.Conflict) {
+            throw new ConflictError(
+              KeycloakService.name,
+              this.createUserKc.name,
               `email.error.unique`,
               '/personalInformation.email.value',
-              StatusCode.Conflict,
               ResourceName.Account,
+              user instanceof User ? user.email : user.personalInformation.email.value,
             );
-          else if (
-            status === 400 &&
-            data &&
-            data.errorMessage === 'Password policy not met'
-          )
-            throw new ValidationError(
+          } else if (status === 400 && data && data.errorMessage === 'Password policy not met') {
+            throw new UnprocessableEntityError(
+              KeycloakService.name,
+              this.createUserKc.name,
               `password.error.format`,
               '/password',
-              StatusCode.PreconditionFailed,
               ResourceName.Account,
+              user instanceof User ? '' : user.password,
             );
+          }
         }
-        throw new ValidationError(`cannot connect to IDP or add user`, '');
+        throw new InternalServerError(KeycloakService.name, this.createUserKc.name, err.message);
       });
   }
 
@@ -183,7 +174,10 @@ export class KeycloakService {
     return this.keycloakAdmin
       .auth(credentials)
       .then(() => this.keycloakAdmin.users.update({id: id}, userToUpdate))
-      .catch(err => err);
+      .catch(err => {
+        Logger.error(KeycloakService.name, this.updateUserKC.name, 'Error', err);
+        err;
+      });
   }
 
   createGroupKc(name: string, type: GROUPS): Promise<{id: string}> {
@@ -197,31 +191,48 @@ export class KeycloakService {
       .then((res): Promise<{id: string}> => {
         const topGroup = head(res);
 
-        if (!!topGroup && topGroup.id)
+        if (!!topGroup && topGroup.id) {
           return this.keycloakAdmin.groups.setOrCreateChild({id: topGroup.id}, {name});
-        else
-          throw new ValidationError(
+        } else {
+          throw new BadRequestError(
+            KeycloakService.name,
+            this.createGroupKc.name,
             `${type}.error.topgroup`,
             `/${type}`,
-            StatusCode.PreconditionFailed,
             ResourceName.Enterprise,
+            res,
           );
+        }
       })
       .catch(err => {
+        Logger.error(KeycloakService.name, this.createGroupKc.name, 'Error', err.message);
         if (err && err.response) {
           const {status} = err.response;
 
-          if (status === StatusCode.Conflict)
-            throw new ValidationError(
+          if (status === StatusCode.Conflict) {
+            throw new ConflictError(
+              KeycloakService.name,
+              this.createGroupKc.name,
               `${type}.error.name.unique`,
               `/${type}`,
-              StatusCode.Conflict,
               ResourceName.Enterprise,
+              type,
             );
+          }
         }
-        if (err instanceof ValidationError) throw err;
 
-        throw new ValidationError(`cannot connect to IDP or add group`, '');
+        if (err && err.statusCode === StatusCode.BadRequest) {
+          throw new BadRequestError(
+            KeycloakService.name,
+            this.createGroupKc.name,
+            `${type}.error.topgroup`,
+            `/${type}`,
+            ResourceName.Enterprise,
+            err,
+          );
+        }
+
+        throw new InternalServerError(KeycloakService.name, this.createGroupKc.name, err);
       });
   }
 
@@ -229,17 +240,20 @@ export class KeycloakService {
     return this.keycloakAdmin
       .auth(credentials)
       .then(() => this.keycloakAdmin.groups.del({id}))
-      .catch(err => err);
+      .catch(err => {
+        Logger.error(KeycloakService.name, this.deleteGroupKc.name, 'Error', err);
+        err;
+      });
   }
 
-  sendExecuteActionsEmailUserKc(
-    id: string,
-    actions: RequiredActionAlias[],
-  ): Promise<void> {
+  sendExecuteActionsEmailUserKc(id: string, actions: RequiredActionAlias[]): Promise<void> {
     return this.keycloakAdmin
       .auth(credentials)
       .then(() => this.keycloakAdmin.users.executeActionsEmail({id, actions}))
-      .catch(err => err);
+      .catch(err => {
+        Logger.error(KeycloakService.name, this.sendExecuteActionsEmailUserKc.name, 'Error', err);
+        err;
+      });
   }
 
   async listConsents(id: string): Promise<Consent[]> {
@@ -256,15 +270,6 @@ export class KeycloakService {
       .auth(credentials)
 
       .then(() => this.keycloakAdmin.users.revokeConsent({id, clientId}))
-
-      .catch(err => err);
-  }
-
-  async listUsers(): Promise<[{id: string}]> {
-    return this.keycloakAdmin
-      .auth(credentials)
-
-      .then(() => this.keycloakAdmin.users.find({max: 9999999}))
 
       .catch(err => err);
   }
@@ -310,15 +315,12 @@ export class KeycloakService {
           },
         });
 
-      return attributes.reduce(
-        (obj: {[key: string]: string | undefined}, attribute: GroupAttribute) => {
-          if (attribute.name) {
-            obj[attribute.name] = attribute.value;
-          }
-          return obj;
-        },
-        {},
-      );
+      return attributes.reduce((obj: {[key: string]: string | undefined}, attribute: GroupAttribute) => {
+        if (attribute.name) {
+          obj[attribute.name] = attribute.value;
+        }
+        return obj;
+      }, {});
     }
     return {};
   }

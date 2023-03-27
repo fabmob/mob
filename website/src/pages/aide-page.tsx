@@ -17,14 +17,18 @@ import { AuthorizationRoute } from '@modules/routes';
 
 import { Roles } from '../constants';
 
-import NotFoundPage from './404';
-
 import Strings from './locale/fr.json';
+
+import { useMatomo } from '@datapunt/matomo-tracker-react';
+import { matomoPageTracker } from '@utils/matomo';
 
 const AidePage = ({ location: { search }, pageContext }: PageProps) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [incentive, setIncentive] = useState<Incentive>();
   const [APIError, setAPIError] = useState<object>();
+
+  const { trackPageView } = useMatomo();
+
   const {
     // @ts-ignore
     breadcrumb: { crumbs },
@@ -32,10 +36,6 @@ const AidePage = ({ location: { search }, pageContext }: PageProps) => {
 
   /**
    * USE EFFECTS
-   *
-   *
-   *
-   *
    */
   useEffect(() => {
     let mounted = true;
@@ -103,11 +103,6 @@ const AidePage = ({ location: { search }, pageContext }: PageProps) => {
 
     /**
      * RENDER
-     *
-     *
-     *
-     *
-     *
      */
     // @ts-ignore
     return (
@@ -149,6 +144,14 @@ const AidePage = ({ location: { search }, pageContext }: PageProps) => {
                   href={
                     subscriptionLink ||
                     `/subscriptions/new?incentiveId=${incentive.id}`
+                  }
+                  onClick={
+                    subscriptionLink &&
+                    matomoPageTracker(
+                      trackPageView,
+                      `Souscription à l'aide externe ${incentive?.title}`,
+                      4
+                    )
                   }
                 >
                   <Button>{Strings['aide.page.button.subscribe']}</Button>

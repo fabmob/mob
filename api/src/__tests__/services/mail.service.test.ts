@@ -3,6 +3,7 @@ import {MailService} from '../../services';
 import ejs from 'ejs';
 import nodemailer from 'nodemailer';
 import {MailConfig} from '../../config';
+import {StatusCode} from '../../utils';
 
 describe('mail service', () => {
   let mailService: any = null;
@@ -32,7 +33,8 @@ describe('mail service', () => {
     try {
       await mailService.sendMailAsHtml('', '', '', '');
     } catch (error) {
-      expect(error.message).to.equal('email.server.error');
+      expect(error.message).to.equal('Error');
+      expect(error.statusCode).to.equal(StatusCode.InternalServerError);
     }
     ejsStub.restore();
     mailerInfos.restore();

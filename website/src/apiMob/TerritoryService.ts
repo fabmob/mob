@@ -1,4 +1,5 @@
 import { https } from '@utils/https';
+import { IFilter, stringifyParams } from '@utils/api';
 
 export interface Territory {
     id: string;
@@ -6,8 +7,15 @@ export interface Territory {
 }
 
 export const getTerritories = async (): Promise<Territory[]> => {
+  const filter: IFilter<Territory> = {
+    fields: {
+      "id": true,
+      "name": true
+    }
+  }
+ 
   const { data } = await https.get<Territory[]>(
-    `/v1/territories`
+    `/v1/territories${stringifyParams({filter: JSON.stringify(filter)})}`
   );
   return data;
 };

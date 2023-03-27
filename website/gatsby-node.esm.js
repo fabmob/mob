@@ -106,25 +106,26 @@ exports.onCreateWebpackConfig = ({ actions, loaders }) => {
         '@assets': path.resolve(__dirname, 'src/assets'),
         '@constants': path.resolve(__dirname, 'src/constants'),
         '@environment': path.resolve(__dirname, 'src/environment'),
+        '@context': path.resolve(__dirname, 'src/context'),
       },
-    fallback: {
-      crypto: false,
-      buffer: require.resolve('buffer/'),
-      assert: require.resolve('assert'),
-      stream: false,
-      constants: false,
+      fallback: {
+        crypto: false,
+        buffer: require.resolve('buffer/'),
+        assert: require.resolve('assert'),
+        stream: false,
+        constants: false,
+      },
     },
-  },
-  plugins: [
-    new webpack.ProvidePlugin({
-      Buffer: ['buffer', 'Buffer'],
-    }),
-    new webpack.ProvidePlugin({
-      process: 'process/browser',
-    }),
-    new webpack.IgnorePlugin({
-      resourceRegExp: /^netlify-identity-widget$/,
-    }),
-  ],
+    plugins: [
+      new webpack.ProvidePlugin({
+        Buffer: ['buffer', 'Buffer'],
+      }),
+      new webpack.ProvidePlugin({
+        process: 'process/browser',
+      }),
+      new webpack.IgnorePlugin({
+        resourceRegExp: /^netlify-identity-widget$/,
+      }),
+    ],
   });
 };

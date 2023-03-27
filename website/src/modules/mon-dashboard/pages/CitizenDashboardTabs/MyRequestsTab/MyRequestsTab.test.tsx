@@ -523,6 +523,6 @@ describe('<MyRequestsTab />', () => {
 
     await selectEvent.select(getByText('Année'), ['2020']);
     await selectEvent.select(getByText('Statut de la demande'), ['Validée']);
-    await selectEvent.select(getByText('Type de financeur'), ['Entreprise']);
+    await selectEvent.select(getByText("Type de l'aide"), ['Aide Employeur']);
   });
 });

@@ -86,7 +86,6 @@ deployments:
         io.kompose.service: api
       name: api
     spec:
-      replicas: 1
       selector:
         matchLabels:
           io.kompose.service: api
@@ -132,6 +131,8 @@ deployments:
               MONGO_SERVICE_USER: ${TESTING_MONGO_SERVICE_USER}
               MONGO_SERVICE_PASSWORD: ${TESTING_MONGO_SERVICE_PASSWORD}
               MONGO_DATABASE: ${TESTING_MONGO_DB_NAME}
+              MONGO_PROTOCOL: ${TESTING_MONGO_PROTOCOL}
+              MONGO_OPTIONS: ${TESTING_MONGO_OPTIONS}
               S3_HOST: s3.s3-${LANDSCAPE}.svc.cluster.local
               S3_PORT: '9000'
               S3_SERVICE_PASSWORD: ${TESTING_S3_SERVICE_PASSWORD}
@@ -144,6 +145,9 @@ deployments:
               TIMESTAMP_PASSWORD: ${TIMESTAMP_PASSWORD}
               TIMESTAMP_USERNAME: ${TIMESTAMP_USERNAME}
               TIMESTAMP_URL: ${TIMESTAMP_URL}
+              LOG_LEVEL: ${LOG_LEVEL}
+              MAX_LIMIT: ${MAX_LIMIT}
+              DEFAULT_LIMIT: ${DEFAULT_LIMIT}
             image: ${API_IMAGE_NAME}
             name: api
             ports:

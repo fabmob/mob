@@ -22,6 +22,7 @@ module.exports = {
     '@assets/(.*)': '<rootDir>/src/assets/$1',
     '@constants': '<rootDir>/src/constants',
     '@environment': '<rootDir>/src/environment',
+    '@context': '<rootDir>/src/context',
     '^gatsby-core-utils/(.*)$': `gatsby-core-utils/dist/$1`,
     '^gatsby-page-utils/(.*)$': `gatsby-page-utils/dist/$1`,
     '\\.svg': `<rootDir>/jest-configs/__mocks__/svgTransform.jsx`,
@@ -31,7 +32,7 @@ module.exports = {
     '.+\\.(css|styl|less|sass|scss)$': `identity-obj-proxy`,
     '.+\\.(jpg|jpeg|png|gif|eot|otf|webp|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$': `<rootDir>/__mocks__/file-mocks.js`,
     // Jest workaround for latest version of axios
-    '^axios$': require.resolve('axios')
+    '^axios$': require.resolve('axios'),
   },
   testPathIgnorePatterns: [
     `node_modules`,

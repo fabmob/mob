@@ -7,7 +7,7 @@ import {
   SinglePayment,
   SubscriptionRejection,
 } from '@utils/demandes';
-import { stringifyParams, isExpired } from '@utils/helpers';
+import { stringifyParams } from '@utils/api';
 
 export type Metadata = {
   incentiveId: string;
@@ -61,7 +61,7 @@ export const getDemandeById = async (subscriptionId: string): Promise<{}> => {
     `v1/subscriptions/${subscriptionId}`
   );
   return data;
-}; 
+};
 
 export const getDemandeFileByName = async (
   subscriptionId: string,
@@ -77,7 +77,7 @@ export const putSubscriptionValidate = async (
   subscriptionId: string,
   demandeValidateData: SinglePayment | MultiplePayment | NoPayment
 ): Promise<any> => {
-  const data = await https.put(
+  const data = await https.post(
     `v1/subscriptions/${subscriptionId}/validate`,
     JSON.stringify(demandeValidateData)
   );
@@ -88,7 +88,7 @@ export const putSubscriptionReject = async (
   subscriptionId: string,
   demandeRejectData: SubscriptionRejection
 ): Promise<any> => {
-  const data = await https.put(
+  const data = await https.post(
     `v1/subscriptions/${subscriptionId}/reject`,
     JSON.stringify(demandeRejectData)
   );
@@ -113,7 +113,7 @@ export const postV1Subscription = async (subscriptionData: {
   consent: boolean;
 }): Promise<{ subscriptionId: string }> => {
   const { data } = await https.post(
-    `v1/maas/subscriptions`,
+    `v1/subscriptions`,
     JSON.stringify(subscriptionData)
   );
   return data;
@@ -124,9 +124,9 @@ export const postV1SubscriptionAttachments = async (
   attachmentData: FormData
 ): Promise<{ subscriptionId: string }> => {
   const { data } = await https.post(
-    `v1/maas/subscriptions/${subscriptionId}/attachments`,
+    `v1/subscriptions/${subscriptionId}/attachments`,
     attachmentData,
-    { headers: { 'Content-Type': 'multipart/form-data' }}
+    { headers: { 'Content-Type': 'multipart/form-data' } }
   );
   return data;
 };
@@ -135,18 +135,16 @@ export const postV1SubscriptionVerify = async (
   subscriptionId: string
 ): Promise<{ subscriptionId: string }> => {
   const { data } = await https.post(
-    `v1/maas/subscriptions/${subscriptionId}/verify`
+    `v1/subscriptions/${subscriptionId}/verify`
   );
   return data;
 };
 
-export const triggerSubscriptionMaasRedirect = async():Promise<void> => {
+export const triggerSubscriptionMaasRedirect = async (): Promise<void> => {
   return await https.get(`${window.location.origin}/recherche/`);
-}
+};
 
-export const getFunderById = async (
-  funderId: string,
-): Promise<any> => {
+export const getFunderById = async (funderId: string): Promise<any> => {
   const { data } = await https.get(`v1/funders/${funderId}`);
   return data;
 };

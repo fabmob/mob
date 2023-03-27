@@ -26,20 +26,12 @@ describe('Incentive services', () => {
       },
     ];
     const incentiveTitle = '1';
-    const response = incentiveService.convertSpecificFields(
-      incentiveTitle,
-      specificFields,
-    );
+    const response = incentiveService.convertSpecificFields(incentiveTitle, specificFields);
     // expect(response["$schema"]).to.equal("http://json-schema.org/draft-07/schema#");
     // expect(response["$id"]).to.equal("http://yourdomain.com/schemas/myschema.json");
     expect(response['title']).to.equal(incentiveTitle);
     expect(response['type']).to.equal('object');
-    expect(response['required']).to.deepEqual([
-      'un nombre',
-      'un text',
-      'une date',
-      'une liste de choix',
-    ]);
+    expect(response['required']).to.deepEqual(['un nombre', 'un text', 'une date', 'une liste de choix']);
     expect(response['properties']).to.deepEqual({
       'un nombre': {type: 'number'},
       'un text': {type: 'string', minLength: 1},
@@ -56,10 +48,7 @@ describe('Incentive services', () => {
   it('convertSpecificFields : successful return empty object', () => {
     const specificFields: any[] = [];
     const incentiveTitle = '1';
-    const response = incentiveService.convertSpecificFields(
-      incentiveTitle,
-      specificFields,
-    );
+    const response = incentiveService.convertSpecificFields(incentiveTitle, specificFields);
     expect(response).to.deepEqual({});
   });
 
@@ -87,30 +76,21 @@ describe('Incentive services', () => {
   it('getIncentiveIdsToDelete : successful', () => {
     const currentIdList = ['id1', 'id2'];
     const updatedIdList = ['id1'];
-    const response = incentiveService.getIncentiveIdsToDelete(
-      currentIdList,
-      updatedIdList,
-    );
+    const response = incentiveService.getIncentiveIdsToDelete(currentIdList, updatedIdList);
     expect(response).to.deepEqual(['id2']);
   });
 
   it('getIncentiveIdsToDelete : returns empty list if no changes', () => {
     const currentIdList = ['id1', 'id2'];
     const updatedIdList = ['id1', 'id2'];
-    const response = incentiveService.getIncentiveIdsToDelete(
-      currentIdList,
-      updatedIdList,
-    );
+    const response = incentiveService.getIncentiveIdsToDelete(currentIdList, updatedIdList);
     expect(response).to.deepEqual([]);
   });
 
   it('getIncentiveIdsToDelete : returns empty list if only added', () => {
     const currentIdList = ['id1'];
     const updatedIdList = ['id1', 'id2'];
-    const response = incentiveService.getIncentiveIdsToDelete(
-      currentIdList,
-      updatedIdList,
-    );
+    const response = incentiveService.getIncentiveIdsToDelete(currentIdList, updatedIdList);
     expect(response).to.deepEqual([]);
   });
 

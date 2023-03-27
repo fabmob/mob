@@ -42,7 +42,7 @@ const ProcessRequest: FC<Props> = ({
   const [subscription, setSubscription] = useState<Subscription>();
   const [identity, setIdentity] = useState<IdentityRessourceProps>();
   const [isAuthorized, setIsAuthorized] = useState<Boolean>(false);
-  const { funderName, incentiveType } = useGetFunder();
+  const { funderName } = useGetFunder();
   const [step, setStep] = useState<SUBSCRIPTION_STEP>(
     SUBSCRIPTION_STEP.VISUALIZE
   );
@@ -134,8 +134,7 @@ const ProcessRequest: FC<Props> = ({
    */
   const canAccessPage = (): boolean => {
     return (
-      funderName === subscription.funderName &&
-      incentiveType === subscription.incentiveType
+      funderName === subscription.funderName
     );
   };
 

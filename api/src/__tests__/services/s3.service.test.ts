@@ -4,15 +4,12 @@ import {expect, sinon} from '@loopback/testlab';
 import {S3Client} from '@aws-sdk/client-s3';
 import {Readable} from 'stream';
 import {Express} from 'express';
-import {ValidationError} from '../../validationError';
 import {StatusCode} from '../../utils';
+import {InternalServerError} from '../../validationError';
 
 describe('S3Service ', async () => {
   let s3: S3Service;
-  const deleteError: Error = new Error('Could not delete folder from S3');
-  const downloadError: Error = new Error('Filename does not exist');
   const errorMessage = 'Error';
-  const errorRejectMessage: Error = new Error('An error occurred: Error');
 
   const fileList: any[] = [
     {
@@ -64,11 +61,7 @@ describe('S3Service ', async () => {
       .stub(s3, 'uploadFile')
       .resolves(['test-directory/test1.txt', 'test-directory/test2.txt']);
 
-    const result = await s3.uploadFileListIntoBucket(
-      'test-bucket',
-      'test-directory',
-      fileList,
-    );
+    const result = await s3.uploadFileListIntoBucket('test-bucket', 'test-directory', fileList);
     expect(result).to.deepEqual(['test-directory/test1.txt', 'test-directory/test2.txt']);
     uploadFileListIntoBucketStub.restore();
     checkBucketExistsStub.restore();
@@ -76,17 +69,11 @@ describe('S3Service ', async () => {
 
   it('uploadFileListIntoBucket(bucketName, fileDirectory, fileList) bucket not created', async () => {
     const checkBucketExistsStub = sinon.stub(s3, 'checkBucketExists').resolves(false);
-    const createBucketStub = sinon
-      .stub(s3, 'createBucket')
-      .resolves(mockCreateBucketResponse);
+    const createBucketStub = sinon.stub(s3, 'createBucket').resolves(mockCreateBucketResponse);
     const uploadFileListIntoBucketStub = sinon
       .stub(s3, 'uploadFile')
       .resolves(['test-directory/test1.txt', 'test-directory/test2.txt']);
-    const result = await s3.uploadFileListIntoBucket(
-      'test-bucket',
-      'test-directory',
-      fileList,
-    );
+    const result = await s3.uploadFileListIntoBucket('test-bucket', 'test-directory', fileList);
     expect(result).to.deepEqual(['test-directory/test1.txt', 'test-directory/test2.txt']);
     createBucketStub.restore();
     uploadFileListIntoBucketStub.restore();
@@ -95,13 +82,12 @@ describe('S3Service ', async () => {
 
   it('uploadFileListIntoBucket(bucketName, fileDirectory, fileList) error', async () => {
     const checkBucketExistsStub = sinon.stub(S3Client.prototype, 'send').resolves(true);
-    const uploadFileListIntoBucketStubError = sinon
-      .stub(s3, 'uploadFile')
-      .rejects(errorMessage);
+    const uploadFileListIntoBucketStubError = sinon.stub(s3, 'uploadFile').rejects(errorMessage);
     try {
       await s3.uploadFileListIntoBucket('test-bucket', 'test-directory', fileList);
     } catch (error) {
-      expect(error).to.deepEqual(errorRejectMessage);
+      expect(error.message).to.equal('Error');
+      expect(error.statusCode).to.equal(StatusCode.InternalServerError);
       uploadFileListIntoBucketStubError.restore();
       checkBucketExistsStub.restore();
     }
@@ -115,18 +101,14 @@ describe('S3Service ', async () => {
   });
 
   it('checkBucketExists(bucketName) error', async () => {
-    const checkBucketExistsStub = sinon
-      .stub(S3Client.prototype, 'send')
-      .rejects(errorMessage);
+    const checkBucketExistsStub = sinon.stub(S3Client.prototype, 'send').rejects(errorMessage);
     const result = await s3.checkBucketExists('test-bucket');
     expect(result).to.equal(false);
     checkBucketExistsStub.restore();
   });
 
   it('createBucket(bucketName) success', async () => {
-    const createBucketStub = sinon
-      .stub(S3Client.prototype, 'send')
-      .resolves(mockCreateBucketResponse);
+    const createBucketStub = sinon.stub(S3Client.prototype, 'send').resolves(mockCreateBucketResponse);
     const result = await s3.createBucket('test-bucket');
     expect(result).to.deepEqual(mockCreateBucketResponse);
     createBucketStub.restore();
@@ -137,15 +119,14 @@ describe('S3Service ', async () => {
     try {
       await s3.createBucket('test-bucket');
     } catch (error) {
-      expect(error).to.deepEqual(errorRejectMessage);
+      expect(error.message).to.equal('Error');
+      expect(error.statusCode).to.equal(StatusCode.InternalServerError);
       createBucketStub.restore();
     }
   });
 
   it('uploadFile(bucketName, filePath, file) success', async () => {
-    const uploadFileStub = sinon
-      .stub(S3Client.prototype, 'send')
-      .resolves(mockUploadFileResponse);
+    const uploadFileStub = sinon.stub(S3Client.prototype, 'send').resolves(mockUploadFileResponse);
     const result = await s3.uploadFile(
       'test-bucket',
       'test2.txt',
@@ -162,55 +143,47 @@ describe('S3Service ', async () => {
     try {
       await s3.uploadFile('test-bucket', 'hello.txt', Buffer.from('test de buffer'));
     } catch (error) {
-      expect(error).to.deepEqual(errorRejectMessage);
+      expect(error.message).to.equal('Error');
+      expect(error.statusCode).to.equal(StatusCode.InternalServerError);
       uploadFileStub.restore();
     }
   });
 
   it('downloadFiles(bucket, fileDirectory, file) success', async () => {
-    const downloadStub = sinon
-      .stub(s3, 'downloadFileBuffer')
-      .returns(mockDownloadFileResponse as any);
+    const downloadStub = sinon.stub(s3, 'downloadFileBuffer').returns(mockDownloadFileResponse as any);
 
-    const downloadResult = await s3.downloadFileBuffer(
-      'testr-bucket',
-      'testo-directory',
-      'test4.txt',
-    );
+    const downloadResult = await s3.downloadFileBuffer('testr-bucket', 'testo-directory', 'test4.txt');
     expect(downloadResult).to.equal(mockDownloadFileResponse);
     downloadStub.restore();
   });
 
   it('downloadFiles(bucket, fileDirectory, file) error', async () => {
     const downloadFileStub = sinon.stub(S3Client.prototype, 'send').rejects(errorMessage);
-    const expectedError = new ValidationError(
-      'Filename does not exist',
-      '/attachments',
-      StatusCode.NotFound,
-    );
     try {
       await s3.downloadFileBuffer('test-bucket', 'test-directory', 'test1.txt');
     } catch (err: any) {
-      expect(err).to.deepEqual(expectedError);
+      expect(err.message).to.equal('Error');
+      expect(err.statusCode).to.equal(StatusCode.InternalServerError);
       downloadFileStub.restore();
     }
   });
 
   it('deleteFolder(bucketName, filePath) success', async () => {
-    const deleteFolderStub = sinon
-      .stub(S3Client.prototype, 'send')
-      .resolves(mockUploadFileResponse);
+    const deleteFolderStub = sinon.stub(S3Client.prototype, 'send').resolves(mockUploadFileResponse);
     const result = await s3.deleteObjectFile('test-bucket', 'test-directory');
     expect(result).to.deepEqual(mockUploadFileResponse);
     deleteFolderStub.restore();
   });
 
   it('deleteFolder(bucketName, filePath) error', async () => {
-    const deleteFolderStub = sinon.stub(S3Client.prototype, 'send').rejects(deleteError);
+    const deleteFolderStub = sinon
+      .stub(S3Client.prototype, 'send')
+      .rejects(new InternalServerError('', '', errorMessage));
     try {
       await s3.deleteObjectFile('test-bucke2t', 'test-directory2');
     } catch (error) {
-      expect(error).to.deepEqual(deleteError);
+      expect(error.message).to.equal('Error');
+      expect(error.statusCode).to.equal(StatusCode.InternalServerError);
       deleteFolderStub.restore();
     }
   });
@@ -221,19 +194,7 @@ describe('S3Service ', async () => {
   });
 
   it('hasCorrectNumberOfFiles(fileList) success return false', () => {
-    const fileListNbExceeded = [
-      file,
-      file,
-      file,
-      file,
-      file,
-      file,
-      file,
-      file,
-      file,
-      file,
-      file,
-    ];
+    const fileListNbExceeded = [file, file, file, file, file, file, file, file, file, file, file];
     const hasCorrectNumberOfFiles = s3.hasCorrectNumberOfFiles(fileListNbExceeded);
     expect(hasCorrectNumberOfFiles).to.equal(false);
   });

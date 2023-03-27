@@ -1,11 +1,7 @@
 export class ClamAvConfig {
-  private host: string = process.env.CLAMAV_HOST
-    ? `${process.env.CLAMAV_HOST}`
-    : `localhost`;
+  private host: string = process.env.CLAMAV_HOST ? `${process.env.CLAMAV_HOST}` : `localhost`;
 
-  private port: number | undefined = process.env.CLAMAV_PORT
-    ? Number(process.env.CLAMAV_PORT)
-    : 3310;
+  private port: number | undefined = process.env.CLAMAV_PORT ? Number(process.env.CLAMAV_PORT) : 3310;
 
   /**
    * Get ClamAv configuration to init

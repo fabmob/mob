@@ -1,10 +1,9 @@
 import {App} from './application';
-import {logger} from './utils';
+import {Logger} from './utils';
 
 export async function migrate(args: string[]) {
   const existingSchema = args.includes('--rebuild') ? 'drop' : 'alter';
-  logger.info(`Migrating schemas (%s existing schema): ${existingSchema}`);
-
+  Logger.info('LB4', migrate.name, 'Migrating schemas (%s existing schema):', existingSchema);
   const app = new App();
   await app.boot();
   await app.migrateSchema({existingSchema});
@@ -16,6 +15,6 @@ export async function migrate(args: string[]) {
 }
 
 migrate(process.argv).catch(err => {
-  logger.error(`Cannot migrate database schema: ${err}`);
+  Logger.error('LB4', migrate.name, `Cannot migrate database schema`, err.message);
   process.exit(1);
 });

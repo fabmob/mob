@@ -1,29 +1,36 @@
 import {inject, lifeCycleObserver, LifeCycleObserver} from '@loopback/core';
 import {juggler} from '@loopback/repository';
 
+const protocol: string | undefined = process.env.MONGO_PROTOCOL;
+const user: string | undefined = process.env.MONGO_SERVICE_USER;
+const password: string | undefined = process.env.MONGO_SERVICE_PASSWORD;
+const host: string | undefined = process.env.MONGO_HOST;
+const port: string | undefined = process.env.MONGO_PORT;
+const database: string | undefined = process.env.MONGO_DATABASE;
+const source: string | undefined = process.env.MONGO_AUTH_SOURCE;
+const landscape: string | undefined = process.env.LANDSCAPE;
+const options: string | undefined = process.env.MONGO_OPTIONS;
+
 const configProd = {
   name: 'mongoDS',
   connector: 'mongodb',
-  url: `mongodb+srv://${process.env.MONGO_SERVICE_USER}:${process.env.MONGO_SERVICE_PASSWORD}@${process.env.MONGO_HOST}/${process.env.MONGO_DATABASE}?retryWrites=true&w=majority`,
+  url: `${protocol}://${user}:${password}@${host}/${database}${options}`,
 };
 
 const configPreview = {
   name: 'mongoDS',
   connector: 'mongodb',
-  host: process.env.MONGO_HOST ?? 'localhost',
-  port: process.env.MONGO_PORT ?? 27017,
-  user: process.env.MONGO_SERVICE_USER ?? 'admin',
-  password: process.env.MONGO_SERVICE_PASSWORD ?? 'pass',
-  database: process.env.MONGO_DATABASE ?? 'mcm',
-  authSource: process.env.MONGO_AUTH_SOURCE ?? 'admin',
+  host: host ?? 'localhost',
+  port: port ?? 27017,
+  user: user ?? 'admin',
+  password: password ?? 'pass',
+  database: database ?? 'mcm',
+  authSource: source ?? 'admin',
   useNewUrlParser: true,
   allowExtendedOperators: true,
 };
 
-const config =
-  process.env.LANDSCAPE && process.env.LANDSCAPE !== 'preview'
-    ? configProd
-    : configPreview;
+const config = landscape && landscape !== 'preview' ? configProd : configPreview;
 
 // Observe application's life cycle to disconnect the datasource when
 // application is stopped. This allows the application to be shut down

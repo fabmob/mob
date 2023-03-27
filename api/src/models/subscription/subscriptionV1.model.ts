@@ -44,5 +44,4 @@ export interface CreateSubscriptionRelations {
   // describe navigational properties here
 }
 
-export type CreateSubscriptionWithRelations = CreateSubscription &
-  CreateSubscriptionRelations;
+export type CreateSubscriptionWithRelations = CreateSubscription & CreateSubscriptionRelations;

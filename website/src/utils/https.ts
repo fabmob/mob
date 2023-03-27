@@ -10,11 +10,12 @@ const API_KEY = `${environment.API_KEY || 'apikey'}`;
 
 // We give all type of status code in this enum declaration
 export enum StatusCode {
+  BadRequest = 400,
+  Forbidden = 403,
   NotFound = 404,
   Conflict = 409,
-  PreconditionFailed = 412,
+  UnsupportedMediaType = 415,
   UnprocessableEntity = 422,
-  Forbidden = 403,
 }
 
 const headers: Readonly<Record<string, string | boolean>> = {
@@ -32,8 +33,9 @@ const injectToken = (config: AxiosRequestConfig): AxiosRequestConfig => {
   try {
     const token = localStorage.getItem('token');
 
-    if (token != null) {
+    if (token !== 'undefined' && token !== null) {
       config.headers.Authorization = `Bearer ${token}`;
+      delete config.headers['X-API-Key'];
     }
     return config;
   } catch (error: any) {
@@ -163,7 +165,7 @@ class Https {
       if (error.data instanceof Blob) {
         error.data = {
           error: {
-            statusCode: 422,
+            statusCode: 400,
             name: 'DownloadXlsx Error',
             message: 'Error while genereation the file.',
           },
@@ -174,8 +176,8 @@ class Https {
         'email.error.unique',
         'citizens.error.password.format',
         'citizens.error.email.unique',
-        'citoyens.affiliation.not.valid',
-        'citoyens.affiliation.bad.status',
+        'citizens.affiliation.not.valid',
+        'citizens.affiliation.bad.status',
         'citizens.affiliation.not.found',
         'citizen.email.error.unique',
       ];

@@ -8,10 +8,6 @@ import Strings from './locale/fr.json';
 
 /**
  * INTERFACE
- *
- *
- *
- *
  */
 interface ProfessionalFormProps {
   register: () => void;
@@ -32,21 +28,15 @@ const ProfessionalForm: FC<ProfessionalFormProps> = ({
   companyOptions,
   watch,
 }) => {
+
   /**
    * VARIABLES
-   *
-   *
-   *
-   *
    */
   const watchedFormData = watch();
   const { affiliation } = watchedFormData;
+
   /**
    * RENDER
-   *
-   *
-   *
-   *
    */
   return (
     <>

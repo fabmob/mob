@@ -18,7 +18,7 @@ import {
   AffiliateAlreadyExistsMessage,
 } from '../components';
 
-import { putCitizenAffiliation } from '@api/CitizenService';
+import { requestCitizenAffiliation } from '@api/CitizenService';
 
 import { StatusCode } from '@utils/https';
 import { matomoTrackEvent } from '@utils/matomo';
@@ -36,7 +36,7 @@ const InscriptionPageAffiliation: FC<RouteComponentProps> = () => {
       if (token) {
         citizenId = jwt(token)?.id;
       }
-      return await putCitizenAffiliation(citizenId, token);
+      return await requestCitizenAffiliation(citizenId, token);
     },
     {
       enabled: false,

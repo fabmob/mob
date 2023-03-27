@@ -89,7 +89,6 @@ deployments:
         io.kompose.service: website
       name: website
     spec:
-      replicas: 3
       selector:
         matchLabels:
           io.kompose.service: website
@@ -114,6 +113,7 @@ deployments:
               MATOMO_ID: ${ANALYTICS_MCM_WEBSITE_ID}
               API_KEY: ${CLOUD_API_KEY}
               LANDSCAPE: ${LANDSCAPE}
+              DEFAULT_LIMIT: ${CLOUD_DEFAULT_LIMIT}
             image: ${WEBSITE_IMAGE_NAME}
             name: website
             ports:

@@ -59,3 +59,17 @@ export interface CmsType {
   source?: string;
   certificationDate?: Date;
 }
+
+export interface PartialCitizen {
+  id: string;
+  lastName: string;
+  firstName: string;
+  birthdate: string;
+  email: string;
+  isCitizenDeleted: boolean;
+  enterpriseEmail?: string;
+}
+
+export interface Count {
+  count: number;
+}

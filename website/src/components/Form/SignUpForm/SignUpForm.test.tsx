@@ -25,6 +25,7 @@ jest.mock('../../../context', () => {
 jest.unmock('axios');
 jest.mock('@utils/matomo', () => {
   return {
+    matomoAccountCreation: () => jest.fn(),
     matomoTrackEvent: () => jest.fn(),
   };
 });
@@ -60,10 +61,10 @@ const userMock = {
 };
 
 const entrepriseMock = [
-  { id: '1', name: 'Total', emailFormat: ['@total.com'] },
-  { id: '2', name: 'Capgemini', emailFormat: ['@capgemini.com'] },
-  { id: '3', name: 'Zorro', emailFormat: ['@zorro.com'] },
-  { id: '4', name: 'zorro', emailFormat: ['@zorro.com'] },
+  { id: '1', name: 'Total'},
+  { id: '2', name: 'Capgemini'},
+  { id: '3', name: 'Zorro'},
+  { id: '4', name: 'zorro'},
 ];
 
 const dataError = {

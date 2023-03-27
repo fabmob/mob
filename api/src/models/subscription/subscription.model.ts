@@ -117,7 +117,7 @@ export class Subscription extends Entity {
     type: 'string',
     description: `Ville du citoyen`,
     jsonSchema: {
-      example: `Toulouse`,
+      example: `Mulhouse`,
     },
   })
   city?: string;
@@ -126,7 +126,7 @@ export class Subscription extends Entity {
     type: 'string',
     description: `Code postal du citoyen`,
     jsonSchema: {
-      example: `31000`,
+      example: `68100`,
       pattern: '[0-9]{5}',
     },
   })

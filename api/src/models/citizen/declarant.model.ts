@@ -1,13 +1,5 @@
 import {Model, model, property} from '@loopback/repository';
-import {
-  City,
-  Country,
-  DateType,
-  EmailType,
-  PhoneNumber,
-  PostalAddress,
-  StringType,
-} from '../cmsTypes.model';
+import {City, Country, DateType, EmailType, PhoneNumber, PostalAddress, StringType} from '../cmsTypes.model';
 
 @model({settings: {idInjection: false}})
 export class Declarant extends Model {

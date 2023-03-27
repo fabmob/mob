@@ -1,10 +1,4 @@
-import {AnyObject} from '@loopback/repository';
-import {
-  createStubInstance,
-  expect,
-  StubbedInstanceWithSinonAccessor,
-} from '@loopback/testlab';
-import {securityId} from '@loopback/security';
+import {createStubInstance, expect, StubbedInstanceWithSinonAccessor} from '@loopback/testlab';
 
 import {IncentiveEligibilityChecksController} from '../../controllers';
 import {IncentiveEligibilityChecks} from '../../models';
@@ -17,6 +11,15 @@ describe('Incentives Controller', () => {
   beforeEach(() => {
     givenStubbedRepositoryIncentiveEligibilityChecks();
     controller = new IncentiveEligibilityChecksController(repository);
+  });
+
+  it('IncentiveEligibilityChecksController getEligibilityChecks : ERROR', async () => {
+    try {
+      repository.stubs.find.rejects(new Error('Error'));
+      await controller.getEligibilityChecks();
+    } catch (err) {
+      expect(err.message).to.equal('Error');
+    }
   });
 
   it('IncentiveEligibilityChecksController getEligibilityChecks : successful', async () => {
@@ -35,8 +38,7 @@ const IncentiveEligibilityChecksMock = Object.assign(new IncentiveEligibilityChe
   id: 'uuid-controle-fc',
   name: 'Identité FranceConnect',
   label: 'identité_franceConnect',
-  description:
-    "Les données d'identité doivent être fournies/certifiées par FranceConnect",
+  description: "Les données d'identité doivent être fournies/certifiées par FranceConnect",
   type: 'boolean',
   motifRejet: 'CompteNonFranceConnect',
 });

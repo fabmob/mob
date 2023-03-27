@@ -17,6 +17,7 @@ interface CardProps {
   title: string;
   funderName?: string;
   value?: string;
+  valueElement?: JSX.Element;
   tags?: string[];
   footerElement?: JSX.Element;
   classNames?: string;
@@ -69,6 +70,7 @@ const Card: FC<CardProps> = ({
   title,
   funderName,
   value,
+  valueElement,
   tags,
   footerElement = <span>{Strings['show.detail']}</span>,
   classNames,
@@ -88,7 +90,8 @@ const Card: FC<CardProps> = ({
         </div>
       </div>
       <div className="mcm-card__body">
-        <span className="body-title">{value}</span>
+        {value && <span className="body-title">{value}</span>}
+        {valueElement && <div className="body-value-element">{valueElement}</div>}
         <div className="card-body-tags">
           <RenderTags tags={tags} />
         </div>

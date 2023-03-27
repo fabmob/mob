@@ -2,8 +2,6 @@ export * from './keycloak.model';
 export * from './links.model';
 export * from './incentive';
 export * from './contact';
-export * from './collectivity';
-export * from './enterprise';
 export * from './funder';
 export * from './user';
 export * from './community';

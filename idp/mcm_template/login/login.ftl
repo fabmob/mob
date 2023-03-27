@@ -71,7 +71,6 @@
                                 </#if>
                             </div>
                             </div>
-                            <div id="mcm-img-login" class="responsive-display"></div>
                         </form>
                     </div>
                 </div>
@@ -80,7 +79,6 @@
                     <a class="mcm-basic-link" href="https://${properties.websiteFQDN!}/inscription/formulaire">${msg("btnSignIn")}</a>                          
                 </div>
             </div>
-            <div id="mcm-img-login" class="responsive-not-display"></div>
         </div>
 
         <script type="text/javascript">

@@ -3,7 +3,7 @@
  * script - this current script (ScriptModel.java)
  * user - the current user (UserModel.java)
  * realm - the current realm (RealmModel.java)
- * userSession - the current KeycloakSession (KeycloakSession.java)
+ * session - the current KeycloakSession (KeycloakSession.java)
  * authenticationSession - the current authenticationSession (AuthenticationSessionModel.java)
  * httpRequest - the current http request (org.jboss.resteasy.spi.HttpRequest)
  * LOG - Logger (org.jboss.logging.Logger scoped to ScriptBasedAuthenticator)
@@ -66,10 +66,11 @@ function authenticate(context) {
 
   var authSession = context.getAuthenticationSession();
   // Reuse KC functions from AbstractIdpAuthenticator.java to get Broker informations
-  var serializedCtx = SerializedBrokeredIdentityContext.readFromAuthenticationSession(
-    authSession,
-    "BROKERED_CONTEXT"
-  );
+  var serializedCtx =
+    SerializedBrokeredIdentityContext.readFromAuthenticationSession(
+      authSession,
+      "BROKERED_CONTEXT"
+    );
   var brokerContext = serializedCtx.deserialize(
     context.getSession(),
     authSession
@@ -92,9 +93,12 @@ function authenticate(context) {
         .users()
         .getUserByEmail(realm, brokerContext.getEmail());
       if (sameEmail != null) {
+        var tokenHint = JSON.parse(brokerContext.getToken());
         var response = context
           .form()
-          .setAttribute("errorFC", "Email déjà existant");
+          .setAttribute("errorFC", "Email déjà existant")
+          .setAttribute("ID_TOKEN_HINT", tokenHint.id_token);
+
         context.challenge(response);
       }
     }
@@ -118,6 +122,8 @@ function authenticate(context) {
         }
       });
 
+    // Add term and condition action to citizen
+    federatedUser.addRequiredAction("terms_and_conditions");
     context.setUser(federatedUser);
     context
       .getAuthenticationSession()

@@ -6,14 +6,9 @@ import {authorize} from '@loopback/authorization';
 import {Contact} from '../models';
 import {ContactService, MailService} from '../services';
 import {formatDateInTimezone} from '../utils/date';
-import {
-  AUTH_STRATEGY,
-  ResourceName,
-  Roles,
-  SECURITY_SPEC_API_KEY,
-  StatusCode,
-} from '../utils';
-import {ValidationError} from '../validationError';
+import {AUTH_STRATEGY, Logger, ResourceName, Roles, SECURITY_SPEC_API_KEY, StatusCode} from '../utils';
+import {UnprocessableEntityError} from '../validationError';
+import {defaultSwaggerError} from './utils/swagger-errors';
 
 export class ContactController {
   constructor(
@@ -27,17 +22,17 @@ export class ContactController {
    * Send contact form
    * @param contact object from contact form
    */
-  @authenticate(AUTH_STRATEGY.API_KEY)
-  @authorize({allowedRoles: [Roles.API_KEY]})
+  @authenticate(AUTH_STRATEGY.API_KEY, AUTH_STRATEGY.KEYCLOAK)
+  @authorize({allowedRoles: [Roles.API_KEY, Roles.PLATFORM]})
   @post('v1/contact', {
     'x-controller-name': 'Contact',
     summary: "Envoi d'un formulaire de contact",
     security: SECURITY_SPEC_API_KEY,
     responses: {
-      [StatusCode.Success]: {
+      [StatusCode.NoContent]: {
         description: 'Formulaire de contact',
-        content: {'application/json': {schema: getModelSchemaRef(Contact)}},
       },
+      ...defaultSwaggerError,
     },
   })
   async create(
@@ -51,22 +46,23 @@ export class ContactController {
     contact: Contact,
   ): Promise<void> {
     if (!contact.tos) {
-      throw new ValidationError(
+      throw new UnprocessableEntityError(
+        ContactService.name,
+        this.create.name,
         `User must agree to terms of services`,
         '/tos',
-        StatusCode.UnprocessableEntity,
         ResourceName.Contact,
+        !contact.tos,
+        true,
       );
     }
     try {
       const contactDate = formatDateInTimezone(new Date(), 'dd/MM/yyyy');
-      return await this.contactService.sendMailClient(
-        this.mailService,
-        contact,
-        contactDate,
-      );
+      Logger.debug(ContactController.name, this.create.name, 'contact date', contactDate);
+      return await this.contactService.sendMailClient(this.mailService, contact, contactDate);
     } catch (error) {
-      return error;
+      Logger.error(ContactController.name, this.create.name, 'Error', error);
+      throw error;
     }
   }
 }

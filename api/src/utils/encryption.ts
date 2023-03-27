@@ -26,5 +26,5 @@ export const encryptFileHybrid = (file: Buffer, key: Buffer, iv: Buffer) => {
  * @returns hashed data
  */
 export const sha256 = (data: object) => {
-  return crypto.createHash('sha256').update(`${data}`).digest('hex');
+  return crypto.createHash('sha256').update(JSON.stringify(data)).digest('hex');
 };

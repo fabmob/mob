@@ -11,9 +11,7 @@ describe('ApiKey strategy', () => {
 
   beforeEach(() => {
     authenticationService = new AuthenticationService();
-    apiKeyAuthenticationStrategy = new ApiKeyAuthenticationStrategy(
-      authenticationService,
-    );
+    apiKeyAuthenticationStrategy = new ApiKeyAuthenticationStrategy(authenticationService);
   });
 
   it('should authenticate: OK', async () => {

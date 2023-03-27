@@ -33,7 +33,7 @@ const UtilisateurEdit: FC<EditProps> = (props) => {
       mutationMode="optimistic"
       title="Modification d'un utilisateur financeur"
       transform={(data) => {
-        delete data.emailFormat;
+        delete data.emailDomainNames;
         delete data.hasManualAffiliation;
         return data;
       }}

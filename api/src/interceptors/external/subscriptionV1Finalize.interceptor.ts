@@ -11,18 +11,13 @@ import {repository} from '@loopback/repository';
 import {SecurityBindings} from '@loopback/security';
 
 import {SubscriptionRepository} from '../../repositories';
-import {
-  ResourceName,
-  StatusCode,
-  canAccessHisSubscriptionData,
-  SUBSCRIPTION_STATUS,
-  IUser,
-} from '../../utils';
-import {ValidationError} from '../../validationError';
+import {ResourceName, canAccessHisSubscriptionData, SUBSCRIPTION_STATUS, IUser, Logger} from '../../utils';
+import {ConflictError, ForbiddenError, NotFoundError} from '../../validationError';
 
 /**
  * This class will be bound to the application as an `Interceptor` during
  * `boot`
+ * TODO REMOVE BECAUSE endpoint v1/maas/subscriptions/{subscriptionId}/verify is deprecated
  */
 @injectable({tags: {key: SubscriptionV1FinalizeInterceptor.BINDING_KEY}})
 export class SubscriptionV1FinalizeInterceptor implements Provider<Interceptor> {
@@ -50,39 +45,49 @@ export class SubscriptionV1FinalizeInterceptor implements Provider<Interceptor> 
    * @param invocationCtx - Invocation context
    * @param next - A function to invoke next interceptor or the target method
    */
-  async intercept(
-    invocationCtx: InvocationContext,
-    next: () => ValueOrPromise<InvocationResult>,
-  ) {
-    const subscription = await this.subscriptionRepository.findById(
-      invocationCtx.args[0],
-    );
+  async intercept(invocationCtx: InvocationContext, next: () => ValueOrPromise<InvocationResult>) {
+    try {
+      const subscription = await this.subscriptionRepository.findById(invocationCtx.args[0]);
 
-    // Check if subscription exists
-    if (!subscription) {
-      throw new ValidationError(
-        'Subscription does not exist',
-        '/subscription',
-        StatusCode.NotFound,
-        ResourceName.Subscription,
-      );
-    }
+      // Check if subscription exists
+      if (!subscription) {
+        throw new NotFoundError(
+          SubscriptionV1FinalizeInterceptor.name,
+          invocationCtx.methodName,
+          'Subscription does not exist',
+          '/subscription',
+          ResourceName.Subscription,
+          invocationCtx.args[0],
+        );
+      }
 
-    // Check if user has access to his own data
-    if (!canAccessHisSubscriptionData(this.currentUser.id, subscription?.citizenId)) {
-      throw new ValidationError('Access denied', '/authorization', StatusCode.Forbidden);
-    }
+      // Check if user has access to his own data
+      if (!canAccessHisSubscriptionData(this.currentUser.id, subscription?.citizenId)) {
+        throw new ForbiddenError(
+          SubscriptionV1FinalizeInterceptor.name,
+          invocationCtx.methodName,
+          this.currentUser.id,
+          subscription?.citizenId,
+        );
+      }
 
-    // Check subscription status
-    if (subscription?.status !== SUBSCRIPTION_STATUS.DRAFT) {
-      throw new ValidationError(
-        `Only subscriptions with Draft status are allowed`,
-        '/status',
-        StatusCode.PreconditionFailed,
-        ResourceName.Subscription,
-      );
+      // Check subscription status
+      if (subscription?.status !== SUBSCRIPTION_STATUS.DRAFT) {
+        throw new ConflictError(
+          SubscriptionV1FinalizeInterceptor.name,
+          invocationCtx.methodName,
+          'subscriptions.error.bad.status',
+          '/subscription',
+          ResourceName.Subscription,
+          subscription?.status,
+          SUBSCRIPTION_STATUS.DRAFT,
+        );
+      }
+      const result = await next();
+      return result;
+    } catch (error) {
+      Logger.error(SubscriptionV1FinalizeInterceptor.name, invocationCtx.name, 'Error', error);
+      throw error;
     }
-    const result = await next();
-    return result;
   }
 }

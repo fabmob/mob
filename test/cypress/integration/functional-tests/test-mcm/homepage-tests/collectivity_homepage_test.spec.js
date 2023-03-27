@@ -86,6 +86,7 @@ describe("Collectivity homepage", function () {
 		  .click(); // Redirect
 		cy.url().should("match", /decouvrir-le-projet/); // Search page
 		cy.go(-1); // Go back to homepage
+		cy.wait(5000);
 		cy.get('.img-wrapper > .mcm-image > picture > img').should('have.attr', 'style', 'position: absolute; top: 0px; left: 0px; width: 100%; height: 100%; object-fit: cover; object-position: center center; opacity: 1; transition: none 0s ease 0s;'); // TODO image right-aligned & other elements (title, text, button) left-aligned
 		cy.viewport(365, 568); // Switch to mobile mode for responsive
 		cy.get('.img-wrapper > .mcm-image > picture > img').should('have.attr', 'style', 'position: absolute; top: 0px; left: 0px; width: 100%; height: 100%; object-fit: cover; object-position: center center; opacity: 1; transition: none 0s ease 0s;'); // TODO image right-aligned & other elements (title, text, button) left-aligned & ordered

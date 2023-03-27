@@ -86,7 +86,6 @@ deployments:
         io.kompose.service: api
       name: api
     spec:
-      replicas: 3
       selector:
         matchLabels:
           io.kompose.service: api
@@ -133,6 +132,8 @@ deployments:
               MONGO_SERVICE_USER: ${CLOUD_MONGO_SERVICE_USER}
               MONGO_SERVICE_PASSWORD: ${CLOUD_MONGO_SERVICE_PASSWORD}
               MONGO_DATABASE: ${CLOUD_MONGO_DB_NAME}
+              MONGO_PROTOCOL: ${CLOUD_MONGO_PROTOCOL}
+              MONGO_OPTIONS: ${CLOUD_MONGO_OPTIONS}
               S3_HOST: s3.s3-${CLOUD_HELM_DEPLOY_NAMESPACE}.svc.cluster.local
               S3_PORT: "9000"
               S3_SERVICE_PASSWORD: ${CLOUD_S3_SERVICE_PASSWORD}
@@ -141,6 +142,7 @@ deployments:
               SENDGRID_EMAIL_CONTACT: ${CLOUD_SENDGRID_EMAIL_CONTACT}
               SENDGRID_EMAIL_FROM: ${CLOUD_SENDGRID_EMAIL_FROM}
               SENDGRID_HOST: ${CLOUD_SENDGRID_HOST}
+              SENDGRID_PORT: ${CLOUD_SENDGRID_PORT}
               SENDGRID_USER: ${CLOUD_SENDGRID_USER}
               WEBSITE_FQDN: ${WEBSITE_FQDN}
               PGSQL_FLEX_SSL_CERT: ${CLOUD_PGSQL_FLEX_SSL_CERT}
@@ -148,6 +150,9 @@ deployments:
               TIMESTAMP_PASSWORD: ${CLOUD_TIMESTAMP_PASSWORD}
               TIMESTAMP_USERNAME: ${CLOUD_TIMESTAMP_USERNAME}
               TIMESTAMP_URL: ${CLOUD_TIMESTAMP_URL}
+              LOG_LEVEL: ${CLOUD_LOG_LEVEL}
+              MAX_LIMIT: ${CLOUD_MAX_LIMIT}
+              DEFAULT_LIMIT: ${CLOUD_DEFAULT_LIMIT}
             image: ${API_IMAGE_NAME}
             name: api
             ports:

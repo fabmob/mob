@@ -1,5 +1,5 @@
 import {ApplicationConfig, App} from './application';
-import {logger} from './utils';
+import {Logger} from './utils';
 
 export async function main(options: ApplicationConfig = {}) {
   const app = new App(options);
@@ -7,7 +7,7 @@ export async function main(options: ApplicationConfig = {}) {
   await app.start();
 
   const url = app.restServer.url;
-  logger.info(`Server is running at ${url}`);
+  Logger.info('LB4', 'main', 'Server is running at', url);
   return app;
 }
 
@@ -33,7 +33,7 @@ if (require.main === module) {
     },
   };
   main(config).catch(err => {
-    logger.error(`Cannot start the application: ${err}`);
+    Logger.error('LB4', 'main', 'Cannot start the application', err.message);
     process.exit(1);
   });
 }

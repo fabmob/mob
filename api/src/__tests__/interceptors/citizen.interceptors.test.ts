@@ -1,17 +1,11 @@
-import {
-  expect,
-  sinon,
-  StubbedInstanceWithSinonAccessor,
-  createStubInstance,
-} from '@loopback/testlab';
+import {expect, sinon, StubbedInstanceWithSinonAccessor, createStubInstance} from '@loopback/testlab';
 import {securityId} from '@loopback/security';
 
-import {Citizen, Enterprise, User} from '../../models';
+import {Citizen, Enterprise, EnterpriseDetails, Funder, User} from '../../models';
 import {CitizenService} from '../../services';
 import {CitizenInterceptor} from '../../interceptors';
-import {EnterpriseRepository, UserRepository} from '../../repositories';
-import {ValidationError} from '../../validationError';
-import {AFFILIATION_STATUS, IUser, ResourceName, StatusCode} from '../../utils';
+import {FunderRepository, UserRepository} from '../../repositories';
+import {AFFILIATION_STATUS, IUser, PartialCitizen, StatusCode} from '../../utils';
 import {AffiliationService} from '../../services/affiliation.service';
 
 describe('CitizenInterceptor', () => {
@@ -20,72 +14,11 @@ describe('CitizenInterceptor', () => {
   let thirdInterceptor: any = null;
   let citizenService: StubbedInstanceWithSinonAccessor<CitizenService>,
     userRepository: StubbedInstanceWithSinonAccessor<UserRepository>,
-    enterpriseRepository: StubbedInstanceWithSinonAccessor<EnterpriseRepository>,
+    funderRepository: StubbedInstanceWithSinonAccessor<FunderRepository>,
     affiliationService: StubbedInstanceWithSinonAccessor<AffiliationService>,
     currentUser: IUser,
     otherUser: IUser,
     citizenUser: IUser;
-
-  const err: any = new ValidationError(`citizens.error.birthdate.age`, '/birthdate');
-
-  const errorAffiliationNotFound: any = new ValidationError(
-    'citizens.affiliation.not.found',
-    '/citizensAffiliationNotFound',
-    StatusCode.NotFound,
-    ResourceName.Affiliation,
-  );
-
-  const errorAffiliationImpossible: any = new ValidationError(
-    'citizen.affiliation.impossible',
-    '/citizenAffiliationImpossible',
-    StatusCode.PreconditionFailed,
-    ResourceName.Affiliation,
-  );
-
-  const errorAccess: any = new ValidationError(
-    `citizen.disaffiliation.impossible`,
-    '/citizenDisaffiliationImpossible',
-  );
-
-  const errorCitizenNotFound: any = new ValidationError(
-    `Citizen not found`,
-    '/citizenNotFound',
-    StatusCode.NotFound,
-    ResourceName.Citizen,
-  );
-
-  const errorEnterpriseNotExist: any = new ValidationError(
-    `Enterprise does not exist`,
-    '/affiliation',
-    StatusCode.NotFound,
-    ResourceName.Affiliation,
-  );
-
-  const errorBadEmailFormat: any = new ValidationError(
-    'citizen.email.professional.error.format',
-    '/professionnalEmailBadFormat',
-    StatusCode.PreconditionFailed,
-    ResourceName.ProfessionalEmail,
-  );
-
-  const errorEmailUnique: any = new ValidationError(
-    'citizen.email.error.unique',
-    '/affiliation.enterpriseEmail',
-    StatusCode.UnprocessableEntity,
-    ResourceName.UniqueProfessionalEmail,
-  );
-
-  const errorPassword: any = new ValidationError(
-    `Password cannot be empty`,
-    '/password',
-    StatusCode.PreconditionFailed,
-    ResourceName.Account,
-  );
-  const AccessDenied: any = new ValidationError(
-    'Access denied',
-    '/authorization',
-    StatusCode.Forbidden,
-  );
 
   const invocationContextCreates = {
     target: {},
@@ -191,12 +124,6 @@ describe('CitizenInterceptor', () => {
     args: ['c3234ee6-a932-40bf-8a46-52d694cf61ff'],
   };
 
-  const invocationContextFindCitizenId = {
-    target: {},
-    methodName: 'findCitizenId',
-    args: ['c3234ee6-a932-40bf-8a46-52d694cf61ff'],
-  };
-
   beforeEach(() => {
     givenStubbedService();
     givenStubbedServiceId();
@@ -204,14 +131,14 @@ describe('CitizenInterceptor', () => {
     interceptor = new CitizenInterceptor(
       citizenService,
       userRepository,
-      enterpriseRepository,
+      funderRepository,
       affiliationService,
       currentUser,
     );
     secondInterceptor = new CitizenInterceptor(
       citizenService,
       userRepository,
-      enterpriseRepository,
+      funderRepository,
       affiliationService,
       otherUser,
     );
@@ -219,19 +146,13 @@ describe('CitizenInterceptor', () => {
     thirdInterceptor = new CitizenInterceptor(
       citizenService,
       userRepository,
-      enterpriseRepository,
+      funderRepository,
       affiliationService,
       citizenUser,
     );
   });
 
   it('CitizenInterceptor creates: error tos', async () => {
-    const tosError = new ValidationError(
-      `Citizen must agree to terms of services`,
-      '/tos',
-      StatusCode.UnprocessableEntity,
-      ResourceName.Account,
-    );
     const ctxCreateTosFalse = {
       target: {},
       methodName: 'create',
@@ -244,19 +165,13 @@ describe('CitizenInterceptor', () => {
     };
     try {
       await interceptor.intercept(ctxCreateTosFalse);
-      sinon.assert.fail();
     } catch (error) {
-      expect(error.message).to.equal(tosError.message);
+      expect(error.message).to.equal('Citizen must agree to terms of services');
+      expect(error.statusCode).to.equal(StatusCode.UnprocessableEntity);
     }
   });
 
   it('CitizenInterceptor creates: error enterprise not found', async () => {
-    const enterpriseNotFoundError = new ValidationError(
-      `Enterprise does not exist`,
-      '/affiliation',
-      StatusCode.NotFound,
-      ResourceName.Affiliation,
-    );
     const ctxCreateWrongEnterprise = {
       target: {},
       methodName: 'create',
@@ -272,11 +187,11 @@ describe('CitizenInterceptor', () => {
       ],
     };
     try {
-      enterpriseRepository.stubs.findOne.resolves(null);
+      funderRepository.stubs.getEnterpriseById.resolves(null);
       await interceptor.intercept(ctxCreateWrongEnterprise);
-      sinon.assert.fail();
     } catch (error) {
-      expect(error.message).to.equal(enterpriseNotFoundError.message);
+      expect(error.message).to.equal('Enterprise does not exist');
+      expect(error.statusCode).to.equal(StatusCode.BadRequest);
     }
   });
 
@@ -296,13 +211,16 @@ describe('CitizenInterceptor', () => {
           },
         ],
       };
-      const enterprise = new Enterprise({emailFormat: ['@example.com']});
-      enterpriseRepository.stubs.findOne.resolves(enterprise);
+      const enterprise = new Enterprise({
+        enterpriseDetails: new EnterpriseDetails({emailDomainNames: ['@example.com']}),
+      });
+      funderRepository.stubs.getEnterpriseById.resolves(enterprise);
       affiliationService.stubs.isValidEmailProPattern.returns(true);
       affiliationService.stubs.isEmailProExisting.resolves(true);
       await interceptor.intercept(ctxCreateEmailUnique);
     } catch (error) {
-      expect(error.message).to.equal(errorEmailUnique.message);
+      expect(error.message).to.equal('citizen.email.error.unique');
+      expect(error.statusCode).to.equal(StatusCode.Conflict);
     }
   });
 
@@ -322,12 +240,15 @@ describe('CitizenInterceptor', () => {
           },
         ],
       };
-      const enterprise = new Enterprise({emailFormat: ['@exemple.com']});
-      enterpriseRepository.stubs.findOne.resolves(enterprise);
+      const enterprise = new Enterprise({
+        enterpriseDetails: new EnterpriseDetails({emailDomainNames: ['@example.com']}),
+      });
+      funderRepository.stubs.getEnterpriseById.resolves(enterprise);
       affiliationService.stubs.isValidEmailProPattern.returns(false);
       await interceptor.intercept(ctxCreateEmailBadFormat);
     } catch (error) {
-      expect(error.message).to.equal(errorBadEmailFormat.message);
+      expect(error.message).to.equal('citizen.email.professional.error.format');
+      expect(error.statusCode).to.equal(StatusCode.UnprocessableEntity);
     }
   });
 
@@ -335,7 +256,8 @@ describe('CitizenInterceptor', () => {
     try {
       await interceptor.intercept(invocationContextCreates);
     } catch (error) {
-      expect(error.message).to.equal(errorPassword.message);
+      expect(error.message).to.equal('Password cannot be empty');
+      expect(error.statusCode).to.equal(StatusCode.BadRequest);
     }
   });
 
@@ -344,7 +266,8 @@ describe('CitizenInterceptor', () => {
       citizenService.stubs.getCitizenWithAffiliationById.resolves();
       await interceptor.intercept(invocationContextUpdateById);
     } catch (error) {
-      expect(error.message).to.equal(errorCitizenNotFound.message);
+      expect(error.message).to.equal('Citizen not found');
+      expect(error.statusCode).to.equal(StatusCode.NotFound);
     }
   });
 
@@ -358,10 +281,11 @@ describe('CitizenInterceptor', () => {
         },
       };
       citizenService.stubs.getCitizenWithAffiliationById.resolves(citizen);
-      enterpriseRepository.stubs.findOne.resolves(null);
+      funderRepository.stubs.getEnterpriseById.resolves(null);
       await interceptor.intercept(invocationContextUpdateById);
     } catch (error) {
-      expect(error.message).to.equal(errorEnterpriseNotExist.message);
+      expect(error.message).to.equal('Enterprise does not exist');
+      expect(error.statusCode).to.equal(StatusCode.BadRequest);
     }
   });
 
@@ -375,14 +299,17 @@ describe('CitizenInterceptor', () => {
           enterpriseEmail: 'maildifferent@example.com',
         },
       };
-      const enterprise = new Enterprise({emailFormat: ['@example.com']});
+      const enterprise = new Enterprise({
+        enterpriseDetails: new EnterpriseDetails({emailDomainNames: ['@example.com']}),
+      });
       citizenService.stubs.getCitizenWithAffiliationById.resolves(citizen);
-      enterpriseRepository.stubs.findOne.resolves(enterprise);
+      funderRepository.stubs.getEnterpriseById.resolves(enterprise);
       affiliationService.stubs.isValidEmailProPattern.returns(true);
       affiliationService.stubs.isEmailProExisting.resolves(true);
       await interceptor.intercept(invocationContextUpdateById);
     } catch (error) {
-      expect(error.message).to.equal(errorEmailUnique.message);
+      expect(error.message).to.equal('citizen.email.error.unique');
+      expect(error.statusCode).to.equal(StatusCode.Conflict);
     }
   });
 
@@ -396,21 +323,25 @@ describe('CitizenInterceptor', () => {
           enterpriseEmail: 'mail@badformat.com',
         },
       };
-      const enterprise = new Enterprise({emailFormat: ['@badformat.com']});
+      const enterprise = new Enterprise({
+        enterpriseDetails: new EnterpriseDetails({emailDomainNames: ['@example.com']}),
+      });
       citizenService.stubs.getCitizenWithAffiliationById.resolves(citizen);
-      enterpriseRepository.stubs.findOne.resolves(enterprise);
+      funderRepository.stubs.getEnterpriseById.resolves(enterprise);
       affiliationService.stubs.isValidEmailProPattern.returns(false);
       await interceptor.intercept(invocationContextUpdateById);
     } catch (error) {
-      expect(error.message).to.equal(errorBadEmailFormat.message);
+      expect(error.message).to.equal('citizen.email.professional.error.format');
+      expect(error.statusCode).to.equal(StatusCode.UnprocessableEntity);
     }
   });
 
-  it('CitizenInterceptor find: findCitizenId', async () => {
+  it('CitizenInterceptor validateAffiliation: affiliation not found', async () => {
     try {
       await interceptor.intercept(invocationContextvalidateAffiliation, () => {});
     } catch (err) {
-      expect(err.message).to.deepEqual(errorAffiliationNotFound.message);
+      expect(err.message).to.deepEqual('citizens.affiliation.not.found');
+      expect(err.statusCode).to.deepEqual(StatusCode.BadRequest);
     }
   });
 
@@ -427,7 +358,8 @@ describe('CitizenInterceptor', () => {
     try {
       await interceptor.intercept(invocationContextvalidateAffiliation, () => {});
     } catch (err) {
-      expect(err.message).to.deepEqual(errorAffiliationNotFound.message);
+      expect(err.message).to.equal('citizens.affiliation.not.found');
+      expect(err.statusCode).to.equal(StatusCode.BadRequest);
     }
   });
 
@@ -442,12 +374,10 @@ describe('CitizenInterceptor', () => {
     try {
       userRepository.stubs.findById.resolves(mockUser);
       citizenService.stubs.getCitizenWithAffiliationById.resolves(citizen);
-      await secondInterceptor.intercept(
-        invocationContextvalidateAffiliationWithId,
-        () => {},
-      );
+      await secondInterceptor.intercept(invocationContextvalidateAffiliationWithId, () => {});
     } catch (err) {
-      expect(err.message).to.deepEqual(errorAffiliationImpossible.message);
+      expect(err.message).to.equal('Access denied');
+      expect(err.statusCode).to.equal(StatusCode.Forbidden);
     }
   });
 
@@ -462,73 +392,81 @@ describe('CitizenInterceptor', () => {
     try {
       userRepository.stubs.findById.resolves(mockUser);
       citizenService.stubs.getCitizenWithAffiliationById.resolves(citizen);
-      await thirdInterceptor.intercept(
-        invocationContextvalidateAffiliationWithId,
-        () => {},
-      );
+      await thirdInterceptor.intercept(invocationContextvalidateAffiliationWithId, () => {});
     } catch (err) {
-      expect(err.message).to.deepEqual(errorAffiliationImpossible.message);
+      expect(err.message).to.equal('Access denied');
+      expect(err.statusCode).to.equal(StatusCode.Forbidden);
+    }
+  });
+
+  it('CitizenInterceptor disaffiliation: error funder not found', async () => {
+    try {
+      funderRepository.stubs.getFunderByNameAndType.resolves(null);
+      await interceptor.intercept(invocationContextDisaffiliation, () => {});
+    } catch (err) {
+      expect(err.message).to.equal('Funder not found');
+      expect(err.statusCode).to.equal(StatusCode.BadRequest);
     }
   });
 
   it('CitizenInterceptor disaffiliation: error disaffiliation impossible', async () => {
     try {
+      const funder: Funder = new Funder({
+        enterpriseDetails: new EnterpriseDetails({hasManualAffiliation: true}),
+      });
+      funderRepository.stubs.getFunderByNameAndType.resolves(funder);
       citizenService.stubs.getCitizenWithAffiliationById.resolves(mockAffiliatedCitizen);
       affiliationService.stubs.checkDisaffiliation.resolves(false);
-      citizenService.stubs.findEmployees.resolves({
-        employees: [mockAffiliatedCitizen],
-        employeesCount: 1,
-      });
+      citizenService.stubs.getEnterpriseEmployees.resolves([mockPartialCitizen]);
       await interceptor.intercept(invocationContextDisaffiliation, () => {});
-      sinon.assert.fail();
     } catch (err) {
-      expect(err.message).to.deepEqual(errorAccess.message);
+      expect(err.message).to.equal('citizen.disaffiliation.impossible');
+      expect(err.statusCode).to.equal(StatusCode.UnprocessableEntity);
     }
   });
 
   it('CitizenInterceptor disaffiliation: error access denied', async () => {
     try {
-      citizenService.stubs.getCitizenWithAffiliationById.resolves(mockAffiliatedCitizen);
-      citizenService.stubs.findEmployees.resolves({
-        employees: [mockCitizenDisaffiliation],
-        employeesCount: 1,
+      const funder: Funder = new Funder({
+        enterpriseDetails: new EnterpriseDetails({hasManualAffiliation: true}),
       });
+      funderRepository.stubs.getFunderByNameAndType.resolves(funder);
+      citizenService.stubs.getCitizenWithAffiliationById.resolves(mockAffiliatedCitizen);
+      citizenService.stubs.getEnterpriseEmployees.resolves([mockPartialCitizenDifferentId]);
       await interceptor.intercept(invocationContextDisaffiliat, () => {});
     } catch (err) {
-      expect(err.message).to.deepEqual(AccessDenied.message);
+      expect(err.message).to.deepEqual('Access denied');
+      expect(err.statusCode).to.equal(StatusCode.Forbidden);
     }
   });
 
   it('CitizenInterceptor disaffiliation affiliated citizen: error access denied', async () => {
     try {
-      citizenService.stubs.getCitizenWithAffiliationById.resolves(mockAffiliatedCitizen);
-      citizenService.stubs.findEmployees.resolves({
-        employees: [mockCitizenToAffiliate],
-        employeesCount: 1,
+      const funder: Funder = new Funder({
+        enterpriseDetails: new EnterpriseDetails({hasManualAffiliation: true}),
       });
+      funderRepository.stubs.getFunderByNameAndType.resolves(funder);
+      citizenService.stubs.getCitizenWithAffiliationById.resolves(mockAffiliatedCitizen);
+      citizenService.stubs.getEnterpriseEmployees.resolves([mockPartialCitizenDifferentId]);
       await interceptor.intercept(invocationContextDisaffiliat, () => {});
     } catch (err) {
-      expect(err.message).to.deepEqual(AccessDenied.message);
+      expect(err.message).to.deepEqual('Access denied');
+      expect(err.statusCode).to.equal(StatusCode.Forbidden);
     }
   });
 
   it('CitizenInterceptor disaffiliation: error citizen not found', async () => {
     try {
+      const funder: Funder = new Funder({
+        enterpriseDetails: new EnterpriseDetails({hasManualAffiliation: true}),
+      });
+      funderRepository.stubs.getFunderByNameAndType.resolves(funder);
       citizenService.stubs.getCitizenWithAffiliationById.resolves();
 
       await interceptor.intercept(invocationContextDisaffiliation, () => {});
     } catch (err) {
-      expect(err.message).to.deepEqual(errorCitizenNotFound.message);
-    }
-  });
-
-  it('CitizenInterceptor findCitizenById: error citizen not found', async () => {
-    try {
-      citizenService.stubs.getCitizenWithAffiliationById.resolves();
-
-      await interceptor.intercept(invocationContextFindCitizenId, () => {});
-    } catch (err) {
-      expect(err.message).to.deepEqual(errorCitizenNotFound.message);
+      expect(err.message).to.equal('Citizen not found');
+      expect(err.statusCode).to.equal(StatusCode.NotFound);
     }
   });
 
@@ -538,7 +476,7 @@ describe('CitizenInterceptor', () => {
   function givenStubbedService() {
     citizenService = createStubInstance(CitizenService);
     userRepository = createStubInstance(UserRepository);
-    enterpriseRepository = createStubInstance(EnterpriseRepository);
+    funderRepository = createStubInstance(FunderRepository);
     affiliationService = createStubInstance(AffiliationService);
     currentUser = {
       id: '',
@@ -556,7 +494,7 @@ describe('CitizenInterceptor', () => {
   function givenStubbedServiceId() {
     citizenService = createStubInstance(CitizenService);
     userRepository = createStubInstance(UserRepository);
-    enterpriseRepository = createStubInstance(EnterpriseRepository);
+    funderRepository = createStubInstance(FunderRepository);
     affiliationService = createStubInstance(AffiliationService);
     otherUser = {
       id: 'c3234ee6-a932-40bf-8a46-52d694cf61ff',
@@ -576,7 +514,7 @@ describe('CitizenInterceptor', () => {
   function givenStubbedServiceCitizen() {
     citizenService = createStubInstance(CitizenService);
     userRepository = createStubInstance(UserRepository);
-    enterpriseRepository = createStubInstance(EnterpriseRepository);
+    funderRepository = createStubInstance(FunderRepository);
     affiliationService = createStubInstance(AffiliationService);
     citizenUser = {
       id: 'c3234ee6-a932-40bf-8a46-52d694cf61ff',
@@ -610,43 +548,25 @@ const mockAffiliatedCitizen = new Citizen({
   }),
 });
 
-const mockCitizenDisaffiliation = new Citizen({
-  id: '123',
-  identity: Object.assign({
-    firstName: Object.assign({
-      value: 'Xina',
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date(),
-    }),
-    lastName: Object.assign({
-      value: 'Zhong',
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date(),
-    }),
-  }),
-  affiliation: Object.assign({
-    status: AFFILIATION_STATUS.TO_AFFILIATE,
-  }),
-});
+const mockPartialCitizen: PartialCitizen = {
+  id: 'c3234ee6-a932-40bf-8a46-52d694cf61ff',
+  lastName: 'lastName',
+  firstName: 'firstName',
+  birthdate: 'birthdate',
+  email: 'email',
+  enterpriseEmail: 'email@email.com',
+  isCitizenDeleted: false,
+};
 
-const mockCitizenToAffiliate = new Citizen({
-  id: '123',
-  identity: Object.assign({
-    firstName: Object.assign({
-      value: 'Xina',
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date(),
-    }),
-    lastName: Object.assign({
-      value: 'Zhong',
-      source: 'moncomptemobilite.fr',
-      certificationDate: new Date(),
-    }),
-  }),
-  affiliation: Object.assign({
-    status: AFFILIATION_STATUS.TO_AFFILIATE,
-  }),
-});
+const mockPartialCitizenDifferentId: PartialCitizen = {
+  id: 'differentId',
+  lastName: 'lastName',
+  firstName: 'firstName',
+  birthdate: 'birthdate',
+  email: 'email',
+  enterpriseEmail: 'email@email.com',
+  isCitizenDeleted: false,
+};
 
 const mockUser = new User({
   id: 'c3234ee6-a932-40bf-8a46-52d694cf61ff',

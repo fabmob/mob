@@ -19,10 +19,12 @@ Un template MCM a aussi été créé.
 
 ```sh
 docker run -d --name postgres-mcm -p 5432:5432 -e POSTGRES_ROOT_PASSWORD=${ROOT_PASSWORD} -e POSTGRES_DB=idp_db -e POSTGRES_USER=${DB_USER} -e POSTGRES_PASSWORD=${DB_PASSWORD} -d postgres:13.6
-# Executer une commande pour modifier le schema public
+# Exécuter une commande pour modifier le schema public
 docker exec -it postgres-mcm psql -U admin -a idp_db -c 'ALTER SCHEMA public RENAME TO idp_db;'
-# Exectuer une commande pour changer le type du champs value dans la table user_attribute
+# Exécuter une commande pour changer le type du champ value dans la table user_attribute
 docker exec -it postgres-mcm psql -U admin -a idp_db -c 'ALTER TABLE idp_db.user_attribute ALTER COLUMN value TYPE TEXT;'
+# Exécuter une commande pour changer le type du champ value dans la table group_attribute
+docker exec -it postgres-mcm psql -U admin -a idp_db -c 'ALTER TABLE idp_db.group_attribute ALTER COLUMN value TYPE TEXT;'
 ```
 
 ## Keycloak
@@ -81,7 +83,7 @@ Importer le realm **mcm** via l'interface Keycloak
 | IDP_MCM_IDENTITY_PROVIDER_CLIENT_SECRET   | Client secret identity provider Azure AD                     | Non         |
 | IDP_MCM_IDENTITY_PROVIDER_CLIENT_SECRET   | Client secret identity provider Azure AD                     | Non         |
 | FRANCE_CONNECT_IDP_PROVIDER_CLIENT_ID     | Client ID de l’identity provider de France Connect           | Non         |
-| FRANCE_CONNECT_IDP_PROVIDER_CLIENT_SECRET | Client secret identity provider Azure AD                     | Non         |
+| FRANCE_CONNECT_IDP_PROVIDER_CLIENT_SECRET | Client secret identity provider de France Connect            | Non         |
 
 ## Redirect URI
 
@@ -89,7 +91,7 @@ Dans les clients platform, administration et simulation-maas-client, des redirec
 
 > **Note** Comme mentionné, elles sont modifiables directement sur le realm avant import ou via l'interface Keycloak.
 
-Ces redirect URI sont nécessaires pour pouvoir se connecter sur [Website](website), [Administration](administration), [Simulation-maas](simulation-maas) ou l'[api](api).
+Ces redirect URI sont nécessaires pour pouvoir se connecter sur [Website](/website/README.md), [Administration](/administration/README.md), [Simulation-maas](/simulation-maas/README.md) ou l'[api](/api/README.md).
 
 | Variables            | Description             | Obligatoire |
 | -------------------- | ----------------------- | ----------- |

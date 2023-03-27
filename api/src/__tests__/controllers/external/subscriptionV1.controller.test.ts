@@ -1,9 +1,4 @@
-import {
-  createStubInstance,
-  expect,
-  sinon,
-  StubbedInstanceWithSinonAccessor,
-} from '@loopback/testlab';
+import {createStubInstance, expect, sinon, StubbedInstanceWithSinonAccessor} from '@loopback/testlab';
 import {securityId} from '@loopback/security';
 
 import {Readable} from 'stream';
@@ -13,10 +8,8 @@ import {
   SubscriptionRepository,
   IncentiveRepository,
   MetadataRepository,
-  CommunityRepository,
-  EnterpriseRepository,
-  CollectivityRepository,
   IncentiveEligibilityChecksRepository,
+  FunderRepository,
 } from '../../../repositories';
 import {SubscriptionV1Controller} from '../../../controllers/external';
 import {
@@ -26,11 +19,12 @@ import {
   Metadata,
   CreateSubscription,
   EncryptionKey,
-  Collectivity,
   PrivateKeyAccess,
-  Territory,
   EligibilityCheck,
   IncentiveEligibilityChecks,
+  Funder,
+  Enterprise,
+  EnterpriseDetails,
 } from '../../../models';
 import {
   CitizenService,
@@ -48,26 +42,22 @@ import {
   SUBSCRIPTION_CHECK_MODE,
   SUBSCRIPTION_STATUS,
 } from '../../../utils';
-import {Enterprise} from '../../../models/enterprise';
-import {Community} from '../../../models/community';
 
 describe('SubscriptionController (unit)', () => {
   let subscriptionRepository: StubbedInstanceWithSinonAccessor<SubscriptionRepository>,
-    collectivityRepository: StubbedInstanceWithSinonAccessor<CollectivityRepository>,
     incentiveRepository: StubbedInstanceWithSinonAccessor<IncentiveRepository>,
     metadataRepository: StubbedInstanceWithSinonAccessor<MetadataRepository>,
-    enterpriseRepository: StubbedInstanceWithSinonAccessor<EnterpriseRepository>,
-    communityRepository: StubbedInstanceWithSinonAccessor<CommunityRepository>,
+    funderRepository: StubbedInstanceWithSinonAccessor<FunderRepository>,
     incentiveChecksRepository: StubbedInstanceWithSinonAccessor<IncentiveEligibilityChecksRepository>,
     rabbitmqService: StubbedInstanceWithSinonAccessor<RabbitmqService>,
     s3Service: StubbedInstanceWithSinonAccessor<S3Service>,
     mailService: StubbedInstanceWithSinonAccessor<MailService>,
-    subscptionService: StubbedInstanceWithSinonAccessor<SubscriptionService>,
+    subscriptionService: StubbedInstanceWithSinonAccessor<SubscriptionService>,
     citizenService: StubbedInstanceWithSinonAccessor<CitizenService>,
     controller: SubscriptionV1Controller;
 
   const mockIncentiveNoNotification = new Incentive({
-    territory: {name: 'Toulouse', id: 'test'} as Territory,
+    territoryIds: ['test'],
     additionalInfos: 'test',
     funderName: 'nameTerritoire',
     allocatedAmount: '200 €',
@@ -149,17 +139,9 @@ describe('SubscriptionController (unit)', () => {
 
   const hrisFalse = new Enterprise({
     id: 'randomInputId',
-    isHris: false,
-  });
-
-  const hrisTrue = new Enterprise({
-    id: 'randomInputId',
-    isHris: true,
-  });
-
-  const name: Community = new Community({
-    id: 'randomInputId',
-    name: 'RabbitCo',
+    enterpriseDetails: new EnterpriseDetails({
+      isHris: false,
+    }),
   });
 
   const citoyen: Citizen = new Citizen({
@@ -301,21 +283,30 @@ describe('SubscriptionController (unit)', () => {
     },
   });
 
+  const response: any = {
+    status: function () {
+      return this;
+    },
+    contentType: function () {
+      return this;
+    },
+    send: (body: any) => body,
+  };
+
   beforeEach(() => {
     givenStubbedRepository();
     controller = new SubscriptionV1Controller(
+      response,
       subscriptionRepository,
       incentiveRepository,
       metadataRepository,
-      enterpriseRepository,
-      communityRepository,
-      collectivityRepository,
+      funderRepository,
       incentiveChecksRepository,
       rabbitmqService,
       s3Service,
       mailService,
       currentUser,
-      subscptionService,
+      subscriptionService,
       citizenService,
     );
   });
@@ -325,9 +316,22 @@ describe('SubscriptionController (unit)', () => {
       subscriptionRepository.stubs.create.resolves(inputRepo);
       incentiveRepository.stubs.findById.resolves(mockIncentive);
       citizenService.stubs.getCitizenWithAffiliationById.resolves(mockCitizen);
-      const result = await controller.createSubscription(input);
+      const result = await controller.createMaasSubscription(input);
 
       expect(result.id).to.equal(inputRepo.id);
+    });
+
+    it('SubscriptionV1Controller create : successful timestamp', async () => {
+      mockIncentive.isCertifiedTimestampRequired = true;
+      subscriptionRepository.stubs.create.resolves(inputRepo);
+      incentiveRepository.stubs.findById.resolves(mockIncentive);
+      citizenService.stubs.getCitizenWithAffiliationById.resolves(mockCitizen);
+      subscriptionService.stubs.createSubscriptionTimestamp.resolves();
+
+      const result = await controller.createMaasSubscription(input);
+
+      expect(result.id).to.equal(inputRepo.id);
+      mockIncentive.isCertifiedTimestampRequired = false;
     });
 
     it('SubscriptionV1Controller create : error', async () => {
@@ -335,7 +339,7 @@ describe('SubscriptionController (unit)', () => {
         subscriptionRepository.stubs.create.rejects('Error');
         incentiveRepository.stubs.findById.resolves(mockIncentive);
         citizenService.stubs.getCitizenWithAffiliationById.resolves(mockCitizen);
-        await controller.createSubscription(input);
+        await controller.createMaasSubscription(input);
       } catch (err) {
         expect(err.name).to.equal('Error');
       }
@@ -343,25 +347,16 @@ describe('SubscriptionController (unit)', () => {
 
     it('SubscriptionV1Controller addAttachments : successful with metadata, without files', async () => {
       subscriptionRepository.stubs.findById.resolves(newSubscription);
-      collectivityRepository.stubs.findOne.resolves(mockCollectivity);
-      enterpriseRepository.stubs.findOne.resolves(undefined);
-      const citizenFindByIdStub =
-        citizenService.stubs.getCitizenWithAffiliationById.resolves(
-          new Citizen({id: 'Citizen'}),
-        );
-      const metadataFindByIdStub =
-        metadataRepository.stubs.findById.resolves(attachmentDataMock);
-      const metadataDeleteByIdStub = metadataRepository.stubs.deleteById.resolves();
-      const subscriptionUpdateByIdStub =
-        subscriptionRepository.stubs.updateById.resolves();
-      const invoiceStub = sinon
-        .stub(invoiceUtils, 'generatePdfInvoices')
-        .resolves([invoiceMock]);
-      s3Service.stubs.uploadFileListIntoBucket.resolves(['ok']);
-      const result = await controller.addAttachments(
-        'randomInputId',
-        mockAttachmentWithoutFiles,
+      funderRepository.stubs.findById.resolves(mockFunder);
+      const citizenFindByIdStub = citizenService.stubs.getCitizenWithAffiliationById.resolves(
+        new Citizen({id: 'Citizen'}),
       );
+      const metadataFindByIdStub = metadataRepository.stubs.findById.resolves(attachmentDataMock);
+      const metadataDeleteByIdStub = metadataRepository.stubs.deleteById.resolves();
+      const subscriptionUpdateByIdStub = subscriptionRepository.stubs.updateById.resolves();
+      const invoiceStub = sinon.stub(invoiceUtils, 'generatePdfInvoices').resolves([invoiceMock]);
+      s3Service.stubs.uploadFileListIntoBucket.resolves(['ok']);
+      const result = await controller.addAttachments('randomInputId', mockAttachmentWithoutFiles);
       expect(result.id).to.equal(inputRepo.id);
       sinon.assert.calledOnce(citizenFindByIdStub);
       sinon.assert.calledOnce(metadataFindByIdStub);
@@ -372,22 +367,16 @@ describe('SubscriptionController (unit)', () => {
 
     it('SubscriptionV1Controller addAttachments : successful with files, without metadata', async () => {
       subscriptionRepository.stubs.findById.resolves(newSubscription);
-      collectivityRepository.stubs.findOne.resolves(mockCollectivity);
-      enterpriseRepository.stubs.findOne.resolves(undefined);
-      const citizenFindByIdStub =
-        citizenService.stubs.getCitizenWithAffiliationById.resolves(
-          new Citizen({id: 'Citizen'}),
-        );
+      funderRepository.stubs.findById.resolves(mockFunder);
+      const citizenFindByIdStub = citizenService.stubs.getCitizenWithAffiliationById.resolves(
+        new Citizen({id: 'Citizen'}),
+      );
       const metadataFindByIdStub = metadataRepository.stubs.findById.resolves(undefined);
       const metadataDeleteByIdStub = metadataRepository.stubs.deleteById.resolves();
-      const subscriptionUpdateByIdStub =
-        subscriptionRepository.stubs.updateById.resolves();
+      const subscriptionUpdateByIdStub = subscriptionRepository.stubs.updateById.resolves();
       const invoiceStub = sinon.stub(invoiceUtils, 'generatePdfInvoices').resolves([]);
       s3Service.stubs.uploadFileListIntoBucket.resolves(['ok']);
-      const result = await controller.addAttachments(
-        'randomInputId',
-        mockAttachmentWithoutMetadata,
-      );
+      const result = await controller.addAttachments('randomInputId', mockAttachmentWithoutMetadata);
       expect(result.id).to.equal(inputRepo.id);
       sinon.assert.calledOnce(citizenFindByIdStub);
       sinon.assert.notCalled(metadataFindByIdStub);
@@ -399,20 +388,14 @@ describe('SubscriptionController (unit)', () => {
 
     it('SubscriptionV1Controller addAttachments : successful with metadata and files', async () => {
       subscriptionRepository.stubs.findById.resolves(newSubscription);
-      collectivityRepository.stubs.findOne.resolves(mockCollectivity);
-      enterpriseRepository.stubs.findOne.resolves(undefined);
-      const citizenFindByIdStub =
-        citizenService.stubs.getCitizenWithAffiliationById.resolves(
-          new Citizen({id: 'Citizen'}),
-        );
-      const metadataFindByIdStub =
-        metadataRepository.stubs.findById.resolves(attachmentDataMock);
+      funderRepository.stubs.findById.resolves(mockFunder);
+      const citizenFindByIdStub = citizenService.stubs.getCitizenWithAffiliationById.resolves(
+        new Citizen({id: 'Citizen'}),
+      );
+      const metadataFindByIdStub = metadataRepository.stubs.findById.resolves(attachmentDataMock);
       const metadataDeleteByIdStub = metadataRepository.stubs.deleteById.resolves();
-      const subscriptionUpdateByIdStub =
-        subscriptionRepository.stubs.updateById.resolves();
-      const invoiceStub = sinon
-        .stub(invoiceUtils, 'generatePdfInvoices')
-        .resolves([invoiceMock]);
+      const subscriptionUpdateByIdStub = subscriptionRepository.stubs.updateById.resolves();
+      const invoiceStub = sinon.stub(invoiceUtils, 'generatePdfInvoices').resolves([invoiceMock]);
       s3Service.stubs.uploadFileListIntoBucket.resolves(['ok']);
       const result = await controller.addAttachments('randomInputId', mockAttachment);
       expect(result.id).to.equal(inputRepo.id);
@@ -425,17 +408,13 @@ describe('SubscriptionController (unit)', () => {
 
     it('SubscriptionV1Controller addAttachments : successful without metadata, without files', async () => {
       subscriptionRepository.stubs.findById.resolves(newSubscription);
-      collectivityRepository.stubs.findOne.resolves(mockCollectivity);
-      enterpriseRepository.stubs.findOne.resolves(undefined);
-      const citizenFindByIdStub =
-        citizenService.stubs.getCitizenWithAffiliationById.resolves(
-          new Citizen({id: 'Citizen'}),
-        );
-      const metadataFindByIdStub =
-        metadataRepository.stubs.findById.resolves(attachmentDataMock);
+      funderRepository.stubs.findById.resolves(mockFunder);
+      const citizenFindByIdStub = citizenService.stubs.getCitizenWithAffiliationById.resolves(
+        new Citizen({id: 'Citizen'}),
+      );
+      const metadataFindByIdStub = metadataRepository.stubs.findById.resolves(attachmentDataMock);
       const metadataDeleteByIdStub = metadataRepository.stubs.deleteById.resolves();
-      const subscriptionUpdateByIdStub =
-        subscriptionRepository.stubs.updateById.resolves();
+      const subscriptionUpdateByIdStub = subscriptionRepository.stubs.updateById.resolves();
       const invoiceStub = sinon.stub(invoiceUtils, 'generatePdfInvoices').resolves([]);
       s3Service.stubs.uploadFileListIntoBucket.resolves(['ok']);
       const result = await controller.addAttachments(
@@ -454,8 +433,7 @@ describe('SubscriptionController (unit)', () => {
     it('SubscriptionV1Controller addFiles : error', async () => {
       try {
         subscriptionRepository.stubs.findById.resolves(newSubscription);
-        collectivityRepository.stubs.findOne.resolves(mockCollectivity);
-        enterpriseRepository.stubs.findOne.resolves(undefined);
+        funderRepository.stubs.findById.resolves(mockFunder);
         citizenService.stubs.getCitizenWithAffiliationById.rejects('Error');
         await controller.addAttachments('randomInputId', mockAttachment);
       } catch (err) {
@@ -464,18 +442,20 @@ describe('SubscriptionController (unit)', () => {
       }
     });
 
+    /**
+     * TODO: REMOVING DEPRECATED ENDPOINT v1/maas/subscriptions/{subscriptionId}/verify.
+     * Remove this Test 🏌️‍♀️
+     */
     it('SubscriptionV1Controller finalizeSubscription - Manual Mode : successful', async () => {
       subscriptionRepository.stubs.findById.resolves(inputRepoDraft);
       incentiveRepository.stubs.findById.resolves(mockIncentiveNoNotification);
       subscriptionRepository.stubs.updateById.resolves();
-      enterpriseRepository.stubs.findById.resolves(hrisFalse);
+      funderRepository.stubs.getEnterpriseById.resolves(hrisFalse);
       mailService.stubs.sendMailAsHtml.resolves('ok');
-      const result = await controller.finalizeSubscription('randomInputId');
-      sinon.assert.calledOnceWithExactly(
-        subscriptionRepository.stubs.updateById,
-        'randomInputId',
-        {status: SUBSCRIPTION_STATUS.TO_PROCESS},
-      );
+      const result = await controller.finalizeSubscriptionMaas('randomInputId');
+      sinon.assert.calledOnceWithExactly(subscriptionRepository.stubs.updateById, 'randomInputId', {
+        status: SUBSCRIPTION_STATUS.TO_PROCESS,
+      });
 
       sinon.assert.calledOnceWithExactly(
         mailService.stubs.sendMailAsHtml,
@@ -487,12 +467,15 @@ describe('SubscriptionController (unit)', () => {
       expect(result.id).to.equal(inputRepo.id);
     });
 
+    /**
+     * TODO: REMOVING DEPRECATED ENDPOINT v1/maas/subscriptions/{subscriptionId}/verify.
+     * Remove this Test 🏌️‍♀️
+     */
     it('SubscriptionV1Controller finalizeSubscription hris true - Manual Mode: successful', async () => {
       subscriptionRepository.stubs.findById.resolves(inputRepoDraft);
       incentiveRepository.stubs.findById.resolves(mockIncentiveNoNotification);
       subscriptionRepository.stubs.updateById.resolves();
-      enterpriseRepository.stubs.findById.resolves(hrisTrue);
-      communityRepository.stubs.findById.resolves(name);
+      funderRepository.stubs.getEnterpriseById.resolves(hrisFalse);
       citizenService.stubs.getCitizenWithAffiliationById.resolves(citoyen);
       const connection: any = {
         createChannel: () => {
@@ -508,18 +491,21 @@ describe('SubscriptionController (unit)', () => {
       };
       const amqpTest = sinon.stub(amqp, 'connect').resolves(connection);
       await rabbitmqService.publishMessage(subscriptionPayload, 'header');
-      const result = await controller.finalizeSubscription('randomInputId');
+      const result = await controller.finalizeSubscriptionMaas('randomInputId');
       expect(result.id).to.equal('randomInputId');
       amqpTest.restore();
     });
 
+    /**
+     * TODO: REMOVING DEPRECATED ENDPOINT v1/maas/subscriptions/{subscriptionId}/verify.
+     * Remove this Test 🏌️‍♀️
+     */
     it('SubscriptionV1Controller finalizeSubscription hris true && commaunityId \
      - Manual Mode : successful', async () => {
       subscriptionRepository.stubs.findById.resolves(inputRepoDraft1);
       incentiveRepository.stubs.findById.resolves(mockIncentiveNoNotification);
       subscriptionRepository.stubs.updateById.resolves();
-      enterpriseRepository.stubs.findById.resolves(hrisTrue);
-      communityRepository.stubs.findById.resolves(name);
+      funderRepository.stubs.getEnterpriseById.resolves(hrisFalse);
       citizenService.stubs.getCitizenWithAffiliationById.resolves(citoyen);
       const connection: any = {
         createChannel: () => {
@@ -535,49 +521,63 @@ describe('SubscriptionController (unit)', () => {
       };
       const amqpTest = sinon.stub(amqp, 'connect').resolves(connection);
       await rabbitmqService.publishMessage(subscriptionPayload, 'header');
-      const result = await controller.finalizeSubscription('randomInputId');
+      const result = await controller.finalizeSubscriptionMaas('randomInputId');
       expect(result.id).to.equal('randomInputId');
       amqpTest.restore();
     });
 
+    /**
+     * TODO: REMOVING DEPRECATED ENDPOINT v1/maas/subscriptions/{subscriptionId}/verify.
+     * Remove this Test 🏌️‍♀️
+     */
     it('SubscriptionV1Controller finalizeSubscription diffrent funderType \
      - Manual Mode: successful', async () => {
       subscriptionRepository.stubs.findById.resolves(inputRepoDraft2);
       incentiveRepository.stubs.findById.resolves(mockIncentiveNoNotification);
       subscriptionRepository.stubs.updateById.resolves();
-      enterpriseRepository.stubs.findById.resolves(hrisTrue);
-      communityRepository.stubs.findById.resolves(name);
+      funderRepository.stubs.getEnterpriseById.resolves(hrisFalse);
       citizenService.stubs.getCitizenWithAffiliationById.resolves(citoyen);
       await rabbitmqService.publishMessage(subscriptionPayload, 'header');
-      const result = await controller.finalizeSubscription('randomInputId');
+      const result = await controller.finalizeSubscriptionMaas('randomInputId');
       expect(result.id).to.equal('randomInputId');
     });
 
+    /**
+     * TODO: REMOVING DEPRECATED ENDPOINT v1/maas/subscriptions/{subscriptionId}/verify.
+     * Remove this Test 🏌️‍♀️
+     */
     it('SubscriptionV1Controller finalizeSubscription without entreprise - Manual Mode : error', async () => {
       try {
         subscriptionRepository.stubs.findById.resolves(inputRepoDraft1);
         incentiveRepository.stubs.findById.resolves(mockIncentiveNoNotification);
         subscriptionRepository.stubs.updateById.resolves();
-        communityRepository.stubs.findById.resolves(name);
         citizenService.stubs.getCitizenWithAffiliationById.resolves(citoyen);
         await rabbitmqService.publishMessage(subscriptionPayload, 'header');
-        await controller.finalizeSubscription('randomInputId');
+        await controller.finalizeSubscriptionMaas('randomInputId');
       } catch (err) {
         expect(err.id).to.equal('randomInputId');
       }
     });
 
+    /**
+     * TODO: REMOVING DEPRECATED ENDPOINT v1/maas/subscriptions/{subscriptionId}/verify.
+     * Remove this Test 🏌️‍♀️
+     */
     it('SubscriptionV1Controller finalizeSubscription - Manual Mode : error', async () => {
       try {
         subscriptionRepository.stubs.findById.resolves(inputRepoDraft);
         incentiveRepository.stubs.findById.resolves(mockIncentive);
         subscriptionRepository.stubs.updateById.rejects('Error');
-        await controller.finalizeSubscription('randomInputId');
+        await controller.finalizeSubscriptionMaas('randomInputId');
       } catch (err) {
         expect(err.name).to.equal('Error');
       }
     });
 
+    /**
+     * TODO: REMOVING DEPRECATED ENDPOINT v1/maas/subscriptions/{subscriptionId}/verify.
+     * Remove this Test 🏌️‍♀️
+     */
     it('SubscriptionV1Controller finalizeSubscription - Automatic Mode : validate', async () => {
       subscriptionRepository.stubs.findById.resolves(subscriptionDraft);
       incentiveRepository.stubs.findById.resolves(mockIncentiveAutomaticControl);
@@ -585,8 +585,8 @@ describe('SubscriptionController (unit)', () => {
         incentiveEligibilityChecks as IncentiveEligibilityChecks[],
       );
 
-      subscptionService.stubs.checkFranceConnectIdentity.resolves(true);
-      subscptionService.stubs.checkCEEValidity.resolves({
+      subscriptionService.stubs.checkFranceConnectIdentity.resolves(true);
+      subscriptionService.stubs.checkCEEValidity.resolves({
         status: 'success',
         code: 201,
         data: {
@@ -595,15 +595,19 @@ describe('SubscriptionController (unit)', () => {
           token: 'token',
         },
       });
-      subscptionService.stubs.validateSubscription.resolves();
+      subscriptionService.stubs.validateSubscription.resolves();
 
-      const result = await controller.finalizeSubscription('randomInputId');
+      const result = await controller.finalizeSubscriptionMaas('randomInputId');
       expect(result).to.containEql({
         id: 'randomInputId',
         status: SUBSCRIPTION_STATUS.VALIDATED,
       });
     });
 
+    /**
+     * TODO: REMOVING DEPRECATED ENDPOINT v1/maas/subscriptions/{subscriptionId}/verify.
+     * Remove this Test 🏌️‍♀️
+     */
     it('SubscriptionV1Controller finalizeSubscription - Automatic Mode : reject first control', async () => {
       subscriptionRepository.stubs.findById.resolves(subscriptionDraft);
       incentiveRepository.stubs.findById.resolves(mockIncentiveAutomaticControl);
@@ -611,10 +615,10 @@ describe('SubscriptionController (unit)', () => {
         incentiveEligibilityChecks as IncentiveEligibilityChecks[],
       );
 
-      subscptionService.stubs.checkFranceConnectIdentity.resolves(false);
-      subscptionService.stubs.rejectSubscription.resolves();
+      subscriptionService.stubs.checkFranceConnectIdentity.resolves(false);
+      subscriptionService.stubs.rejectSubscription.resolves();
 
-      const result = await controller.finalizeSubscription('randomInputId');
+      const result = await controller.finalizeSubscriptionMaas('randomInputId');
       expect(result).to.containEql({
         id: 'randomInputId',
         status: SUBSCRIPTION_STATUS.REJECTED,
@@ -622,33 +626,45 @@ describe('SubscriptionController (unit)', () => {
       });
     });
 
-    it('SubscriptionV1Controller finalizeSubscription - Automatic Mode\
-     Timestamp On : reject second control', async () => {
+    /**
+     * TODO: REMOVING DEPRECATED ENDPOINT v1/maas/subscriptions/{subscriptionId}/verify.
+     * Remove this Test 🏌️‍♀️
+     */
+    it('SubscriptionV1Controller finalizeSubscription - Automatic Mode : \
+     reject second control', async () => {
       subscriptionRepository.stubs.findById.resolves(subscriptionDraft);
       incentiveRepository.stubs.findById.resolves(mockIncentiveAutomaticTimestamp);
       incentiveChecksRepository.stubs.find.resolves(
         incentiveEligibilityChecks as IncentiveEligibilityChecks[],
       );
 
-      subscptionService.stubs.checkFranceConnectIdentity.resolves(true);
-      subscptionService.stubs.checkCEEValidity.resolves({
+      subscriptionService.stubs.checkFranceConnectIdentity.resolves(true);
+      subscriptionService.stubs.checkCEEValidity.resolves({
         status: 'error',
         code: 404,
         message: 'Not Found',
       });
-      subscptionService.stubs.rejectSubscription.resolves();
-      subscptionService.stubs.createSubscriptionTimestamp.resolves();
+      subscriptionService.stubs.rejectSubscription.resolves();
 
-      const result = await controller.finalizeSubscription('randomInputId');
+      const result = await controller.finalizeSubscriptionMaas('randomInputId');
       expect(result).to.containEql({
         id: 'randomInputId',
         status: SUBSCRIPTION_STATUS.REJECTED,
         rejectionReason: REJECTION_REASON.INVALID_RPC_CEE_REQUEST,
-        comment: 'HTTP 404 - Not Found',
+        comments: 'HTTP 404 - Not Found',
       });
     });
 
     // get subscription TU
+    it('get(v1/maas/subscriptions) ERROR', async () => {
+      try {
+        subscriptionRepository.stubs.find.rejects(new Error('Error'));
+        await controller.findMaasSubscription();
+      } catch (err) {
+        expect(err.message).to.deepEqual('Error');
+      }
+    });
+
     it('get(v1/maas/subscriptions)', async () => {
       subscriptionRepository.stubs.find.resolves([newSubscription]);
       incentiveRepository.stubs.find.resolves([mockIncentive]);
@@ -659,17 +675,15 @@ describe('SubscriptionController (unit)', () => {
 
   function givenStubbedRepository() {
     subscriptionRepository = createStubInstance(SubscriptionRepository);
-    collectivityRepository = createStubInstance(CollectivityRepository);
     incentiveRepository = createStubInstance(IncentiveRepository);
     citizenService = createStubInstance(CitizenService);
     metadataRepository = createStubInstance(MetadataRepository);
-    enterpriseRepository = createStubInstance(EnterpriseRepository);
-    communityRepository = createStubInstance(CommunityRepository);
+    funderRepository = createStubInstance(FunderRepository);
     incentiveChecksRepository = createStubInstance(IncentiveEligibilityChecksRepository);
     rabbitmqService = createStubInstance(RabbitmqService);
     s3Service = createStubInstance(S3Service);
     mailService = createStubInstance(MailService);
-    subscptionService = createStubInstance(SubscriptionService);
+    subscriptionService = createStubInstance(SubscriptionService);
   }
 });
 
@@ -711,6 +725,9 @@ const mockCitizen = new Citizen({
       certificationDate: new Date('2022-11-03'),
       source: 'moncomptemobilite.fr',
     }),
+  }),
+  affiliation: Object.assign({
+    enterpriseEmail: 'enterprise@email.com',
   }),
 });
 
@@ -758,7 +775,7 @@ owIDAQAB
   privateKeyAccess: new PrivateKeyAccess({loginURL: 'loginURL', getKeyURL: 'getKeyURL'}),
 });
 
-const mockCollectivity = new Collectivity({
+const mockFunder = new Funder({
   id: '2b6ee373-4c5b-403b-afe5-3bf3cbd2473',
   encryptionKey: mockencryptionKeyValid,
 });
@@ -821,8 +838,7 @@ const incentiveEligibilityChecks = [
     id: 'uuid1',
     name: 'Identité FranceConnect',
     label: ELIGIBILITY_CHECKS_LABEL.FRANCE_CONNECT,
-    description:
-      "Les données d'identité doivent être fournies/certifiées par FranceConnect",
+    description: "Les données d'identité doivent être fournies/certifiées par FranceConnect",
     type: 'boolean',
     motifRejet: 'CompteNonFranceConnect',
   },
@@ -830,8 +846,7 @@ const incentiveEligibilityChecks = [
     id: 'uuid3',
     name: 'Demande CEE au RPC',
     label: 'RPCCEERequest',
-    description:
-      '1 seule demande par dispositif CEE, enregistrée dans le Registre de Preuve de Covoiturage',
+    description: '1 seule demande par dispositif CEE, enregistrée dans le Registre de Preuve de Covoiturage',
     type: 'boolean',
     motifRejet: 'RPCCEEDemandeInvalide',
   },

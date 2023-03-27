@@ -1,8 +1,12 @@
 {
+  
+  "search.head.page.title":"Trouver une aide",
+  "search.head.title.separator": "|",
+  "search.head.title.siteName" : "Mon Compte Mobilité",  
+  "search.head.description" : "Grâce à moB, découvrez et souscrivez simplement à l’ensemble des aides à la mobilité nationales, territoriales et employeur.",
   "search.incentive.text": "Trouver une aide",
   "search.incentive.authenticated.text": "Mes aides",
-  "search.subtitle.non.authenticated.text": "Mulhouse Alsace Agglomération et Île-de-France sont les premiers territoires où le service est actif. Pour consulter les aides spécifiques de votre employeur ",
-  "search.subtitle.authenticated.text": "Mulhouse Alsace Agglomération et Île-de-France sont les premiers territoires où le service est actif",
+  "search.subtitle.non.authenticated.text": "Pour consulter les aides spécifiques de votre employeur ",
   "search.create.account": "créez un compte",
   "form.search.incentive.label": "Trouver une aide",
   "form.search.incentive.placeholder": "Rechercher par mots clés, types d’aides, modes de transport",
@@ -102,7 +106,7 @@
   "personal.data.part2.paragraphe2.description": "Dans le cadre d’obligations précontractuelles et/ou contractuelles, nous pouvons traiter vos données personnelles pour :",
   "personal.data.part2.paragraphe2.item1": "donner suite à vos commentaires, ainsi qu’aux autres demandes que vous pouvez nous soumettre par l’intermédiaire de notre site Internet ;",
   "personal.data.part2.paragraphe2.item2": "permettre de vous connecter à certaines parties de notre site Internet ;",
-  "personal.data.part2.paragraphe2.item3": "gérer votre participation au contenu en ligne. ",
+  "personal.data.part2.paragraphe2.item3": "vous inviter à prendre connaissance des aides à la mobilité proposées sur Mon Compte Mobilité. ",
   "personal.data.part2.paragraphe3.description": "Nous pouvons également utiliser les données personnelles que vous partagez avec nous pour :",
   "personal.data.part2.paragraphe3.item1": "tenir à jour et améliorer notre site Internet, ainsi que pour assurer sa sécurité ;",
   "personal.data.part2.paragraphe3.item2": "mener des études de satisfaction clients ; ",
@@ -137,7 +141,6 @@
   "personal.data.part8.title": "8. Suivi des Données de Navigation",
   "personal.data.part7.paragraphe1": "Des cookies sont utilisés sur ce site Internet. Pour en savoir plus sur ces cookies, veuillez consulter notre",
   "personal.data.part7.paragraphe1.link": "Politique et gestion des cookies",
-
   "cgu.title": "Mentions légales et Conditions Générales d’utilisation",
   "cgu.welcome.title": "Nous vous souhaitons la bienvenue sur le site Mon Compte Mobilité.",
   "cgu.infos.title": "Ce site web est édité par :",
@@ -154,7 +157,6 @@
   "cgu.infos.host.line1": "Microsoft Data Center",
   "cgu.infos.host.line2": "France Centre ",
   "cgu.infos.host.line3": "Paris ",
-
   "cgu.infos.mob.title": "Mon Compte Mobilité: de quoi s’agit-il? ",
   "cgu.infos.mob.parag1": "Le dispositif des CEE (Certificats d’Economies d’Energies) créé en 2006 repose sur une obligation de réalisation d’économies d’énergie imposée par les pouvoirs publics aux vendeurs d’énergie. Ceux-ci doivent ainsi promouvoir activement l’efficacité énergétique auprès des consommateurs d’énergie : ménages, collectivités territoriales ou professionnels. Le 1er janvier 2018, le dispositif est entré dans sa 4ème période d’obligation pour une durée de 3 ans.   ",
   "cgu.infos.mob.parag2": "Dans le cadre de l’Appel à Programme de 2019, Capgemini Consulting SAS, en partenariat avec la Fabrique des Mobilités, a présenté à l’Etat et l’ADEME, le programme « Mon Compte Mobilité » dont l’objectif est de déployer une plateforme digitale de services permettant :  ",
@@ -163,13 +165,11 @@
   "cgu.infos.mob.parag3": "Par un arrêté du 27 février 2020 publié le 8 mars 2020, l’Etat a confirmé la sélection du Programme au dispositif des CEE et a déclaré Capgemini Consulting porteur du projet.  ",
   "cgu.infos.mob.parag4": "Une convention de mise en œuvre du Programme (disponible sur le site France mobilités) signée par l’ADEME et l’Etat d’une part, par Capgemini Consulting, porteur pilote et la Fabrique des Mobilités, porteur associé, ainsi que par les Obligés financeurs, d’autre part a été signée le 01 juillet 2020. Par cette convention, les parties préalablement citées se sont engagées à fournir sur près de 3 ans (jusqu’au 31/12/2022) des livrables fonctionnels et techniques afin de réaliser et déployer, sur les territoires partenaires, une plateforme de service dédiée à la mobilité et ce, sous le pilotage de Capgemini Consulting. Par décision du Comité de Pilotage, la période du programme a été étendue jusqu’au 31 mars 2023. ",
   "cgu.infos.mob.parag5": "Les autorités organisatrices de la mobilité Ile-de-France Mobilités, Mulhouse Alsace Agglomération, ainsi que le Conseil Départemental de l’Aude, se sont déclarées intéressées pour participer à la Phase d’expérimentation du Programme afin de développer et préparer les déploiements du produit permettant de tester le modèle opérationnel de Mon Compte Mobilité.   ",
-
   "cgu.part1.title": "1 - Acceptation & Accès au Site",
   "cgu.part1.paragraphe1": "Tout accès au site web de présentation du projet Mon Compte Mobilité co-porté par Capgemini et La Fabrique des Mobilités, et / ou toute recherche effectuée sur ledit site, et / ou toute utilisation dudit site et/ou tout téléchargement d’une partie du contenu dudit site par l’utilisateur vaut acceptation des Conditions d’Utilisation du site web Mon Compte Mobilité, telles que définies ci-après.",
   "cgu.part1.paragraphe2": "Pour accéder à ce Site et bénéficier de ses services, vous devez être âgé de 16 ans et être un résident de France métropolitaine.  ",
   "cgu.part1.paragraphe3": "L’accès au Site nécessite l’utilisation de codes d'accès personnels. Dans ce cas, il vous appartient de prendre les mesures propres à assurer le secret de ces codes. Vous pouvez bien entendu les modifier à tout moment. Nous vous invitons à nous informer de toute utilisation frauduleuse dont vous pourriez éventuellement avoir connaissance. Par ailleurs, en cas de non-respect des règles décrites dans les présentes Conditions d’Utilisation, nous nous réservons le droit de suspendre votre accès. ",
   "cgu.part1.paragraphe4": "Les frais d’accès et d’utilisation du réseau de télécommunication restent néanmoins à votre charge. ",
-
   "cgu.part2.title": "2 - Définitions",
   "cgu.part2.paragraphe1": "La présente clause a pour objet de définir les termes essentiels des CGU : ",
   "cgu.part2.paragraphe2": "désigne, sans que cette liste soit limitative, le contenu éditorial de Mon Compte Mobilité, les illustrations, les chartes graphiques, les marques (verbales et figuratives), les contenus visuels (vidéos, photographies et ou/ textes) ainsi que tout autre contenu accessible à partir de Mon Compte Mobilité. ",
@@ -196,12 +196,10 @@
   "cgu.part2.paragraphe1.line9":"Utilisateur : ",
   "cgu.part2.paragraphe1.line10":"Utilisateur authentifié :",
   "cgu.part2.paragraphe1.line11":"Utilisateur non authentifié : ",
-
   "cgu.part3.title": "3 - Objet du site web et Services proposés",
   "cgu.part3.paragraphe1.part1": "Toutes les informations contenues sur le site web Mon Compte Mobilité, et plus généralement l’ensemble des éléments, incluant notamment, les logiciels, données, textes, graphismes, images, sons, vidéos, logos, symboles, code html ci-après dénommé le “Contenu”, ne sont mises à la disposition des utilisateurs qu’à ",
   "cgu.part3.paragraphe1.part2": "titre indicatif",
   "cgu.part3.paragraphe1.part3": ". Elles ne peuvent en aucun cas être interprétées comme une offre commerciale, une licence, un conseil, une relation professionnelle entre l’utilisateur et les co-porteurs du projet Mon Compte Mobilité, Capgemini et La Fabrique des Mobilités. Le Contenu fourni sur ce site n’exonère pas l’utilisateur de procéder par lui-même au contrôle de l’information fournie.",
-
   "cgu.part3.paragraphe2": "Le site web Mon Compte Mobilité a pour vocation de mettre à disposition les services consistant à :",
   "cgu.part3.paragraphe3": "Permettre à l’Utilisateur non-authentifié",
   "cgu.part3.paragraphe3.list1": "D’accéder au Contenu de Mon Compte Mobilité ne nécessitant pas de création de compte  ",
@@ -222,7 +220,6 @@
   "cgu.part3.paragraphe5.list4": "De valider les demandes d’affiliations des Utilisateurs ",
   "cgu.part3.paragraphe5.list5": "De s’interfacer avec leur Système d'Information Ressources Humaines pour traiter les demandes d’aides des Utilisateurs dans leur outil existant ",
   "cgu.part3.paragraphe5.list6": "D’accéder à un certain nombre d’indicateurs de suivi de pilotage de la politique de mobilité ",
-
   "cgu.part4.title": "4 - Disponibilité de Mon Compte Mobilité",
   "cgu.part4.paragraphe1": "Les Sociétés Editrices feront leurs meilleurs efforts pour assurer la disponibilité de Mon Compte Mobilité 24 heures sur 24, 7 jours sur 7.  ",
   "cgu.part4.paragraphe2":"Cependant, il peut arriver que l’accès soit interrompu notamment dans le cadre d’opérations de maintenance (mise à jour, interventions urgentes nécessaires au bon fonctionnement de Mon Compte Mobilité) ou en raison de circonstances indépendantes de la volonté des Sociétés Editrices.  ",
@@ -231,8 +228,6 @@
   "cgu.part4.list1":"Suspendre, interrompre ou limiter l’accès à tout ou partie de Mon Compte Mobilité, réserver l’accès à Mon Compte Mobilité – ou à certaines parties de Mon Compte Mobilité – à une catégorie déterminée d’Utilisateurs. ",
   "cgu.part4.list2":"Supprimer tout Contenu ou Service pouvant en perturber le fonctionnement ou entrant en contravention avec la règlementation. ",
   "cgu.part4.list3":"Suspendre Mon Compte Mobilité afin de procéder à des mises à niveau. ",
-
-
   "cgu.part5.title": "5 - Liens hypertextes avec des sites tiers",
   "cgu.part5.paragraphe.part1": "Nous n’exerçons aucun contrôle quant au contenu des sites tiers. ",
   "cgu.part5.paragraphe.part2": "L’existence d’un lien hypertexte entre le site web Mon Compte Mobilité et un site tiers ne signifie pas que Capgemini ou La Fabrique des Mobilités assument une quelconque garantie et responsabilité quant à son contenu ou l’usage qui peut en être fait",
@@ -240,13 +235,11 @@
   "cgu.part5.paragraphe.part4": "de prendre les précautions nécessaires pour s’assurer de l’absence de virus sur le site visité.",
   "cgu.part5.paragraphe.part5": " Il est interdit",
   "cgu.part5.paragraphe.part6": ", sans l’accord écrit et préalable de Capgemini, à tout Utilisateur du site web Mon Compte Mobilité de créer, sur n’importe quel autre site web, tout lien hypertexte y compris un lien hypertexte dit “profond” avec une page du site web Mon Compte Mobilité et de le combiner avec la technique du “framing” ou toute autre technique similaire permettant de renvoyer directement aux pages secondaires du site web Mon Compte Mobilité sans passer par sa page d’accueil. ",
-
   "cgu.part6.title": "6 - Droits de propriété intellectuelle",
   "cgu.part6.paragraphe1": "Le développement du site web Mon Compte Mobilité a impliqué des investissements importants. Le site et chacun des éléments qui le composent (tels que marques, images, textes, vidéos, etc.) sont protégés au titre de la propriété intellectuelle. Toute utilisation, reproduction ou représentation de du Site (en tout ou partie), sur quelque support que ce soit, à d’autres fins, et notamment commerciales, est interdite.",
   "cgu.part6.paragraphe2": "Toutes les autres marques qui n’appartiennent pas à Capgemini ou à la Fabrique des Mobilités et qui apparaissent sur le site web Mon Compte Mobilité appartiennent à leurs propriétaires respectifs, qui peuvent ou non être affiliés, liés ou parrainés par Capgemini et La Fabrique des Mobilités. Vous devez demander une autorisation spécifique pour utiliser à quelque fin que ce soit l’une des marques appartenant à Capgemini, à la Fabrique des Mobilités ou à un tiers.",
   "cgu.part6.paragraphe3": "Si vous avez connaissance d’une violation des droits de propriété intellectuelle de Capgemini ou de La Fabrique des Mobilités, ou si vous pensez que des éléments du site web de présentation du projet Mon Compte Mobilité ont porté atteinte à vos droits de propriété intellectuelle, veuillez envoyer un courrier électronique à : intellectualpropertyrights.fr@capgemini.com pour Capgemini ou à contact@moncomptemobilite.fr pour La Fabrique des Mobilités.",
   "cgu.part6.paragraphe4": "Veillez à inclure autant de détails que possible (par exemple : une description des droits de propriété intellectuelle présumés enfreints, une description de la localisation du contenu que vous revendiquez, etc.). Notez que nous n’ouvrirons aucune pièce jointe quelles que soient les circonstances.",
-
   "cgu.part7.title": "7 - Garanties et responsabilités",
   "cgu.part7.paragraphe1": "Le Contenu du site web Mon Compte Mobilité – y compris les logiciels pouvant y être téléchargés, est fourni ”en l’état“, sans garantie d’aucune sorte, ni expresse, ni tacite autre que celle prévue par la loi en vigueur, et notamment sans garantie que le Contenu réponde aux besoins de l’utilisateur ni que le contenu soit à jour.",
   "cgu.part7.paragraphe2.line1": "Bien que nous nous efforçons de fournir un ",
@@ -257,25 +250,20 @@
   "cgu.part7.paragraphe3.line1": "Nous ne pourrons ",
   "cgu.part7.paragraphe3.line2": "pas être tenus responsables des dommages indirects résultant de l’usage de ce site web ou d’autres sites qui lui sont liés",
   "cgu.part7.paragraphe3.line3": ", notamment et sans limitation, tout préjudice financier ou commercial, perte de programme ou de données du système d’information ou autre de l’Utilisateur, même si Nous avons eu connaissance de la possibilité de survenance de tels dommages. Notre responsabilité ne pourra être engagée qu’au titre de dommages directs. ",
-
   "cgu.part8.title": "8 - Données personnelles et cookies",
   "cgu.part8.paragraphe1": "Consulter notre",
   "cgu.part8.paragraphe1.link": "politique de données personnelles",
-
   "cgu.part9.title": "9 - Avertissement aux utilisateurs",
   "cgu.part9.paragraphe1.line1": "Nous n’assumons aucune obligation de suivi des informations que l’Utilisateur peut déposer sur le site web d'expérimentation du projet Mon Compte Mobilité",
   "cgu.part9.paragraphe1.line2": ". A ce titre, l’Utilisateur garantit que n’importe quelle information, ou élément (le terme “élément” désigne tout projet, fichier ou autres pièces jointes envoyés) ou commentaires autres que des données personnelles, que l’Utilisateur peut transmettre à Capgemini ou La Fabrique des Mobilités par le site web de présentation du projet Mon Compte Mobilité, ne viole aucun droit de propriété intellectuelle d’un tiers ou une autre loi applicable. De telles informations, ou éléments ou commentaires, seront traités comme non-confidentiels et non-propriétaires. En soumettant ainsi n’importe quelle information, élément ou commentaire, l’Utilisateur Nous donne tout droit nécessaire, de manière illimité et irrévocable, pour employer, exécuter, montrer, modifier et transmettre de telles informations, éléments ou commentaires, y compris n’importe quel suggestion, concept ou savoir-faire. Capgemini et La Fabrique des Mobilités",
   "cgu.part9.paragraphe1.line3": " se réservent le droit",
   "cgu.part9.paragraphe1.line4": " d’employer de tels informations, éléments ou commentaires à toutes fins de communication interne ou externe, corporate, de publicité, ainsi qu’à toutes fins de relations publiques, à des fins d’historiques ou d’archives.",
-
   "cgu.part10.title": "10 - Loi applicable – Indépendance des clauses",
   "cgu.part10.paragraphe1": "Les Conditions d’Utilisation sont soumises à la loi française. ",
   "cgu.part10.paragraphe2": "Pour tout problème lié à l’utilisation du site Mon Compte Mobilité, merci de prendre contact avec notre service interne à l’adresse mail suivante :  contact@moncomptemobilite.fr. En cas de différend avéré, et avant toute action devant une juridiction, les Sociétés Editrices et l’Utilisateur s’efforceront de régler le litige entre elles, en toute bonne foi, en saisissant le service disponible à l’adresse mail précité. A défaut de résolution du litige dans le cadre précité, le litige pourra être porté devant les juridictions françaises compétentes. Si n’importe quelle disposition de ces Conditions d’Utilisation est tenue pour être illégale, invalide ou inapplicable, en application d’une loi, d’un règlement à la suite d’une décision définitive d’une juridiction compétente, les dispositions restantes resteront en vigueur. ",
-
   "cgu.part11.title": "11 - Modification des conditions d’utilisation",
   "cgu.part11.paragraphe1.line1": "Nous pouvons être amenés à modifier les contenus et informations inclus dans ce site ainsi que les présentes Conditions d’Utilisation, notamment afin de respecter toute nouvelle législation et/ou réglementation applicable et/ou afin d’améliorer le Site.",
   "cgu.part11.paragraphe1.line2": "Toute modification sera portée à la connaissance de l’Utilisateur sur le site avant sa prise d’effet dans le cadre des présentes Conditions d’Utilisation. Sauf si la modification implique votre acceptation expresse, le fait que vous continuiez à utiliser le Site implique que vous acceptez les nouvelles Conditions d’Utilisation. ",
-
   "politique.cookies.title": "Politique et gestion des cookies",
   "politique.cookies.introduction": "Le site internet utilise différents cookies pour assurer son fonctionnement.",
   "politique.cookies.part1.title": "Qu’est-ce qu’un cookie ?",
@@ -310,6 +298,7 @@
   "user.guide.mulhouse":"Je suis à Mulhouse",
   "search.incentive.tabs.all.incentives": "Toutes les aides {0}",
   "search.incentive.tabs.territory.incentives": "Aides territoriales {0}",
-  "search.incentive.tabs.employees.incentives": "Aides employeur {0}"
+  "search.incentive.tabs.employees.incentives": "Aides employeur {0}",
+  "search.incentive.tabs.nationals.incentives": "Aides nationales {0}"
 
 }

@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import {Logger} from '../utils';
 export class MailConfig {
   /**
    * Check env before sending the email.
@@ -11,7 +12,7 @@ export class MailConfig {
     };
     const sendGrid = {
       host: process.env.SENDGRID_HOST,
-      port: 587,
+      port: Number(process.env.SENDGRID_PORT),
       auth: {
         user: process.env.SENDGRID_USER,
         pass: process.env.SENDGRID_API_KEY,
@@ -23,6 +24,7 @@ export class MailConfig {
     if (process.env.IDP_FQDN) {
       // check landscape
       if (process.env.LANDSCAPE === 'preview' || process.env.LANDSCAPE === 'testing') {
+        Logger.debug(MailConfig.name, this.configMailer.name, 'Mailhog', mailHog);
         mailer = nodemailer.createTransport(mailHog);
         from = process.env.MAILHOG_EMAIL_FROM;
       } else {

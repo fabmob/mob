@@ -1,0 +1,22 @@
+{
+    "dashbord.tittle": "Cette interface d’administration vous permet de créer et gérer les contenus du site moB liés aux aides et comptes gestionnaires de nos partenaires. ",
+    "dashbord.global":"Vous pourrez :",
+    "dashbord.global.list1":"Créer et éditer les territoires d’application des aides affichées sur moB",
+    "dashbord.global.list2":"Créer et éditer les financeurs des aides",
+    "dashbord.global.list3":"Créer et éditer les gestionnaires associés à un financeur",
+    "dashbord.global.list4":"Créer et éditer les  fiches d’aides moB",
+    "dashbord.create.territories":"Pour ajouter une aide territoriale :",
+    "dashbord.create.territories.list1":"Créez le territoire sur lequel l’aide s’applique",
+    "dashbord.create.territories.list2":"Créez la collectivité qui finance l’aide",
+    "dashbord.create.territories.list3":"Optionnel : créer le gestionnaire de la collectivité",
+    "dashbord.create.territories.list4":"Remplissez la fiche d’aide en réutilisant le territoire et la collectivité définis au préalable",
+    "dashbord.create.entreprises":"Pour ajouter une aide d’une entreprise :",
+    "dashbord.create.entreprises.list1":"Créez le territoire sur lequel l’aide s’applique",
+    "dashbord.create.entreprises.list2":"Créez l’entreprise qui finance l’aide",
+    "dashbord.create.entreprises.list3":"Créer le gestionnaire de l’entreprise",
+    "dashbord.create.entreprises.list4":"Remplissez la fiche d’aide en réutilisant le territoire et l’entreprise définis au préalable"
+
+
+
+
+}

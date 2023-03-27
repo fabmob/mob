@@ -40,6 +40,9 @@ describe('TabsMenu component', () => {
     expect(getByText(tabs[0].tabContent).closest('div')).toHaveStyle(
       'display: none'
     );
+    fireEvent.click(getByText('Voir plus'));
+    expect(getByText('Voir moins')).toBeInTheDocument();
+
     expect(getByText('NA 2').closest('div')).toHaveStyle('display: block');
     expect(getByText('NA 3').closest('div')).toHaveStyle('display: none');
   });

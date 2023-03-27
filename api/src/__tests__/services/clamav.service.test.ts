@@ -3,7 +3,7 @@ import sinon from 'sinon';
 import {Readable} from 'stream';
 import NodeClam from 'clamscan';
 import {ClamavService} from '../../services';
-import {ValidationError} from '../../validationError';
+import {StatusCode} from '../../utils';
 
 describe('Clamav ', async () => {
   let clamav: ClamavService, nodeClamStub: StubbedInstanceWithSinonAccessor<any>;
@@ -42,7 +42,8 @@ describe('Clamav ', async () => {
       nodeClamStub = sinon.stub(NodeClam.prototype, 'init').rejects({});
       await clamav.checkCorruptedFiles(fileList);
     } catch (err) {
-      expect(err.message).to.equal(errorUrl.message);
+      expect(err.message).to.equal('Error');
+      expect(err.statusCode).to.equal(StatusCode.InternalServerError);
     }
   });
 
@@ -57,7 +58,8 @@ describe('Clamav ', async () => {
       );
       await clamav.checkCorruptedFiles(fileList);
     } catch (err) {
-      expect(err.message).to.equal(errorUrl.message);
+      expect(err.message).to.equal('Error');
+      expect(err.statusCode).to.equal(StatusCode.InternalServerError);
     }
   });
 
@@ -75,7 +77,6 @@ describe('Clamav ', async () => {
   };
   const fileList: any[] = [file, file, file];
 });
-const errorUrl: any = new ValidationError('Error during file list check', '/antivirus');
 
 const response = {
   isInfected: false,

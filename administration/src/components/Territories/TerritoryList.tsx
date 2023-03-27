@@ -8,6 +8,7 @@ import {
   Filter,
   SearchInput,
   EditButton,
+  FunctionField,
 } from 'react-admin';
 
 const TerritoryFilter: FC = (props) => (
@@ -33,8 +34,16 @@ const TerritoryList: FC<ListProps> = (props) => {
       <Datagrid optimized rowClick="edit">
         <TextField
           source="name"
-          label="Nom du 
-        territoire"
+          label="Nom du territoire"
+        />
+        <TextField
+          source="scale"
+          label="Échelle"
+        />
+        <FunctionField
+          source="inseeValueList"
+          render={record => record.inseeValueList && `${record.inseeValueList.join(', ')}`}
+          label="Liste des codes INSEE"
         />
         <EditButton basePath="/territoires" />
       </Datagrid>

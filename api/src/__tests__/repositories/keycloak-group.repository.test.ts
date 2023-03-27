@@ -74,21 +74,11 @@ describe('keycloakGroup (unit)', () => {
     await keycloakRoleRepository.create(new KeycloakRole({id: 'role2', name: 'role2'}));
     await keycloakRoleRepository.create(new KeycloakRole({id: 'role3', name: 'role3'}));
 
-    await groupRoleMappingRepository.create(
-      new GroupRoleMapping({roleId: 'role1', groupId: 'grp1'}),
-    );
-    await groupRoleMappingRepository.create(
-      new GroupRoleMapping({roleId: 'role2', groupId: 'grp1'}),
-    );
-    await groupRoleMappingRepository.create(
-      new GroupRoleMapping({roleId: 'role5', groupId: 'grp3'}),
-    );
-    await groupRoleMappingRepository.create(
-      new GroupRoleMapping({roleId: 'role6', groupId: 'grp2'}),
-    );
-    await groupRoleMappingRepository.create(
-      new GroupRoleMapping({roleId: 'role3', groupId: 'grp1'}),
-    );
+    await groupRoleMappingRepository.create(new GroupRoleMapping({roleId: 'role1', groupId: 'grp1'}));
+    await groupRoleMappingRepository.create(new GroupRoleMapping({roleId: 'role2', groupId: 'grp1'}));
+    await groupRoleMappingRepository.create(new GroupRoleMapping({roleId: 'role5', groupId: 'grp3'}));
+    await groupRoleMappingRepository.create(new GroupRoleMapping({roleId: 'role6', groupId: 'grp2'}));
+    await groupRoleMappingRepository.create(new GroupRoleMapping({roleId: 'role3', groupId: 'grp1'}));
 
     const result = await repository.getSubGroupFunderRoles();
     expect(result).to.deepEqual(['role1', 'role2', 'role3']);

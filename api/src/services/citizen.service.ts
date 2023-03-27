@@ -1,23 +1,30 @@
-import * as Excel from 'exceljs';
 import {injectable, BindingScope, service, inject} from '@loopback/core';
-import {repository, AnyObject, Filter, Where, Count} from '@loopback/repository';
+import {repository, Filter, Fields, AnyObject, Count} from '@loopback/repository';
+import {capitalize} from 'lodash';
+import {sub, format, fromUnixTime, add, differenceInCalendarDays} from 'date-fns';
+
+import {SecurityBindings, UserProfile} from '@loopback/security';
+
+import {RequiredActionAlias} from 'keycloak-admin/lib/defs/requiredActionProviderRepresentation';
+import * as Excel from 'exceljs';
+
 import {
   UserEntity,
   OfflineUserSession,
   OfflineClientSession,
   Client,
   Citizen,
-  Enterprise,
   Incentive,
   Subscription,
   AttachmentType,
   User,
   Affiliation,
+  Enterprise,
+  UserAttribute,
+  KeycloakGroup,
   CitizenCreate,
-  UserEntityRelations,
 } from '../models';
 import {
-  EnterpriseRepository,
   UserRepository,
   SubscriptionRepository,
   UserEntityRepository,
@@ -25,8 +32,15 @@ import {
   OfflineClientSessionRepository,
   OfflineUserSessionRepository,
   AffiliationRepository,
+  FunderRepository,
+  UserAttributeRepository,
 } from '../repositories';
-import {SecurityBindings, UserProfile} from '@loopback/security';
+
+import {JwtService} from './jwt.service';
+import {AffiliationService} from './affiliation.service';
+import {KeycloakService} from './keycloak.service';
+import {MailService} from './mail.service';
+
 import {
   AFFILIATION_STATUS,
   USER_STATUS,
@@ -34,29 +48,16 @@ import {
   GROUPS,
   Roles,
   formatDateInFrenchNotation,
+  Logger,
+  Tab,
+  EmployeesQueryParams,
+  FilterCitizen,
+  PartialCitizen,
 } from '../utils';
+import {composeWhere, parseScopes, preCheckFields} from '../utils/citizen';
+
 import {WEBSITE_FQDN} from '../constants';
-import {capitalize} from 'lodash';
-import {differenceInMonths} from 'date-fns';
-import {RequiredActionAlias} from 'keycloak-admin/lib/defs/requiredActionProviderRepresentation';
-import {JwtService} from './jwt.service';
-import {AffiliationService} from './affiliation.service';
-import {KeycloakService} from './keycloak.service';
-import {MailService} from './mail.service';
-
-// We specify queryParams for our employees search
-type EmployeesQueryParams = {
-  status?: string;
-  lastName?: string;
-  skip?: number;
-  limit?: number;
-};
-
-export type Tab = {
-  title: string;
-  header: string[];
-  rows: string[][];
-};
+import {InternalServerError} from '../validationError';
 
 const SubscriptionStatus: Record<string, string> = {
   A_TRAITER: 'à traiter',
@@ -81,14 +82,16 @@ function styleHeaderCell(cell: Excel.Cell) {
 @injectable({scope: BindingScope.TRANSIENT})
 export class CitizenService {
   constructor(
-    @repository(EnterpriseRepository)
-    public enterpriseRepository: EnterpriseRepository,
+    @repository(FunderRepository)
+    public funderRepository: FunderRepository,
     @repository(UserRepository)
     public userRepository: UserRepository,
     @repository(SubscriptionRepository)
     public subscriptionRepository: SubscriptionRepository,
     @repository(UserEntityRepository)
     public userEntityRepository: UserEntityRepository,
+    @repository(UserAttributeRepository)
+    public userAttributeRepository: UserAttributeRepository,
     @repository(ClientRepository)
     public clientRepository: ClientRepository,
     @repository(OfflineClientSessionRepository)
@@ -111,60 +114,73 @@ export class CitizenService {
 
   /**
    * Get salaries based on their affiliation status and lastName
-   *
    * @param EmployeesQueryParams
    */
-  async findEmployees({
+  async getEnterpriseEmployees({
+    funderId,
     status,
     lastName,
-    skip,
+    skip = 0,
     limit,
-  }: EmployeesQueryParams): Promise<{employees: Citizen[]; employeesCount: number}> {
-    const {id} = this.currentUser;
-    const user: User = await this.userRepository.findById(id);
+  }: EmployeesQueryParams): Promise<PartialCitizen[] | []> {
+    const userFilter: Filter<UserEntity> = {
+      order: ['lastName ASC'],
+      where: lastName ? {lastName: {regexp: new RegExp('.*' + lastName + '.*', 'i')}} : {},
+      fields: {id: true},
+      include: [{relation: 'userAttributes'}],
+    };
 
-    const filter: Filter<UserEntity> = {order: ['lastName ASC']};
+    const affiliationFilter: Filter<Affiliation> = {
+      where: {enterpriseId: funderId},
+      limit,
+      skip,
+    };
 
-    const where: Where<UserEntity> = {};
-
-    const affiliationFilter: Filter<Affiliation> = {where: {enterpriseId: user.funderId}};
-
-    let count: Count;
-
-    if (skip) {
-      Object.assign(filter, {skip: skip});
+    if (status) {
+      affiliationFilter.where = {...affiliationFilter.where, status};
+    } else {
+      affiliationFilter.where = {...affiliationFilter.where, status: {neq: AFFILIATION_STATUS.UNKNOWN}};
     }
 
-    if (limit) {
-      Object.assign(filter, {limit: limit});
+    const affiliatedCitizenList: PartialCitizen[] | [] = await this.findCitizenWithAffiliation(
+      userFilter,
+      affiliationFilter,
+    );
+
+    return affiliatedCitizenList;
+  }
+
+  /**
+   * Get total of salaries based on their affiliation status and lastName
+   * @param EmployeesQueryParams
+   */
+  async getEnterpriseEmployeesCount({funderId, status, lastName}: EmployeesQueryParams): Promise<Count> {
+    const affiliationFilter: Filter<Affiliation> = {
+      where: {enterpriseId: funderId},
+    };
+
+    if (status) {
+      affiliationFilter.where = {...affiliationFilter.where, status};
+    } else {
+      affiliationFilter.where = {...affiliationFilter.where, status: {neq: AFFILIATION_STATUS.UNKNOWN}};
     }
 
     if (lastName) {
-      Object.assign(where, {lastName: new RegExp('.*' + lastName + '.*', 'i')});
-    }
+      const userFilter: Filter<UserEntity> = {
+        where: {lastName: {regexp: new RegExp('.*' + lastName + '.*', 'i')}},
+        fields: {id: true},
+        include: [{relation: 'userAttributes'}],
+      };
 
-    if (status) {
-      Object.assign(affiliationFilter.where!, {status: status});
-    }
-
-    // Get citizen for these affiliations with minimal info ?
-    const affiliatedCitizenList: Citizen[] | [] =
-      await this.searchCitizenWithAffiliationListByFilter(
-        Object.assign(filter, {where: where}),
+      const affiliatedCitizenList: PartialCitizen[] | [] = await this.findCitizenWithAffiliation(
+        userFilter,
         affiliationFilter,
       );
 
-    if (lastName) {
-      count = {count: affiliatedCitizenList.length};
+      return {count: affiliatedCitizenList.length};
     } else {
-      // Count affiliated citizens
-      count = await this.affiliationRepository.count(affiliationFilter.where);
+      return this.affiliationRepository.count(affiliationFilter.where);
     }
-
-    return {
-      employees: affiliatedCitizenList,
-      employeesCount: count.count,
-    };
   }
 
   /**
@@ -284,10 +300,7 @@ export class CitizenService {
    * @param incentives - list of incentives
    * @returns Data required to create sheets/tabs for each incentive
    */
-  generateTabsDataStructure(
-    subscriptions: Subscription[],
-    incentives: Incentive[],
-  ): Tab[] {
+  generateTabsDataStructure(subscriptions: Subscription[], incentives: Incentive[]): Tab[] {
     const incentivesHashMap: Record<string, Incentive> = incentives.reduce(
       (hashMap: Record<string, Incentive>, incentive: Incentive) => {
         if (incentive.id) {
@@ -312,10 +325,7 @@ export class CitizenService {
             rows: [],
           };
         }
-        const row: string[] = this.generateRow(
-          subscription,
-          tabsHashMap[incentiveId].header,
-        );
+        const row: string[] = this.generateRow(subscription, tabsHashMap[incentiveId].header);
         tabsHashMap[incentiveId].rows.push(row);
         return tabsHashMap;
       },
@@ -356,9 +366,7 @@ export class CitizenService {
     return header.map((colName: string) => {
       switch (colName) {
         case 'Date de la demande':
-          return subscription.createdAt
-            ? formatDateInFrenchNotation(subscription.createdAt)
-            : '';
+          return subscription.createdAt ? formatDateInFrenchNotation(subscription.createdAt) : '';
         case "Nom de l'aide":
           return subscription.incentiveTitle || '';
         case 'Financeur':
@@ -392,20 +400,18 @@ export class CitizenService {
     const userId: string = userEntity?.id || this.currentUser.id;
 
     // get all user offline sessions
-    const offlineUserSessions: OfflineUserSession[] =
-      await this.offlineUserSessionRepository.find({
-        where: {userId},
-        fields: {userId: true, userSessionId: true},
-      });
+    const offlineUserSessions: OfflineUserSession[] = await this.offlineUserSessionRepository.find({
+      where: {userId},
+      fields: {userId: true, userSessionId: true},
+    });
 
     const userSessionIds: string[] = offlineUserSessions?.map(ous => ous.userSessionId);
 
     // get all client offline sessions
-    const offlineClientSessions: OfflineClientSession[] =
-      await this.offlineClientSessionRepository.find({
-        where: {userSessionId: {inq: userSessionIds}},
-        fields: {userSessionId: true, clientId: true},
-      });
+    const offlineClientSessions: OfflineClientSession[] = await this.offlineClientSessionRepository.find({
+      where: {userSessionId: {inq: userSessionIds}},
+      fields: {userSessionId: true, clientId: true},
+    });
 
     const clientIds: string[] = offlineClientSessions?.map(ocs => ocs.clientId);
 
@@ -415,9 +421,7 @@ export class CitizenService {
       fields: {id: true, clientId: true, name: true},
     });
 
-    const listMaasNames: string[] = clients
-      ?.filter(ocs => !!ocs.name)
-      ?.map(ocs => `${ocs.name}`);
+    const listMaasNames: string[] = clients?.filter(ocs => !!ocs.name)?.map(ocs => `${ocs.name}`);
 
     return listMaasNames;
   }
@@ -429,11 +433,7 @@ export class CitizenService {
    * @param deletionDate
    *
    */
-  async sendDeletionMail(
-    mailService: MailService,
-    citizen: Citizen,
-    deletionDate: string,
-  ) {
+  async sendDeletionMail(mailService: MailService, citizen: Citizen, deletionDate: string) {
     const incentiveLink = `${WEBSITE_FQDN}/recherche`;
     await mailService.sendMailAsHtml(
       citizen.personalInformation.email.value!,
@@ -458,74 +458,107 @@ export class CitizenService {
    * Send account deletion mail for citizen
    *
    * @param mailService
-   * @param citizen
+   * @param to
+   * @param firstName
    */
-  async sendNonActivatedAccountDeletionMail(mailService: MailService, user: AnyObject) {
+  async sendNonActivatedAccountDeletionMail(mailService: MailService, to: string, firstName: string) {
     await mailService.sendMailAsHtml(
-      user.email!,
+      to,
       'Votre compte moB vient d’être supprimé',
       'nonActivated-account-deletion',
       {
-        username: capitalize(user.firstName),
+        username: capitalize(firstName),
       },
     );
   }
 
   /**
-   * deletion of every non_activated account after six months from its creation date + sending an email to the citizen/funder
+   * Function used by nonActivatedAccountNotificationCronJon
+   * Non activated account from more than 6 months will be deleted
+   * An email is sent to the user
+   * His data (account and/or affiliation are deleted)
    */
   async accountDeletionService(): Promise<void> {
-    // keycloak users list
-    const userList = await this.kcService.listUsers();
+    try {
+      const deletionDate: number = Math.round(sub(new Date(), {months: 6}).getTime());
+      Logger.debug(CitizenService.name, this.accountDeletionService.name, 'Deletion date', deletionDate);
 
-    //  get only non_activated accounts that was created six months ago
-    const sixMonthNonActivatedAccounts = userList.filter((user: AnyObject) => {
-      const currentDate = new Date();
-      const monthsPassed = differenceInMonths(
-        currentDate,
-        new Date(user.createdTimestamp),
+      // Get user list where email not verified
+      const nonActivatedAccountToDeleteList: UserEntity[] = await this.userEntityRepository.find({
+        where: {
+          and: [{email: {neq: 'null'}}, {emailVerified: false}, {createdTimestamp: {lte: deletionDate}}],
+        },
+        include: [{relation: 'userAttributes'}, {relation: 'keycloakGroups'}],
+      });
+
+      Logger.debug(
+        CitizenService.name,
+        this.accountDeletionService.name,
+        'Citizen List to delete',
+        nonActivatedAccountToDeleteList,
       );
 
-      return user.emailVerified === false && monthsPassed >= 6;
-    });
+      await Promise.allSettled(
+        nonActivatedAccountToDeleteList.map(async (nonActivatedAccountToDelete: UserEntity) => {
+          const isCitizen: boolean =
+            nonActivatedAccountToDelete.keycloakGroups.filter((group: KeycloakGroup) => {
+              return group.name === GROUPS.citizens;
+            }).length > 0;
 
-    if (sixMonthNonActivatedAccounts.length) {
-      for (const account of sixMonthNonActivatedAccounts) {
-        //  get the list of User groups
-        const group: object[] = await this.kcService.listUserGroups(account.id);
+          const isUserFunder: boolean =
+            nonActivatedAccountToDelete.keycloakGroups.filter((group: KeycloakGroup) => {
+              return group.name === Roles.MANAGERS || group.name === Roles.SUPERVISORS;
+            }).length > 0;
 
-        // check if the user is a citizen
-        const citizenGroup: object[] = group.filter((group: AnyObject) => {
-          return group.name === GROUPS.citizens;
-        });
+          // Handle citizen
+          if (isCitizen) {
+            const citizen: Citizen = await this.getCitizenWithAffiliationById(nonActivatedAccountToDelete.id);
 
-        //  check if the user is a funder
-        const funderGroup: object[] = group.filter((group: AnyObject) => {
-          return group.name === Roles.MANAGERS || group.name === Roles.SUPERVISORS;
-        });
+            if (citizen.affiliation) {
+              await this.affiliationRepository.deleteById(citizen.affiliation.id);
+              Logger.info(
+                CitizenService.name,
+                this.accountDeletionService.name,
+                'Affiliation deleted',
+                citizen.affiliation.id,
+              );
+            }
 
-        // citizen account deletion + sending mail
-        if (citizenGroup.length !== 0) {
-          const citizen: Citizen = await this.getCitizenWithAffiliationById(account.id);
+            await this.kcService.deleteUserKc(nonActivatedAccountToDelete.id);
+            await this.sendNonActivatedAccountDeletionMail(
+              this.mailService,
+              citizen.personalInformation.email.value,
+              citizen.identity.firstName.value,
+            );
+          }
 
-          citizen.affiliation &&
-            (await this.affiliationRepository.deleteById(account.id));
-          await this.kcService.deleteUserKc(account.id);
-          await this.sendNonActivatedAccountDeletionMail(this.mailService, {
-            ...citizen,
-            firstName: citizen.identity.firstName.value,
-            email: citizen.personalInformation.email.value,
-          });
-        }
-
-        //  funder account deletion + sending mail
-        if (funderGroup.length !== 0) {
-          const funder: User = await this.userRepository.findById(account.id);
-          await this.userRepository.deleteById(account.id);
-          await this.kcService.deleteUserKc(account.id);
-          await this.sendNonActivatedAccountDeletionMail(this.mailService, funder);
-        }
-      }
+          // Handle user funder
+          if (isUserFunder) {
+            const userFunder: User = await this.userRepository.findById(nonActivatedAccountToDelete.id);
+            await this.userRepository.deleteById(nonActivatedAccountToDelete.id);
+            await this.kcService.deleteUserKc(nonActivatedAccountToDelete.id);
+            await this.sendNonActivatedAccountDeletionMail(
+              this.mailService,
+              userFunder.email,
+              userFunder.firstName,
+            );
+          }
+          Logger.info(
+            CitizenService.name,
+            this.accountDeletionService.name,
+            'Email sent to',
+            nonActivatedAccountToDelete.id,
+          );
+          Logger.info(
+            CitizenService.name,
+            this.accountDeletionService.name,
+            'User deleted',
+            nonActivatedAccountToDelete.id,
+          );
+        }),
+      );
+    } catch (err) {
+      throw new InternalServerError(CitizenService.name, this.accountDeletionService.name, err);
     }
   }
 
@@ -534,11 +567,9 @@ export class CitizenService {
    * @param rawCitizen
    * @returns id
    */
-  async createCitizen(
-    rawCitizen: Omit<CitizenCreate, 'password'>,
-  ): Promise<{id: string} | undefined> {
+  async createCitizen(rawCitizen: CitizenCreate): Promise<{id: string}> {
     let keycloakResult;
-    let enterprise = new Enterprise();
+    let enterprise: Enterprise | null = null;
 
     try {
       const citizen: Citizen = new Citizen(rawCitizen as Citizen);
@@ -546,43 +577,45 @@ export class CitizenService {
       const actions: RequiredActionAlias[] = [RequiredActionAlias.VERIFY_EMAIL];
 
       // Initialize user creation in KC
-      keycloakResult = await this.kcService.createUserKc(
-        citizen,
-        [GROUPS.citizens],
-        actions,
-      );
+      keycloakResult = await this.kcService.createUserKc(citizen, [GROUPS.citizens], actions);
 
       if (keycloakResult && keycloakResult.id) {
+        Logger.info(CitizenService.name, this.createCitizen.name, 'Citizen created', keycloakResult.id);
+
         citizen.id = keycloakResult.id;
 
         if (citizen.affiliation?.enterpriseId) {
-          enterprise = await this.enterpriseRepository.findById(
+          enterprise = (await this.funderRepository.getEnterpriseById(
             citizen.affiliation.enterpriseId,
-          );
+          )) as Enterprise;
         }
 
         // Create Affiliation
-        const affiliation: Affiliation =
-          await this.affiliationRepository.createAffiliation(
-            citizen,
-            enterprise.hasManualAffiliation || false,
-          );
+        const affiliation: Affiliation = await this.affiliationRepository.createAffiliation(
+          citizen,
+          enterprise?.enterpriseDetails.hasManualAffiliation || false,
+        );
+        Logger.info(CitizenService.name, this.createCitizen.name, 'Affiliation created', affiliation.id);
 
         citizen.affiliation = affiliation;
 
         // Send verification mail
         await this.kcService.sendExecuteActionsEmailUserKc(citizen.id, actions);
+        Logger.info(CitizenService.name, this.createCitizen.name, 'Execute email action sent', citizen.id);
 
         // Send a manual affiliation mail to the company's funders accepting the manual affiliation or to citizen
         if (affiliation.status === AFFILIATION_STATUS.TO_AFFILIATE) {
-          if (enterprise.hasManualAffiliation) {
-            await this.affiliationService.sendManualAffiliationMail(citizen, enterprise);
-          } else {
-            await this.affiliationService.sendAffiliationMail(
-              this.mailService,
-              citizen,
-              enterprise!.name,
+          if (enterprise!.enterpriseDetails.hasManualAffiliation) {
+            await this.affiliationService.sendManualAffiliationMail(citizen, enterprise!);
+            Logger.info(
+              CitizenService.name,
+              this.createCitizen.name,
+              'Manual Affiliation email sent',
+              citizen.id,
             );
+          } else {
+            await this.affiliationService.sendAffiliationMail(this.mailService, citizen, enterprise!.name);
+            Logger.info(CitizenService.name, this.createCitizen.name, 'Affiliation email sent', citizen.id);
           }
         }
 
@@ -597,11 +630,201 @@ export class CitizenService {
         const affiliationToDelete = await this.affiliationRepository.findOne({
           where: {citizenId: keycloakResult.id},
         });
-        affiliationToDelete &&
-          (await this.affiliationRepository.deleteById(affiliationToDelete.id));
+        affiliationToDelete && (await this.affiliationRepository.deleteById(affiliationToDelete.id));
         await this.kcService.deleteUserKc(keycloakResult.id);
       }
       throw error;
+    }
+  }
+
+  /**
+   * Function used by InactiveAccountNotificationCronJon
+   * Inactive account from 24 to 23 months will be notified with an email
+   * An attribute is set to know if a notification has already been set
+   */
+  async notifyInactiveAccount(): Promise<void> {
+    try {
+      const notificationDate: string = String(Math.round(sub(new Date(), {months: 23}).getTime()));
+      Logger.debug(
+        CitizenService.name,
+        this.notifyInactiveAccount.name,
+        'Notification date',
+        notificationDate,
+      );
+
+      const deletionDate: string = String(Math.round(sub(new Date(), {months: 24}).getTime()));
+      Logger.debug(CitizenService.name, this.notifyInactiveAccount.name, 'Deletion date', deletionDate);
+
+      // Get user list where isInactivityNotificationSent is set
+      const userIdInactiveNotificationSentList: string[] = (
+        await this.userAttributeRepository.find({
+          where: {
+            and: [{name: 'isInactivityNotificationSent'}, {value: 'true'}],
+          },
+          fields: {userId: true},
+        })
+      ).map((userAttribute: UserAttribute) => userAttribute.userId);
+
+      // Get user list where isInactivityNotificationSent is set and lastLoginAt
+      const inactiveAccountNotNotifiedList: UserAttribute[] = await this.userAttributeRepository.find({
+        where: {
+          and: [
+            {name: 'lastLoginAt'},
+            {value: {between: [deletionDate, notificationDate]}},
+            {userId: {nin: userIdInactiveNotificationSentList}},
+          ],
+        },
+        fields: {userId: true},
+      });
+
+      Logger.debug(
+        CitizenService.name,
+        this.notifyInactiveAccount.name,
+        'Citizen List to notify',
+        inactiveAccountNotNotifiedList,
+      );
+
+      await Promise.allSettled(
+        inactiveAccountNotNotifiedList.map(async (inactiveAccountNotNotified: UserAttribute) => {
+          const citizen: Citizen = (await this.userEntityRepository.getUserWithAttributes(
+            inactiveAccountNotNotified.userId,
+            GROUPS.citizens,
+          ))!.toCitizen();
+
+          await this.mailService.sendMailAsHtml(
+            citizen.personalInformation.email.value,
+            'Connectez-vous à votre compte moB',
+            'notification-inactive-account',
+            {
+              username: capitalize(citizen.identity.firstName.value),
+              inactiveDate: format(
+                fromUnixTime(Math.round(Number(citizen.lastLoginAt) / 1000)),
+                'dd/MM/yyyy',
+              ),
+              maxConnectionDate: format(
+                add(new Date(), {
+                  days: differenceInCalendarDays(
+                    fromUnixTime(Math.round(Number(citizen.lastLoginAt) / 1000)),
+                    fromUnixTime(Number(deletionDate) / 1000),
+                  ),
+                }),
+                'dd/MM/yyyy',
+              ),
+              connectionLink: WEBSITE_FQDN,
+            },
+          );
+          Logger.info(CitizenService.name, this.notifyInactiveAccount.name, 'Email sent to', citizen.id);
+
+          // Set notification boolean
+          citizen.isInactivityNotificationSent = true;
+          await this.kcService.updateUserKC(citizen.id, citizen);
+          Logger.info(CitizenService.name, this.notifyInactiveAccount.name, 'Citizen updated', citizen.id);
+        }),
+      );
+    } catch (err) {
+      throw new InternalServerError(CitizenService.name, this.notifyInactiveAccount.name, err);
+    }
+  }
+
+  /**
+   * Function used by InactiveAccountDeletionCronJon
+   * Inactive account from more than 24 months will be deleted
+   * An email is sent to the user
+   * His data (account and/or affiliation are deleted)
+   * A flag is added to his subscription
+   */
+  async deleteInactiveAccount(): Promise<void> {
+    try {
+      const deletionDate: string = String(Math.round(sub(new Date(), {months: 24}).getTime()));
+      Logger.debug(CitizenService.name, this.deleteInactiveAccount.name, 'Deletion date', deletionDate);
+
+      // Get user list where isInactivityNotificationSent is set
+      const userIdInactiveNotificationSentList: string[] = (
+        await this.userAttributeRepository.find({
+          where: {
+            and: [{name: 'isInactivityNotificationSent'}, {value: 'true'}],
+          },
+          fields: {userId: true},
+        })
+      ).map((userAttribute: UserAttribute) => userAttribute.userId);
+
+      // Get user list where isInactivityNotificationSent is set and lastLoginAt
+      const inactiveAccountToDeleteList: UserAttribute[] = await this.userAttributeRepository.find({
+        where: {
+          and: [
+            {name: 'lastLoginAt'},
+            {value: {lte: deletionDate}},
+            {userId: {inq: userIdInactiveNotificationSentList}},
+          ],
+        },
+        fields: {userId: true},
+      });
+      Logger.debug(
+        CitizenService.name,
+        this.deleteInactiveAccount.name,
+        'Citizen List to delete',
+        inactiveAccountToDeleteList,
+      );
+
+      await Promise.allSettled(
+        inactiveAccountToDeleteList.map(async (inactiveAccountToDelete: UserAttribute) => {
+          const citizen: Citizen = await this.getCitizenWithAffiliationById(inactiveAccountToDelete.userId);
+
+          await this.mailService.sendMailAsHtml(
+            citizen.personalInformation.email.value,
+            'Suppression de votre compte moB',
+            'deletion-inactive-account',
+            {
+              username: capitalize(citizen.identity.firstName.value),
+              inactiveDate: format(
+                fromUnixTime(Math.round(Number(citizen.lastLoginAt) / 1000)),
+                'dd/MM/yyyy',
+              ),
+              gdprLink: `${WEBSITE_FQDN}/charte-protection-donnees-personnelles`,
+            },
+          );
+          Logger.info(CitizenService.name, this.deleteInactiveAccount.name, 'Email sent to', citizen.id);
+
+          // ADD Flag "Compte Supprimé" to citizen Subscription
+          const citizenSubscriptionList: Subscription[] = await this.subscriptionRepository.find({
+            where: {citizenId: citizen.id},
+          });
+
+          if (citizenSubscriptionList.length) {
+            await Promise.allSettled(
+              citizenSubscriptionList.map(async citizenSubscription => {
+                citizenSubscription.isCitizenDeleted = true;
+                await this.subscriptionRepository.updateById(citizenSubscription.id, {
+                  isCitizenDeleted: true,
+                });
+              }),
+            );
+            Logger.info(
+              CitizenService.name,
+              this.deleteInactiveAccount.name,
+              'Citizen flag is deleted added on subscriptions',
+              citizen.id,
+            );
+          }
+
+          // Delete affiliation
+          if (citizen.affiliation) {
+            await this.affiliationRepository.deleteById(citizen.affiliation.id);
+            Logger.info(
+              CitizenService.name,
+              this.deleteInactiveAccount.name,
+              'Affiliation deleted',
+              citizen.affiliation.id,
+            );
+          }
+
+          // Delete citizen
+          await this.kcService.deleteUserKc(citizen.id);
+          Logger.info(CitizenService.name, this.deleteInactiveAccount.name, 'Citizen deleted', citizen.id);
+        }),
+      );
+    } catch (err) {
+      throw new InternalServerError(CitizenService.name, this.deleteInactiveAccount.name, err);
     }
   }
 
@@ -622,44 +845,104 @@ export class CitizenService {
   }
 
   /**
-   * Get citizen according to given filter from PGSQL DB
-   * @param userEntityFilter Filter<UserEntity>
-   * @param affiliationFilter <Affiliation>
-   * @returns Promise<Citizen[] | []>
+   * Get citizen by Id from PGSQL DB with filter on userAttribute
+   * @param citizenId string
+   * @param citizenFilter citizen filter with only fields
    */
-  async searchCitizenWithAffiliationListByFilter(
+  async getCitizenByFilter(citizenId: string, citizenFilter?: FilterCitizen): Promise<Citizen> {
+    const {roles, scopes} = this.currentUser;
+    Logger.debug(CitizenService.name, this.getCitizenByFilter.name, 'Current user', this.currentUser);
+
+    // Check whether all values in the fields parameter are false.
+    let newCitizenFields: Fields<Citizen> = preCheckFields(citizenFilter?.fields);
+
+    // If it is a citizen, check its scope to control the properties to be returned.
+    // Overide the current fields if necessary.
+    if (roles.includes(Roles.CITIZENS)) {
+      newCitizenFields = parseScopes(scopes, newCitizenFields as Record<string, boolean>);
+      Logger.debug(
+        CitizenService.name,
+        this.getCitizenByFilter.name,
+        'Fields after scopes verification',
+        newCitizenFields,
+      );
+    }
+
+    // If it is a citizen, check its scope to control the properties to be returned.
+    const userAttributeFilter: Filter<UserAttribute> = composeWhere(newCitizenFields);
+    Logger.debug(
+      CitizenService.name,
+      this.getCitizenByFilter.name,
+      'Filter applied to userAttributes table',
+      userAttributeFilter,
+    );
+
+    let citizen: Partial<Citizen> = {};
+
+    if (userAttributeFilter && Object.keys(userAttributeFilter).length) {
+      citizen = (await this.userEntityRepository.getUserWithAttributes(
+        citizenId,
+        GROUPS.citizens,
+        userAttributeFilter,
+      ))!.toCitizen();
+    }
+
+    const hasAffiliation: boolean =
+      citizenFilter?.fields?.['affiliation' as keyof Fields<Citizen>] ||
+      !Object.keys(citizenFilter?.fields || {}).length;
+
+    if (hasAffiliation) {
+      const affiliation: Affiliation | null = await this.affiliationRepository.findOne({
+        where: {citizenId: citizenId},
+      });
+      citizen.affiliation = affiliation!;
+    }
+
+    return citizen as Citizen;
+  }
+
+  /**
+   * Get citizens with affiliations from PGSQL DB based on given filters.
+   * @param userEntityFilter Filter<UserEntity> The filter to apply to the UserEntity relation.
+   * @param affiliationFilter Filter<Affiliation> The filter to apply to the Affiliation relation.
+   * @returns Promise<Citizen[] | []> A Promise that resolves to an array of Citizens.
+   */
+  async findCitizenWithAffiliation(
     userEntityFilter: Filter<UserEntity>,
     affiliationFilter: Filter<Affiliation>,
-  ): Promise<Citizen[] | []> {
-    // Get all affiliation for funder
-    const affiliationList: string[] | [] = (
-      await this.affiliationRepository.find(affiliationFilter)
-    ).map((affiliation: Affiliation) => affiliation.citizenId);
-
-    // Add citizen id list to userEntityFilter
-    userEntityFilter.where &&
-      Object.assign(userEntityFilter.where, {id: {inq: affiliationList}});
-
-    const userWithAttributesList: (UserEntity & UserEntityRelations)[] =
-      await this.userEntityRepository.searchUserWithAttributesByFilter(
-        userEntityFilter,
-        GROUPS.citizens,
-      );
-
-    return (
-      await Promise.all(
-        userWithAttributesList.map(
-          async (userWithAttributes: UserEntity & UserEntityRelations) => {
-            const citizen: Citizen = userWithAttributes.toCitizen();
-            affiliationFilter.where &&
-              Object.assign({...affiliationFilter.where}, {citizenId: citizen.id});
-            const affiliation: Affiliation | null =
-              await this.affiliationRepository.findOne(affiliationFilter);
-            affiliation && (citizen.affiliation = affiliation);
-            return citizen;
+  ): Promise<PartialCitizen[] | []> {
+    const filter: Filter<Affiliation> = {
+      include: [
+        {
+          relation: 'user',
+          scope: {
+            ...userEntityFilter,
           },
-        ),
-      )
-    ).filter((citizen: Citizen) => citizen.affiliation);
+        },
+      ],
+      ...affiliationFilter,
+    };
+
+    const citizensWithAffiliation: Affiliation[] = (await this.affiliationRepository.find(filter)).filter(
+      (affiliation: AnyObject) => affiliation.user,
+    );
+
+    const citizens = citizensWithAffiliation.map((citizenWithAffiliation: AnyObject) => {
+      const citizen: Citizen = citizenWithAffiliation.user.toCitizen();
+
+      const newCitizen: PartialCitizen = {
+        id: citizenWithAffiliation.citizenId,
+        lastName: citizen.identity.lastName.value,
+        firstName: citizen.identity.firstName.value,
+        birthdate: citizen.identity.birthDate.value,
+        email: citizen.personalInformation.email.value,
+        enterpriseEmail: citizenWithAffiliation?.enterpriseEmail,
+        isCitizenDeleted: false,
+      };
+
+      return newCitizen;
+    });
+
+    return citizens;
   }
 }

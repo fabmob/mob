@@ -30,12 +30,11 @@
   color: rgb(207, 29, 29);
 }
 
-  #kc-page-title {
-    font-size: 45px;
-    line-height: 60px;
-    margin-right: 600px;
-  }
-
+#kc-page-title {
+  font-size: 45px;
+  line-height: 60px;
+  margin-right: 600px;
+}
 
 #kc-title-identity {
   color: #464cd0;
@@ -214,8 +213,8 @@ input[type="password"]:focus {
 }
 
 .pf-c-button:disabled {
-  background-color: #F7F7F9;
-  color: #01BF7D;
+  background-color: #f7f7f9;
+  color: #01bf7d;
   cursor: not-allowed;
 }
 
@@ -264,6 +263,7 @@ input[type="password"]:focus {
   display: flex;
   flex-direction: column;
   align-items: center;
+  margin-bottom: 30px;
 }
 
 #mcm-login-header h1 {
@@ -500,15 +500,6 @@ a.mcm-basic-link:hover {
   max-width: 400px;
 }
 
-#kc-form #mcm-img-login {
-  background-image: url("../img/girl-bike.jpg");
-  border-radius: 300px 0px 0px 300px;
-  height: 400px;
-  margin-right: -40px;
-  margin-bottom: 40px;
-  width: 224px;
-}
-
 /* END - SIGNIN FORM */
 /* END - LOGIN PAGE */
 
@@ -698,7 +689,7 @@ a.zocial.franceconnect-particulier:hover {
   padding: 2% 5%;
 }
 
-.kc-terms-checkbox label{
+.kc-terms-checkbox label {
   font-size: 18px;
   font-weight: 400;
   line-height: 26px;
@@ -706,7 +697,7 @@ a.zocial.franceconnect-particulier:hover {
 
 .link-in-text_blue {
   text-decoration: none;
-  color:#464cd0;
+  color: #464cd0;
 }
 
 /* END TERMS AND CONDITIONS */
@@ -724,10 +715,6 @@ a.zocial.franceconnect-particulier:hover {
   input[type="text"],
   input[type="password"] {
     margin-top: 5px;
-  }
-
-  #kc-form #mcm-img-login {
-    margin-bottom: 10px;
   }
 
   .mcm-eye-img {
@@ -749,10 +736,6 @@ a.zocial.franceconnect-particulier:hover {
     height: 15%;
     bottom: 6.5%;
     left: -17%;
-  }
-
-  #kc-form #mcm-img-login {
-    display: none;
   }
 
   .instruction {

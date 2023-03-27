@@ -12,6 +12,8 @@ import UtilisateurCreateForm from './UtilisateurCreateForm';
 import UtilisateurMessages from '../../utils/Utilisateur/fr.json';
 import CompteMessages from '../../utils/Compte/fr.json';
 import { errorFetching } from '../../utils/constant';
+import { AsideUtilisateur } from './UtilisateurAside';
+
 
 const UtilisateurForm = (props) => {
   const { save, record } = useCreateContext();
@@ -43,10 +45,11 @@ const UtilisateurForm = (props) => {
       onSuccess={onSuccess}
       onFailure={onFailure}
       transform={(data) => {
-        delete data.emailFormat;
+        delete data.emailDomainNames;
         delete data.hasManualAffiliation;
         return data;
       }}
+      aside={<AsideUtilisateur />}  
     >
       <SimpleForm>
         <UtilisateurCreateForm save={save} record={record} />

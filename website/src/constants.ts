@@ -10,6 +10,7 @@ export enum Roles {
 export enum FunderType {
   ENTERPRISES = 'entreprises',
   COLLECTIVITIES = 'collectivités',
+  NATIONAL = 'administrations_nationales',
 }
 
 export const PROOF_CHOICE = {

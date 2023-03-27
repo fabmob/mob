@@ -1,10 +1,6 @@
 import {expect} from '@loopback/testlab';
 import {securityId} from '@loopback/security';
-import {
-  AuthorizationContext,
-  AuthorizationDecision,
-  AuthorizationMetadata,
-} from '@loopback/authorization';
+import {AuthorizationContext, AuthorizationDecision, AuthorizationMetadata} from '@loopback/authorization';
 import {AuthorizationProvider} from '../../providers';
 
 describe('Authorization provider', () => {
@@ -16,9 +12,7 @@ describe('Authorization provider', () => {
 
   it('should value: OK', async () => {
     const result = authorizationProvider.value();
-    expect(result).to.deepEqual(
-      authorizationProvider.authorize.bind(authorizationProvider),
-    );
+    expect(result).to.deepEqual(authorizationProvider.authorize.bind(authorizationProvider));
   });
 
   it('should authorize: OK ALLOW', async () => {

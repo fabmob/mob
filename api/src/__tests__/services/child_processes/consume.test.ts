@@ -1,12 +1,10 @@
 import {expect, sinon} from '@loopback/testlab';
 
-import amqp, {Channel, Connection} from 'amqplib';
+import amqp from 'amqplib';
 import process from 'process';
 import {EventEmitter} from 'events';
 import {ConsumeProcess} from '../../../services/child_processes/consume';
-import {EVENT_MESSAGE, UPDATE_MODE, IMessage, logger} from '../../../utils';
-import {connect, createChannel} from '../../../services/child_processes/connect';
-import {fromCallback} from 'bluebird';
+import {Logger} from '../../../utils';
 
 describe('Child Process consume', () => {
   let connectStub: any = null;
@@ -101,12 +99,12 @@ describe('Child Process consume', () => {
   });
 
   it('Child Process consume : addConnectionErrorListeners error', async () => {
-    const spy = sinon.spy(logger, 'error');
+    const spy = sinon.spy(Logger, 'error');
     await consumeProcess.start();
     listenerConnectStub.restore();
     await consumeProcess.addConnectionErrorListeners();
     await consumeProcess.connection.emit('error');
-    expect(logger.error).called;
+    expect(Logger.error).called;
     spy.restore();
   });
 
@@ -143,12 +141,12 @@ describe('Child Process consume', () => {
   });
 
   it('Child Process consume : addChannelErrorListeners close', async () => {
-    const spy = sinon.spy(logger, 'error');
+    const spy = sinon.spy(Logger, 'error');
     await consumeProcess.start();
     listenerChannelStub.restore();
     await consumeProcess.addChannelErrorListeners();
     await consumeProcess.channel.emit('close');
-    expect(logger.error).called;
+    expect(Logger.error).called;
     spy.restore();
   });
 
@@ -295,9 +293,7 @@ describe('Child Process consume', () => {
     process.env.LANDSCAPE = 'test';
     const clock = sinon.useFakeTimers();
     const startStub = sinon.stub(consumeProcess, 'start').resolves();
-    const restartConsumersStub = sinon
-      .stub(consumeProcess, 'restartConsumers')
-      .resolves();
+    const restartConsumersStub = sinon.stub(consumeProcess, 'restartConsumers').resolves();
     await consumeProcess.retryConnection();
     clock.tick(15000);
     expect(consumeProcess.start).called;
@@ -311,9 +307,7 @@ describe('Child Process consume', () => {
   it('Child Process consume : retryChannel success', async () => {
     retryChannelStub.restore();
     const clock = sinon.useFakeTimers();
-    const restartConsumersStub = sinon
-      .stub(consumeProcess, 'restartConsumers')
-      .resolves();
+    const restartConsumersStub = sinon.stub(consumeProcess, 'restartConsumers').resolves();
     await consumeProcess.start();
     await consumeProcess.retryChannel();
     expect(consumeProcess.addChannelErrorListeners).not.called;

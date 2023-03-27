@@ -1,40 +1,22 @@
-import {
-  createStubInstance,
-  expect,
-  sinon,
-  StubbedInstanceWithSinonAccessor,
-} from '@loopback/testlab';
+import {createStubInstance, expect, sinon, StubbedInstanceWithSinonAccessor} from '@loopback/testlab';
 import {securityId} from '@loopback/security';
 
 import {Readable} from 'stream';
 
-import {
-  Subscription,
-  AttachmentType,
-  Metadata,
-  EncryptionKey,
-  Collectivity,
-  PrivateKeyAccess,
-} from '../../models';
-import {ValidationError} from '../../validationError';
-import {
-  SubscriptionRepository,
-  MetadataRepository,
-  CollectivityRepository,
-  EnterpriseRepository,
-} from '../../repositories';
+import {Subscription, AttachmentType, Metadata, EncryptionKey, PrivateKeyAccess, Funder} from '../../models';
+import {SubscriptionRepository, MetadataRepository, FunderRepository} from '../../repositories';
 import {ClamavService, S3Service} from '../../services';
-import {IUser, ResourceName, StatusCode, SUBSCRIPTION_STATUS} from '../../utils';
+import {IUser, StatusCode, SUBSCRIPTION_STATUS} from '../../utils';
 import {SubscriptionV1AttachmentsInterceptor} from '../../interceptors';
 
+// TODO REMOVE BECAUSE endpoint v1/maas/subscriptions/{subscriptionId}/attachments is deprecated
 describe('SubscriptionV1 attachments Interceptor', () => {
   let interceptor: any = null;
   let subscriptionRepository: StubbedInstanceWithSinonAccessor<SubscriptionRepository>,
     currentUserProfile: IUser,
     clamavService: StubbedInstanceWithSinonAccessor<ClamavService>,
     metadataRepository: StubbedInstanceWithSinonAccessor<MetadataRepository>,
-    collectivityRepository: StubbedInstanceWithSinonAccessor<CollectivityRepository>,
-    enterpriseRepository: StubbedInstanceWithSinonAccessor<EnterpriseRepository>;
+    funderRepository: StubbedInstanceWithSinonAccessor<FunderRepository>;
   const s3 = new S3Service();
 
   const inputSubscription = new Subscription({
@@ -75,8 +57,7 @@ describe('SubscriptionV1 attachments Interceptor', () => {
       s3,
       subscriptionRepository,
       metadataRepository,
-      enterpriseRepository,
-      collectivityRepository,
+      funderRepository,
       currentUserProfile,
       clamavService,
     );
@@ -86,9 +67,9 @@ describe('SubscriptionV1 attachments Interceptor', () => {
     try {
       subscriptionRepository.stubs.findOne.resolves(undefined);
       await interceptor.intercept(invocationContextArgsOK);
-      sinon.assert.fail();
     } catch (err) {
-      expect(err).to.deepEqual(errorSubscriptionDoesnotExist);
+      expect(err.message).to.equal('Subscription does not exist');
+      expect(err.statusCode).to.equal(StatusCode.NotFound);
     }
   });
 
@@ -96,9 +77,9 @@ describe('SubscriptionV1 attachments Interceptor', () => {
     try {
       subscriptionRepository.stubs.findOne.resolves(inputSubscriptionFail);
       await interceptor.intercept(invocationContextUserIdError);
-      sinon.assert.fail();
     } catch (err) {
-      expect(err.message).to.equal(errorStatusUser.message);
+      expect(err.message).to.equal('Access denied');
+      expect(err.statusCode).to.equal(StatusCode.Forbidden);
     }
   });
 
@@ -106,21 +87,20 @@ describe('SubscriptionV1 attachments Interceptor', () => {
     try {
       subscriptionRepository.stubs.findOne.resolves(inputSubscriptionNotDraft);
       await interceptor.intercept(invocationContextArgsOK);
-      sinon.assert.fail();
     } catch (err) {
-      expect(err).to.deepEqual(errorStatus);
+      expect(err.message).to.equal('subscriptions.error.bad.status');
+      expect(err.statusCode).to.equal(StatusCode.Conflict);
     }
   });
 
   it('SubscriptionV1Interceptor args: error one file to upload', async () => {
     try {
       subscriptionRepository.stubs.findOne.resolves(inputSubscription);
-      enterpriseRepository.stubs.findOne.resolves(undefined);
-      collectivityRepository.stubs.findOne.resolves(mockCollectivity);
+      funderRepository.stubs.findById.resolves(mockCollectivity);
       await interceptor.intercept(invocationContextArgsNoFileError);
-      sinon.assert.fail();
     } catch (err) {
-      expect(err.message).to.equal(errorNoFile.message);
+      expect(err.message).to.equal('You need the provide at least one file or valid metadata');
+      expect(err.statusCode).to.equal(StatusCode.BadRequest);
     }
   });
 
@@ -128,63 +108,56 @@ describe('SubscriptionV1 attachments Interceptor', () => {
     try {
       subscriptionRepository.stubs.findOne.resolves(inputSubscriptionWithFiles);
       metadataRepository.stubs.findById.resolves();
-      enterpriseRepository.stubs.findOne.resolves(undefined);
-      collectivityRepository.stubs.findOne.resolves(mockCollectivity);
+      funderRepository.stubs.findById.resolves(mockCollectivity);
       await interceptor.intercept(invocationContextArgsOK);
-      sinon.assert.fail();
     } catch (err) {
-      expect(err.message).to.equal(errorAlreadyFiles.message);
+      expect(err.message).to.equal('You already provided files to this subscription');
+      expect(err.statusCode).to.equal(StatusCode.UnprocessableEntity);
     }
   });
 
   it('SubscriptionV1Interceptor args: error metadata does not match', async () => {
     try {
       subscriptionRepository.stubs.findOne.resolves(inputSubscriptionWrongIncentiveId);
-      metadataRepository.stubs.findById.resolves(
-        new Metadata({incentiveId: 'errorincentiveId'}),
-      );
-      enterpriseRepository.stubs.findOne.resolves(undefined);
-      collectivityRepository.stubs.findOne.resolves(mockCollectivity);
+      metadataRepository.stubs.findById.resolves(new Metadata({incentiveId: 'errorincentiveId'}));
+      funderRepository.stubs.findById.resolves(mockCollectivity);
       await interceptor.intercept(invocationContextArgsOK);
-      sinon.assert.fail();
     } catch (err) {
-      expect(err.message).to.equal(errorMismatchincentiveId.message);
+      expect(err.message).to.equal('Metadata does not match this subscription');
+      expect(err.statusCode).to.equal(StatusCode.Conflict);
     }
   });
 
   it('SubscriptionV1Interceptor args: error nb of file', async () => {
     try {
       subscriptionRepository.stubs.findOne.resolves(inputSubscription);
-      enterpriseRepository.stubs.findOne.resolves(undefined);
-      collectivityRepository.stubs.findOne.resolves(mockCollectivity);
+      funderRepository.stubs.findById.resolves(mockCollectivity);
       await interceptor.intercept(invocationContextArgsNbFileError);
-      sinon.assert.fail();
     } catch (err) {
-      expect(err).to.deepEqual(errorNbFile);
+      expect(err.message).to.equal('Too many files to upload');
+      expect(err.statusCode).to.equal(StatusCode.BadRequest);
     }
   });
 
   it('SubscriptionV1Interceptor args: error file mime type', async () => {
     try {
       subscriptionRepository.stubs.findOne.resolves(inputSubscription);
-      enterpriseRepository.stubs.findOne.resolves(undefined);
-      collectivityRepository.stubs.findOne.resolves(mockCollectivity);
+      funderRepository.stubs.findById.resolves(mockCollectivity);
       await interceptor.intercept(invocationContextArgsMimeTypeError);
-      sinon.assert.fail();
     } catch (err) {
-      expect(err).to.deepEqual(errorMimeType);
+      expect(err.message).to.equal('Uploaded files do not have valid content type');
+      expect(err.statusCode).to.equal(StatusCode.UnsupportedMediaType);
     }
   });
 
   it('SubscriptionV1Interceptor args: error file size', async () => {
     try {
       subscriptionRepository.stubs.findOne.resolves(inputSubscription);
-      enterpriseRepository.stubs.findOne.resolves(undefined);
-      collectivityRepository.stubs.findOne.resolves(mockCollectivity);
+      funderRepository.stubs.findById.resolves(mockCollectivity);
       await interceptor.intercept(invocationContextArgsFileSizeError);
-      sinon.assert.fail();
     } catch (err) {
-      expect(err.message).to.equal(errorFileSize.message);
+      expect(err.message).to.equal('Uploaded files do not have a valid file size');
+      expect(err.statusCode).to.equal(StatusCode.BadRequest);
     }
   });
 
@@ -193,65 +166,46 @@ describe('SubscriptionV1 attachments Interceptor', () => {
       subscriptionRepository.stubs.findOne.resolves(inputSubscription);
       metadataRepository.stubs.findById.resolves();
       clamavService.stubs.checkCorruptedFiles.resolves(false);
-      enterpriseRepository.stubs.findOne.resolves(undefined);
-      collectivityRepository.stubs.findOne.resolves(mockCollectivity);
+      funderRepository.stubs.findById.resolves(mockCollectivity);
       await interceptor.intercept(invocationContextArgsOK);
-      sinon.assert.fail();
     } catch (err) {
-      expect(err.message).to.equal(errorCorrepted.message);
+      expect(err.message).to.equal('A corrupted file has been found');
+      expect(err.statusCode).to.equal(StatusCode.UnprocessableEntity);
     }
   });
 
   it('SubscriptionV1Interceptor : error when funder not found', async () => {
-    const encryptionKeyNotFoundError = new ValidationError(
-      `Funder not found`,
-      '/Funder',
-      StatusCode.NotFound,
-      ResourceName.EncryptionKey,
-    );
     try {
       subscriptionRepository.stubs.findOne.resolves(inputSubscription);
-      enterpriseRepository.stubs.findOne.resolves(undefined);
-      collectivityRepository.stubs.findOne.resolves(undefined);
+      funderRepository.stubs.findById.resolves(undefined);
       await interceptor.intercept(invocationContextArgsOK);
       sinon.assert.fail();
     } catch (err) {
-      expect(encryptionKeyNotFoundError).to.deepEqual(encryptionKeyNotFoundError);
+      expect(err.message).to.equal('Funder not found');
+      expect(err.statusCode).to.equal(StatusCode.BadRequest);
     }
   });
 
   it('SubscriptionV1Interceptor : error when Encryption Key not found', async () => {
-    const encryptionKeyNotFoundError = new ValidationError(
-      `Encryption Key not found`,
-      '/EncryptionKey',
-      StatusCode.NotFound,
-      ResourceName.EncryptionKey,
-    );
     try {
       subscriptionRepository.stubs.findOne.resolves(inputSubscription);
-      enterpriseRepository.stubs.findOne.resolves(undefined);
-      collectivityRepository.stubs.findOne.resolves(mockCollectivityWithoutEncryptionKey);
+      funderRepository.stubs.findById.resolves(mockCollectivityWithoutEncryptionKey);
       await interceptor.intercept(invocationContextArgsOK);
       sinon.assert.fail();
     } catch (err) {
-      expect(encryptionKeyNotFoundError).to.deepEqual(encryptionKeyNotFoundError);
+      expect(err.message).to.equal('Encryption Key not found');
+      expect(err.statusCode).to.equal(StatusCode.UnprocessableEntity);
     }
   });
 
   it('SubscriptionV1Interceptor : error when Encryption Key expired', async () => {
-    const encryptionKeyExpiredError = new ValidationError(
-      `Encryption Key Expired`,
-      '/EncryptionKey',
-      StatusCode.UnprocessableEntity,
-      ResourceName.EncryptionKey,
-    );
     try {
       subscriptionRepository.stubs.findOne.resolves(inputSubscription);
-      enterpriseRepository.stubs.findOne.resolves(undefined);
-      collectivityRepository.stubs.findOne.resolves(mockCollectivityEncryptionKeyExpired);
+      funderRepository.stubs.findById.resolves(mockCollectivityEncryptionKeyExpired);
       await interceptor.intercept(invocationContextArgsOK);
     } catch (err) {
-      expect(err).to.deepEqual(encryptionKeyExpiredError);
+      expect(err.message).to.equal('Encryption Key Expired');
+      expect(err.statusCode).to.equal(StatusCode.UnprocessableEntity);
     }
   });
 
@@ -259,8 +213,7 @@ describe('SubscriptionV1 attachments Interceptor', () => {
     subscriptionRepository.stubs.findOne.resolves(inputSubscription);
     metadataRepository.stubs.findById.resolves();
     clamavService.stubs.checkCorruptedFiles.resolves(true);
-    enterpriseRepository.stubs.findOne.resolves(undefined);
-    collectivityRepository.stubs.findOne.resolves(mockCollectivity);
+    funderRepository.stubs.findById.resolves(mockCollectivity);
     await interceptor.intercept(invocationContextArgsOK, () => {});
   });
 
@@ -276,8 +229,7 @@ describe('SubscriptionV1 attachments Interceptor', () => {
   function givenStubbedRepository() {
     metadataRepository = createStubInstance(MetadataRepository);
     subscriptionRepository = createStubInstance(SubscriptionRepository);
-    enterpriseRepository = createStubInstance(EnterpriseRepository);
-    collectivityRepository = createStubInstance(CollectivityRepository);
+    funderRepository = createStubInstance(FunderRepository);
     clamavService = createStubInstance(ClamavService);
     currentUserProfile = {
       id: 'citizenId',
@@ -287,62 +239,6 @@ describe('SubscriptionV1 attachments Interceptor', () => {
     };
   }
 });
-
-const errorSubscriptionDoesnotExist: any = new ValidationError(
-  'Subscription does not exist',
-  '/subscription',
-  StatusCode.NotFound,
-  ResourceName.Subscription,
-);
-
-const errorStatus: any = new ValidationError(
-  `Only subscriptions with Draft status are allowed`,
-  '/status',
-  StatusCode.PreconditionFailed,
-  ResourceName.Subscription,
-);
-
-const errorMimeType: any = new ValidationError(
-  `Uploaded files do not have valid content type`,
-  '/attachments',
-  StatusCode.PreconditionFailed,
-  ResourceName.AttachmentsType,
-);
-
-const errorFileSize: any = new ValidationError(
-  `Uploaded files do not have a valid file size`,
-  '/attachments',
-);
-
-const errorNoFile: any = new ValidationError(
-  `You need the provide at least one file or valid metadata`,
-  '/attachments',
-);
-
-const errorAlreadyFiles: any = new ValidationError(
-  `You already provided files to this subscription`,
-  '/attachments',
-);
-
-const errorCorrepted: any = new ValidationError(
-  'A corrupted file has been found',
-  '/antivirus',
-);
-const errorStatusUser: any = new ValidationError('Access denied', '/authorization');
-
-const errorNbFile: any = new ValidationError(
-  `Too many files to upload`,
-  '/attachments',
-  StatusCode.UnprocessableEntity,
-  ResourceName.Attachments,
-);
-
-const errorMismatchincentiveId: any = new ValidationError(
-  `Metadata does not match this subscription`,
-  '/attachments',
-  StatusCode.UnprocessableEntity,
-  ResourceName.Attachments,
-);
 
 const file: any = {
   originalname: 'test1.txt',
@@ -357,19 +253,7 @@ const file: any = {
   path: 'test',
 };
 
-const fileListNbFileError: any[] = [
-  file,
-  file,
-  file,
-  file,
-  file,
-  file,
-  file,
-  file,
-  file,
-  file,
-  file,
-];
+const fileListNbFileError: any[] = [file, file, file, file, file, file, file, file, file, file, file];
 
 const fileListMimeTypeError: any[] = [
   {
@@ -507,7 +391,7 @@ const mockencryptionKeyExpired = new EncryptionKey({
   }),
 });
 
-const mockCollectivity = new Collectivity({
+const mockCollectivity = new Funder({
   id: 'randomInputIdCollectivity',
   name: 'nameCollectivity',
   citizensCount: 10,
@@ -515,7 +399,7 @@ const mockCollectivity = new Collectivity({
   encryptionKey: mockencryptionKeyValid,
 });
 
-const mockCollectivityEncryptionKeyExpired = new Collectivity({
+const mockCollectivityEncryptionKeyExpired = new Funder({
   id: 'randomInputIdCollectivity',
   name: 'nameCollectivity',
   citizensCount: 10,
@@ -523,7 +407,7 @@ const mockCollectivityEncryptionKeyExpired = new Collectivity({
   encryptionKey: mockencryptionKeyExpired,
 });
 
-const mockCollectivityWithoutEncryptionKey = new Collectivity({
+const mockCollectivityWithoutEncryptionKey = new Funder({
   id: 'randomInputIdCollectivity',
   name: 'nameCollectivity',
   citizensCount: 10,

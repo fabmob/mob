@@ -1,8 +1,11 @@
 interface Fr {
+  'search.head.page.title': string;
+  'search.head.title.separator': string;
+  'search.head.title.siteName' : string;
+  'search.head.description' : string;
   'search.incentive.text': string;
   'search.incentive.authenticated.text': string;
   'search.subtitle.non.authenticated.text': string;
-  'search.subtitle.authenticated.text': string;
   'search.create.account': string;
   'form.search.incentive.label': string;
   'form.search.incentive.placeholder': string;
@@ -153,7 +156,6 @@ interface Fr {
   'cgu.infos.host.line1': string;
   'cgu.infos.host.line2': string;
   'cgu.infos.host.line3': string;
-
   'cgu.infos.mob.title': string;
   'cgu.infos.mob.parag1': string;
   'cgu.infos.mob.parag2': string;
@@ -162,7 +164,6 @@ interface Fr {
   'cgu.infos.mob.parag3': string;
   'cgu.infos.mob.parag4': string;
   'cgu.infos.mob.parag5': string;
-
   'cgu.part1.title': string;
   'cgu.part1.paragraphe1': string;
   'cgu.part1.paragraphe2': string;
@@ -194,7 +195,6 @@ interface Fr {
   'cgu.part2.paragraphe1.line9': string;
   'cgu.part2.paragraphe1.line10': string;
   'cgu.part2.paragraphe1.line11': string;
-
   'cgu.part3.title': string;
   'cgu.part3.paragraphe1.part1': string;
   'cgu.part3.paragraphe1.part2': string;
@@ -219,7 +219,6 @@ interface Fr {
   'cgu.part3.paragraphe5.list4': string;
   'cgu.part3.paragraphe5.list5': string;
   'cgu.part3.paragraphe5.list6': string;
-
   'cgu.part4.title': string;
   'cgu.part4.paragraphe1': string;
   'cgu.part4.paragraphe2': string;
@@ -228,7 +227,6 @@ interface Fr {
   'cgu.part4.list1': string;
   'cgu.part4.list2': string;
   'cgu.part4.list3': string;
-
   'cgu.part5.title': string;
   'cgu.part5.paragraphe.part1': string;
   'cgu.part5.paragraphe.part2': string;
@@ -236,13 +234,11 @@ interface Fr {
   'cgu.part5.paragraphe.part4': string;
   'cgu.part5.paragraphe.part5': string;
   'cgu.part5.paragraphe.part6': string;
-
   'cgu.part6.title': string;
   'cgu.part6.paragraphe1': string;
   'cgu.part6.paragraphe2': string;
   'cgu.part6.paragraphe3': string;
   'cgu.part6.paragraphe4': string;
-
   'cgu.part7.title': string;
   'cgu.part7.paragraphe1': string;
   'cgu.part7.paragraphe2.line1': string;
@@ -267,7 +263,6 @@ interface Fr {
   'cgu.part11.title': string;
   'cgu.part11.paragraphe1.line1': string;
   'cgu.part11.paragraphe1.line2': string;
-
   'politique.cookies.title': string;
   'politique.cookies.introduction': string;
   'politique.cookies.part1.title': string;
@@ -303,6 +298,7 @@ interface Fr {
   'search.incentive.tabs.all.incentives': string;
   'search.incentive.tabs.territory.incentives': string;
   'search.incentive.tabs.employees.incentives': string;
+  'search.incentive.tabs.nationals.incentives': string;
 }
 
 declare const value: Fr;

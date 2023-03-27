@@ -1,23 +1,17 @@
 import {BindingScope, inject, injectable, service} from '@loopback/core';
-import amqp, {Channel, Connection, ConsumeMessage, credentials, Options} from 'amqplib';
+import amqp, {Channel, Connection, ConsumeMessage, Options} from 'amqplib';
 import {KeycloakService} from '../services/keycloak.service';
 import {credentials as kcCredentials} from '../constants';
 import {repository} from '@loopback/repository';
 
 import {RabbitmqConfig} from '../config';
-import {
-  EVENT_MESSAGE,
-  ISubscriptionPublishPayload,
-  ResourceName,
-  StatusCode,
-} from '../utils';
+import {EVENT_MESSAGE, ISubscriptionPublishPayload, Logger, StatusCode} from '../utils';
 
-import {ValidationError} from '../validationError';
-import {logger} from '../utils';
+import {InternalServerError} from '../validationError';
 import {ParentProcessService} from './parentProcess.service';
-import {EnterpriseRepository} from '../repositories';
 import {Enterprise} from '../models';
 import {SubscriptionService} from './subscription.service';
+import {FunderRepository} from '../repositories';
 
 @injectable({scope: BindingScope.SINGLETON})
 export class RabbitmqService {
@@ -27,8 +21,8 @@ export class RabbitmqService {
   constructor(
     @service(SubscriptionService)
     public subscriptionService: SubscriptionService,
-    @repository(EnterpriseRepository)
-    public enterpriseRepository: EnterpriseRepository,
+    @repository(FunderRepository)
+    public funderRepository: FunderRepository,
     @inject('services.ParentProcessService')
     public parentProcessService: ParentProcessService,
     @service(KeycloakService)
@@ -39,7 +33,7 @@ export class RabbitmqService {
       try {
         await this.consumeMessage(msg);
       } catch (err) {
-        logger.error(`${RabbitmqService.name} - ${err}`);
+        Logger.error(RabbitmqService.name, 'constructor', 'Error', err);
       }
     });
   }
@@ -50,18 +44,13 @@ export class RabbitmqService {
    */
   public async getHRISEnterpriseNameList(): Promise<string[]> {
     try {
-      return (await this.enterpriseRepository.getHRISEnterpriseNameList()).map(
+      return (await this.funderRepository.getEnterpriseHRISNameList()).map(
         (enterprise: Pick<Enterprise, 'name'>) => {
           return enterprise.name.toLowerCase();
         },
       );
     } catch (err) {
-      throw new ValidationError(
-        `rabbitmq error getting HRIS enterprises`,
-        '/rabbitmq',
-        StatusCode.InternalServerError,
-        ResourceName.rabbitmq,
-      );
+      throw new InternalServerError(RabbitmqService.name, this.getHRISEnterpriseNameList.name, err);
     }
   }
 
@@ -75,18 +64,14 @@ export class RabbitmqService {
         this.rabbitmqConfig.getAmqpUrl(),
         this.rabbitmqConfig.getLogin(this.keycloakService.keycloakAdmin.accessToken),
       );
-      logger.info(
-        `${
-          RabbitmqService.name
-        } - RabbitMQ connected to: ${this.rabbitmqConfig.getAmqpUrl()}`,
+      Logger.info(
+        RabbitmqService.name,
+        this.connect.name,
+        'RabbitMQ connected to',
+        this.rabbitmqConfig.getAmqpUrl(),
       );
     } catch (err) {
-      throw new ValidationError(
-        `rabbitmq init connection error`,
-        '/rabbitmq',
-        StatusCode.InternalServerError,
-        ResourceName.rabbitmq,
-      );
+      throw new InternalServerError(RabbitmqService.name, this.connect.name, err);
     }
   }
 
@@ -96,15 +81,14 @@ export class RabbitmqService {
   public async disconnect(): Promise<void> {
     try {
       await this.connection.close();
-      logger.info(`${RabbitmqService.name} - \
-    RabbitMQ closed connection for: ${this.rabbitmqConfig.getAmqpUrl()}`);
-    } catch (err) {
-      throw new ValidationError(
-        `rabbitmq disconnect error`,
-        '/rabbitmq',
-        StatusCode.InternalServerError,
-        ResourceName.rabbitmq,
+      Logger.info(
+        RabbitmqService.name,
+        this.disconnect.name,
+        'RabbitMQ closed connection',
+        this.rabbitmqConfig.getAmqpUrl(),
       );
+    } catch (err) {
+      throw new InternalServerError(RabbitmqService.name, this.disconnect.name, err);
     }
   }
 
@@ -116,12 +100,7 @@ export class RabbitmqService {
       const channel: Channel = await this.connection.createChannel();
       return channel;
     } catch (err) {
-      throw new ValidationError(
-        `rabbitmq connect to channel error`,
-        '/rabbitmq',
-        StatusCode.InternalServerError,
-        ResourceName.rabbitmq,
-      );
+      throw new InternalServerError(RabbitmqService.name, this.openConnectionChannel.name, err);
     }
   }
 
@@ -134,12 +113,7 @@ export class RabbitmqService {
     try {
       await channel.close();
     } catch (err) {
-      throw new ValidationError(
-        `rabbitmq close channel error`,
-        '/rabbitmq',
-        StatusCode.InternalServerError,
-        ResourceName.rabbitmq,
-      );
+      throw new InternalServerError(RabbitmqService.name, this.closeConnectionChannel.name, err);
     }
   }
 
@@ -159,8 +133,7 @@ export class RabbitmqService {
       // Publish the Payload
       // Options
       const options: Options.Publish = {
-        headers: this.rabbitmqConfig.getPublishQueue(enterpriseName.toLowerCase())
-          .headers,
+        headers: this.rabbitmqConfig.getPublishQueue(enterpriseName.toLowerCase()).headers,
         deliveryMode: 2,
         contentEncoding: 'utf-8',
         contentType: 'application/json',
@@ -171,17 +144,17 @@ export class RabbitmqService {
         Buffer.from(JSON.stringify(subscriptionPayload)),
         options,
       );
-      logger.info(`Message published for enterprise : ${enterpriseName}`);
+      Logger.info(
+        RabbitmqService.name,
+        this.publishMessage.name,
+        'Message published for enterprise',
+        enterpriseName,
+      );
       // Close the connection
       await this.closeConnectionChannel(channel);
       await this.disconnect();
     } catch (err) {
-      throw new ValidationError(
-        `rabbitmq publish message error`,
-        '/rabbitmq',
-        StatusCode.PreconditionFailed,
-        ResourceName.rabbitmq,
-      );
+      throw new InternalServerError(RabbitmqService.name, this.publishMessage.name, err);
     }
   }
 
@@ -202,13 +175,16 @@ export class RabbitmqService {
     } catch (err) {
       if (
         err &&
-        (err.statusCode === StatusCode.PreconditionFailed ||
-          err.statusCode === StatusCode.Forbidden)
+        (err.statusCode === StatusCode.BadRequest ||
+          err.statusCode === StatusCode.Conflict ||
+          err.statusCode === StatusCode.Forbidden ||
+          err.statusCode === StatusCode.UnprocessableEntity)
       ) {
-        const payload = await this.subscriptionService.getSubscriptionPayload(
-          parsedData!.subscriptionId,
-          {message: err.message, property: err.property, code: err.statusCode},
-        );
+        const payload = await this.subscriptionService.getSubscriptionPayload(parsedData!.subscriptionId, {
+          message: err.message,
+          property: err.property,
+          code: err.statusCode,
+        });
         await this.publishMessage(payload.subscription, payload.enterprise);
         // delete message ACK
         this.parentProcessService.emit(EVENT_MESSAGE.ACK, {
@@ -216,12 +192,8 @@ export class RabbitmqService {
           data: message,
         });
       }
-      throw new ValidationError(
-        `rabbitmq consume message error`,
-        '/rabbitmq',
-        StatusCode.PreconditionFailed,
-        ResourceName.rabbitmq,
-      );
+
+      throw new InternalServerError(RabbitmqService.name, this.consumeMessage.name, err);
     }
   }
 }

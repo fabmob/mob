@@ -1,9 +1,4 @@
-import {
-  expect,
-  sinon,
-  StubbedInstanceWithSinonAccessor,
-  createStubInstance,
-} from '@loopback/testlab';
+import {expect, sinon, StubbedInstanceWithSinonAccessor, createStubInstance} from '@loopback/testlab';
 import {AnyObject} from '@loopback/repository';
 
 import {CronJobRepository} from '../../repositories';

@@ -5,21 +5,15 @@ import {SecurityBindings, UserProfile} from '@loopback/security';
 import {capitalize} from 'lodash';
 
 import {WEBSITE_FQDN} from '../constants';
-import {Affiliation, Citizen, Enterprise, User} from '../models';
+import {Affiliation, Citizen, User, Enterprise, Funder} from '../models';
 import {
   AffiliationRepository,
-  EnterpriseRepository,
+  FunderRepository,
   SubscriptionRepository,
   UserRepository,
 } from '../repositories';
-import {
-  AFFILIATION_STATUS,
-  formatDateInFrenchNotation,
-  ResourceName,
-  StatusCode,
-  SUBSCRIPTION_STATUS,
-} from '../utils';
-import {ValidationError} from '../validationError';
+import {AFFILIATION_STATUS, formatDateInFrenchNotation, ResourceName, SUBSCRIPTION_STATUS} from '../utils';
+import {ConflictError, UnprocessableEntityError} from '../validationError';
 import {AffiliationAccessTokenPayload, JwtService} from './jwt.service';
 import {KeycloakService} from './keycloak.service';
 import {MailService} from './mail.service';
@@ -33,8 +27,8 @@ export class AffiliationService {
     public userRepository: UserRepository,
     @repository(SubscriptionRepository)
     public subscriptionRepository: SubscriptionRepository,
-    @repository(EnterpriseRepository)
-    public enterpriseRepository: EnterpriseRepository,
+    @repository(FunderRepository)
+    public funderRepository: FunderRepository,
     @service(KeycloakService)
     public kcService: KeycloakService,
     @service(MailService)
@@ -74,10 +68,7 @@ export class AffiliationService {
    * @param enterprise
    *
    */
-  async sendManualAffiliationMail(
-    citizen: Citizen,
-    enterprise: Enterprise,
-  ): Promise<void> {
+  async sendManualAffiliationMail(citizen: Citizen, enterprise: Enterprise): Promise<void> {
     //  Get list of the enterprise funders
     const enterpriseFunders = await this.userRepository.find({
       where: {
@@ -129,11 +120,7 @@ export class AffiliationService {
    * @param citizen
    * @param funderNames
    */
-  async sendAffiliationMail(
-    mailService: MailService,
-    citizen: Citizen,
-    funderName: string,
-  ) {
+  async sendAffiliationMail(mailService: MailService, citizen: Citizen, funderName: string) {
     const token = this.jwtService.generateAffiliationAccessToken(citizen);
     const affiliationLink = `${WEBSITE_FQDN}/inscription/association?token=${token}`;
 
@@ -213,31 +200,23 @@ export class AffiliationService {
    * verify affiliation status
    */
   async checkAffiliation(citizen: Citizen, token: string): Promise<Citizen> {
-    let enterprise: Enterprise;
-
     // Verify token
     if (!this.jwtService.verifyAffiliationAccessToken(token)) {
-      throw new ValidationError(
+      throw new UnprocessableEntityError(
+        AffiliationService.name,
+        this.checkAffiliation.name,
         'citizens.affiliation.not.valid',
         '/citizensAffiliationNotValid',
-        StatusCode.UnprocessableEntity,
         ResourceName.Affiliation,
+        token,
       );
     }
 
-    const decodedToken: AffiliationAccessTokenPayload =
-      this.jwtService.decodeAffiliationAccessToken(token);
+    const decodedToken: AffiliationAccessTokenPayload = this.jwtService.decodeAffiliationAccessToken(token);
 
-    try {
-      enterprise = await this.enterpriseRepository.findById(decodedToken.enterpriseId);
-    } catch (err) {
-      throw new ValidationError(
-        'citizens.affiliation.not.valid',
-        '/citizensAffiliationNotValid',
-        StatusCode.UnprocessableEntity,
-        ResourceName.Affiliation,
-      );
-    }
+    const enterprise: Enterprise | null = await this.funderRepository.getEnterpriseById(
+      decodedToken.enterpriseId,
+    );
 
     // Check if citizen and enterprise exists
     // Check if affiliation enterpriseId matches the token one
@@ -247,21 +226,26 @@ export class AffiliationService {
       citizen.affiliation.enterpriseId !== decodedToken.enterpriseId ||
       !enterprise
     ) {
-      throw new ValidationError(
+      throw new UnprocessableEntityError(
+        AffiliationService.name,
+        this.checkAffiliation.name,
         'citizens.affiliation.not.valid',
         '/citizensAffiliationNotValid',
-        StatusCode.UnprocessableEntity,
         ResourceName.Affiliation,
+        {affiliation: citizen?.affiliation, enterpriseId: decodedToken.enterpriseId},
       );
     }
 
     // Check Affiliation status
     if (citizen.affiliation.status !== AFFILIATION_STATUS.TO_AFFILIATE) {
-      throw new ValidationError(
+      throw new ConflictError(
+        AffiliationService.name,
+        this.checkAffiliation.name,
         'citizens.affiliation.bad.status',
         '/citizensAffiliationBadStatus',
-        StatusCode.PreconditionFailed,
         ResourceName.AffiliationBadStatus,
+        citizen.affiliation.status,
+        AFFILIATION_STATUS.TO_AFFILIATE,
       );
     }
 
@@ -274,10 +258,14 @@ export class AffiliationService {
    * verify citizen subscription
    */
   async checkDisaffiliation(citizenId: string): Promise<boolean> {
+    const funder: Funder | null = await this.funderRepository.getFunderByNameAndType(
+      this.currentUser.funderName!,
+      this.currentUser.funderType!,
+    );
+
     // Check Citizen demands
     const withParams: AnyObject[] = [
-      {funderName: this.currentUser.funderName},
-      {incentiveType: this.currentUser.incentiveType},
+      {funderId: funder!.id},
       {status: SUBSCRIPTION_STATUS.TO_PROCESS},
       {citizenId: citizenId},
     ];
@@ -286,8 +274,7 @@ export class AffiliationService {
 
     let communityIds: '' | string[] | null | undefined = null;
 
-    communityIds =
-      userId && (await this.userRepository.findOne({where: {id: userId}}))?.communityIds;
+    communityIds = userId && (await this.userRepository.findOne({where: {id: userId}}))?.communityIds;
 
     if (communityIds && communityIds?.length > 0) {
       withParams.push({communityId: {inq: communityIds}});
