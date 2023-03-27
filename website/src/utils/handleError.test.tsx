@@ -30,14 +30,14 @@ describe('handleErrorTest', () => {
     const message = `Il semble qu'il y ait un problème, votre requête n'a pas pu aboutir. Merci de réessayer ultérieurement.`;
     expect(utils.queryByText(message)).not.toBeInTheDocument();
   });
-  test('showToastrError 412', async () => {
+  test('showToastrError 400', async () => {
     const utils = render(<Toast />);
-    const mockError412 = {
-      data: { error: { statusCode: 412, resourceName: 'erreur' } },
+    const mockError400 = {
+      data: { error: { statusCode: 400, resourceName: 'erreur' } },
     };
-    const message = `Cette erreur a déjà été traitée, la réponse ne peut pas être modifiée. S'il s'agit d'une erreur, vous pouvez nous contacter.`;
+    const message = `Il semble qu'il y ait un problème, votre requête n'a pas pu aboutir. Verifiez votre requête.`;
     act(() => {
-      handleError(mockError412, true);
+      handleError(mockError400, true);
     });
     expect(utils.queryByText(message)).toBeInTheDocument();
   });
@@ -71,6 +71,17 @@ describe('handleErrorTest', () => {
     const utils = render(<Toast />);
     act(() => {
       handleError(mockError404, true);
+    });
+    expect(utils.queryByText(message)).toBeInTheDocument();
+  });
+  test('showToastrError 415', async () => {
+    const mockError415 = {
+      data: { error: { statusCode: 415, resourceName: 'erreur' } },
+    };
+    const message = `Il semble l'extension du fichier ne respecte pas le format demandé.`;
+    const utils = render(<Toast />);
+    act(() => {
+      handleError(mockError415, true);
     });
     expect(utils.queryByText(message)).toBeInTheDocument();
   });

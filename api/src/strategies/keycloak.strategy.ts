@@ -4,8 +4,8 @@ import {service} from '@loopback/core';
 import {JwtPayload} from 'jsonwebtoken';
 
 import {AuthenticationService} from '../services/authentication.service';
-import {ValidationError} from '../validationError';
-import {AUTH_STRATEGY, IUser, StatusCode} from '../utils';
+import {UnauthorizedError} from '../validationError';
+import {AUTH_STRATEGY, IUser} from '../utils';
 
 export class KeycloakAuthenticationStrategy implements AuthenticationStrategy {
   name = AUTH_STRATEGY.KEYCLOAK;
@@ -15,7 +15,7 @@ export class KeycloakAuthenticationStrategy implements AuthenticationStrategy {
     private authenticationService: AuthenticationService,
   ) {}
 
-  async authenticate(request: Request): Promise<IUser | undefined> {
+  async authenticate(request: Request): Promise<IUser> {
     // Extract token from Bearer
     const token: string = this.authenticationService.extractCredentials(request);
 
@@ -24,13 +24,14 @@ export class KeycloakAuthenticationStrategy implements AuthenticationStrategy {
 
     // Convert to UserProfile type
     const user: IUser = this.authenticationService.convertToUser(decodedToken);
-    // Check emailVerified
 
+    // Check emailVerified
     if (!user.clientName && !user.emailVerified) {
-      throw new ValidationError(
-        `Email not verified`,
-        '/authorization',
-        StatusCode.Unauthorized,
+      throw new UnauthorizedError(
+        KeycloakAuthenticationStrategy.name,
+        this.authenticate.name,
+        'Email not verified',
+        user.emailVerified,
       );
     }
     return user;

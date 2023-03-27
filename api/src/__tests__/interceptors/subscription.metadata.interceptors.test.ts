@@ -1,9 +1,4 @@
-import {
-  createStubInstance,
-  expect,
-  sinon,
-  StubbedInstanceWithSinonAccessor,
-} from '@loopback/testlab';
+import {createStubInstance, expect, sinon, StubbedInstanceWithSinonAccessor} from '@loopback/testlab';
 import {securityId} from '@loopback/security';
 
 import {ValidationError} from '../../validationError';
@@ -32,7 +27,8 @@ describe('SubscriptionV1 metadata Interceptor', () => {
       incentiveRepository.stubs.findById.resolves(new Incentive({isMCMStaff: false}));
       await interceptor.intercept(invocationContextArgsOK);
     } catch (err) {
-      expect(err).to.deepEqual(errorNotMCMStaff);
+      expect(err.message).to.equal('Access denied');
+      expect(err.statusCode).to.equal(StatusCode.Forbidden);
     }
   });
 
@@ -41,7 +37,8 @@ describe('SubscriptionV1 metadata Interceptor', () => {
       incentiveRepository.stubs.findById.resolves(new Incentive({isMCMStaff: true}));
       await interceptor.intercept(invocationContextArgsKOProducts);
     } catch (err) {
-      expect(err).to.deepEqual(errorMetadataInvoicesOrProductsLength);
+      expect(err.message).to.equal('Metadata invoices or products length invalid');
+      expect(err.statusCode).to.equal(StatusCode.UnprocessableEntity);
     }
   });
 
@@ -50,18 +47,18 @@ describe('SubscriptionV1 metadata Interceptor', () => {
       incentiveRepository.stubs.findById.resolves(new Incentive({isMCMStaff: true}));
       await interceptor.intercept(invocationContextArgsKOInvoicesTotalElements);
     } catch (err) {
-      expect(err).to.deepEqual(errorMetadataInvoicesTotalElements);
+      expect(err.message).to.equal('Metadata invoices length must be equal to totalElements');
+      expect(err.statusCode).to.equal(StatusCode.UnprocessableEntity);
     }
   });
 
   it('SubscriptionMetadataInterceptor args: getMetadata user id not matches error', async () => {
     try {
-      metadataRepository.stubs.findOne.resolves(
-        new Metadata({citizenId: 'citizenIdError'}),
-      );
+      metadataRepository.stubs.findOne.resolves(new Metadata({citizenId: 'citizenIdError'}));
       await interceptor.intercept(invocationContextArgsGetOK);
     } catch (err) {
-      expect(err.message).to.equal(errorMetadataNotHis.message);
+      expect(err.message).to.equal('Access denied');
+      expect(err.statusCode).to.equal(StatusCode.Forbidden);
     }
   });
 
@@ -86,7 +83,8 @@ describe('SubscriptionV1 metadata Interceptor', () => {
 
       await interceptor.intercept(invocationCtxGetMetadata, () => {});
     } catch (err) {
-      expect(err).to.deepEqual(errorNotFound);
+      expect(err.message).to.equal('Metadata not found');
+      expect(err.statusCode).to.equal(StatusCode.NotFound);
     }
     incentiveRepository.stubs.findOne.restore();
   });
@@ -102,39 +100,6 @@ describe('SubscriptionV1 metadata Interceptor', () => {
     };
   }
 });
-
-const errorNotMCMStaff: any = new ValidationError(
-  'Access denied',
-  '/authorization',
-  StatusCode.Forbidden,
-);
-
-const errorMetadataInvoicesOrProductsLength: any = new ValidationError(
-  `Metadata invoices or products length invalid`,
-  '/metadata',
-  StatusCode.UnprocessableEntity,
-  ResourceName.Metadata,
-);
-
-const errorMetadataInvoicesTotalElements: any = new ValidationError(
-  `Metadata invoices length must be equal to totalElements`,
-  '/metadata',
-  StatusCode.UnprocessableEntity,
-  ResourceName.Metadata,
-);
-
-const errorMetadataNotHis: any = new ValidationError(
-  'Access denied',
-  '/authorization',
-  StatusCode.Forbidden,
-);
-
-const errorNotFound = new ValidationError(
-  `Metadata not found`,
-  '/metadataNotFound',
-  StatusCode.NotFound,
-  ResourceName.Metadata,
-);
 
 const invocationCtxGetMetadata = {
   methodName: 'getMetadata',

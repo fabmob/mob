@@ -19,7 +19,12 @@ interface Fr {
   'creation.line2.account': string;
   'completion.title.create': string;
   'completion.description.account': string;
-  'creation.bravo.message': string;
+  'creation.complete.profile.message': string;
+  'creation.with.mob': string;
+  'creation.error.reconcialition.message.line1': string;
+  'creation.error.reconcialition.message.line2': string;
+  'creation.error.reconcialition.message.line3': string;
+  'creation.error.reconcialition.title': string;
   'creation.success.thanks': string;
   'creation.success.message': string;
   'creation.success.activate.inscription.message': string;

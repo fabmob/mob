@@ -1,31 +1,36 @@
-import {
-  expect,
-  sinon,
-  StubbedInstanceWithSinonAccessor,
-  createStubInstance,
-} from '@loopback/testlab';
+import {createStubInstance, expect, sinon, StubbedInstanceWithSinonAccessor} from '@loopback/testlab';
+import {ValidationError} from 'jsonschema';
 import {securityId} from '@loopback/security';
 
-import {CollectivityRepository, EnterpriseRepository} from '../../repositories';
-import {ValidationError} from '../../validationError';
-import {IUser, ResourceName, StatusCode} from '../../utils';
-import {FunderInterceptor} from '../../interceptors/funder.interceptor';
-import {Collectivity, EncryptionKey, Enterprise, PrivateKeyAccess} from '../../models';
+import {FunderInterceptor} from '../../interceptors';
+import {Enterprise, EnterpriseDetails, Funder, PrivateKeyAccess} from '../../models';
+import {FunderRepository} from '../../repositories';
+import {FunderService} from '../../services';
+import {FUNDER_TYPE, IUser, StatusCode} from '../../utils';
 
 describe('FunderInterceptor', () => {
   let interceptor: any = null;
-  let collectivityRepository: StubbedInstanceWithSinonAccessor<CollectivityRepository>,
-    currentUser: IUser,
-    enterpriseRepository: StubbedInstanceWithSinonAccessor<EnterpriseRepository>;
+  let funderRepository: StubbedInstanceWithSinonAccessor<FunderRepository>,
+    funderService: StubbedInstanceWithSinonAccessor<FunderService>,
+    currentUser: IUser;
 
   beforeEach(() => {
-    givenStubbedService();
-    interceptor = new FunderInterceptor(
-      collectivityRepository,
-      enterpriseRepository,
-      currentUser,
-    );
+    givenStubbed();
+    interceptor = new FunderInterceptor(funderRepository, funderService, currentUser);
   });
+
+  function givenStubbed() {
+    funderRepository = createStubInstance(FunderRepository);
+    funderService = createStubInstance(FunderService);
+    currentUser = {
+      id: 'citizenId',
+      groups: ['funder'],
+      roles: ['financeurs'],
+      clientName: 'funder-backend',
+      emailVerified: true,
+      [securityId]: 'citizenId',
+    };
+  }
 
   it('FunderInterceptor value', async () => {
     const res = 'successful binding';
@@ -35,90 +40,132 @@ describe('FunderInterceptor', () => {
     expect(result).to.equal(res);
     interceptor.intercept.bind.restore();
   });
-  it('storeEncryptionKey : asserts error happens when no funder found', async () => {
-    const error = new ValidationError(
-      `Funder not found`,
-      `/Funder`,
-      StatusCode.NotFound,
-      ResourceName.Funder,
-    );
+
+  it('FunderInterceptor create: KO already exists', async () => {
     try {
-      enterpriseRepository.stubs.findOne.resolves(undefined);
-      collectivityRepository.stubs.findOne.resolves(undefined);
-      await interceptor.intercept(invocationContextStoreEncryptionKey);
+      const invocationContextCreateKO = {
+        target: {},
+        methodName: 'create',
+        args: [funderEnterpriseKOOptions],
+      };
+      funderRepository.stubs.findOne.resolves(funderEnterprise);
+      await interceptor.intercept(invocationContextCreateKO);
     } catch (err) {
-      expect(err).to.deepEqual(error);
+      expect(err.message).to.equal('funder.name.error.unique');
+      expect(err.statusCode).to.equal(StatusCode.Conflict);
     }
   });
 
-  it('storeEncryptionKey : access denied when saving encryption_key for an other funder', async () => {
-    const error = new ValidationError(
-      'Access denied',
-      '/authorization',
-      StatusCode.Forbidden,
-    );
+  it('FunderInterceptor create: KO validation schema', async () => {
     try {
-      enterpriseRepository.stubs.findOne.resolves(undefined);
-      collectivityRepository.stubs.findOne.resolves(mockOtherEnterpise);
-      await interceptor.intercept(invocationContextStoreEncryptionKey);
+      const invocationContextCreateKO = {
+        target: {},
+        methodName: 'create',
+        args: [funderEnterpriseKOOptions],
+      };
+      funderRepository.stubs.findOne.resolves(undefined);
+      funderService.stubs.validateSchema.returns([
+        new ValidationError('error.schema', '', undefined, ['error.schema']),
+      ]);
+      await interceptor.intercept(invocationContextCreateKO);
     } catch (err) {
-      expect(err).to.deepEqual(error);
+      expect(err.message).to.equal('error.schema');
+      expect(err.statusCode).to.equal(StatusCode.UnprocessableEntity);
     }
   });
 
-  it('encryption_key : error when collectivity and no privateKeyAccess provided', async () => {
-    const privateKeyAccessmissingError = new ValidationError(
-      `encryptionKey.error.privateKeyAccess.missing`,
-      '/EncryptionKey',
-      StatusCode.UnprocessableEntity,
-    );
+  it('FunderInterceptor create: KO isHris and hasManualAffiliation', async () => {
     try {
-      enterpriseRepository.stubs.findOne.resolves(undefined);
-      collectivityRepository.stubs.findOne.resolves(mockCollectivity);
-      await interceptor.intercept(invocationContextStoreEncryptionKeyNoPrivateKeyAccess);
-    } catch (error) {
-      expect(error).to.deepEqual(privateKeyAccessmissingError);
+      const invocationContextCreateKO = {
+        target: {},
+        methodName: 'create',
+        args: [funderEnterpriseKOOptions],
+      };
+      funderRepository.stubs.findOne.resolves(undefined);
+      funderService.stubs.validateSchema.returns([]);
+      await interceptor.intercept(invocationContextCreateKO);
+    } catch (err) {
+      expect(err.message).to.equal('enterprise.options.invalid');
+      expect(err.statusCode).to.equal(StatusCode.UnprocessableEntity);
     }
   });
 
-  it('encryption_key : error when enterprise not Hris and no privateKeyAccess provided', async () => {
-    const privateKeyAccessmissingError = new ValidationError(
-      `encryptionKey.error.privateKeyAccess.missing`,
-      '/EncryptionKey',
-      StatusCode.UnprocessableEntity,
-    );
+  it('FunderInterceptor create: KO email invalid', async () => {
     try {
-      enterpriseRepository.stubs.findOne.resolves(mockEnterprise);
-      collectivityRepository.stubs.findOne.resolves(undefined);
-      await interceptor.intercept(invocationContextStoreEncryptionKeyNoPrivateKeyAccess);
-    } catch (error) {
-      expect(error).to.deepEqual(privateKeyAccessmissingError);
+      const invocationContextCreateKO = {
+        target: {},
+        methodName: 'create',
+        args: [funderEnterpriseKOEmail],
+      };
+      funderRepository.stubs.findOne.resolves(undefined);
+      funderService.stubs.validateSchema.returns([]);
+      await interceptor.intercept(invocationContextCreateKO);
+    } catch (err) {
+      expect(err.message).to.equal('Enterprise email formats are not valid');
+      expect(err.statusCode).to.equal(StatusCode.UnprocessableEntity);
     }
   });
 
-  it('encryption_key : asserts encryption key has been stored for collectivity', async () => {
-    collectivityRepository.stubs.findOne.resolves(mockCollectivity2);
-    enterpriseRepository.stubs.create.resolves(undefined);
-    const result = await interceptor.intercept(
-      invocationContextStoreEncryptionKey,
-      () => {},
-    );
+  it('FunderInterceptor create: OK', async () => {
+    const invocationContextCreateOK = {
+      target: {},
+      methodName: 'create',
+      args: [funderEnterprise],
+    };
+    funderRepository.stubs.findOne.resolves(undefined);
+    funderService.stubs.validateSchema.returns([]);
+    const result = await interceptor.intercept(invocationContextCreateOK, () => {});
     expect(result).to.Null;
   });
 
-  it('encryption_key : asserts encryption key has been stored for enterprise', async () => {
-    collectivityRepository.stubs.findOne.resolves(undefined);
-    enterpriseRepository.stubs.findOne.resolves(mockEnterprise);
-    const result = await interceptor.intercept(
-      invocationContextStoreEncryptionKey,
-      () => {},
-    );
+  it('FunderInterceptor storeEncryptionKey : asserts error happens when no funder found', async () => {
+    try {
+      funderRepository.stubs.findById.resolves(undefined);
+      await interceptor.intercept(invocationContextStoreEncryptionKey);
+    } catch (err) {
+      expect(err.message).to.equal('Funder not found');
+      expect(err.statusCode).to.equal(StatusCode.BadRequest);
+    }
+  });
+
+  it('FunderInterceptor storeEncryptionKey : access denied other funder', async () => {
+    try {
+      funderRepository.stubs.findById.resolves(funderEnterpriseKOClient);
+      await interceptor.intercept(invocationContextStoreEncryptionKey);
+    } catch (err) {
+      expect(err.message).to.equal('Access denied');
+      expect(err.statusCode).to.equal(StatusCode.Forbidden);
+    }
+  });
+
+  it('FunderInterceptor encryption_key : error no privateKeyAccess provided', async () => {
+    try {
+      funderRepository.stubs.findById.resolves(funderEnterprise);
+      await interceptor.intercept(invocationContextStoreEncryptionKeyNoPrivateKeyAccess);
+    } catch (error) {
+      expect(error.message).to.equal('encryptionKey.error.privateKeyAccess.missing');
+      expect(error.statusCode).to.equal(StatusCode.BadRequest);
+    }
+  });
+
+  it('FunderInterceptor encryption_key : error not Hris and no privateKeyAccess provided', async () => {
+    try {
+      funderRepository.stubs.findById.resolves(funderEnterprise);
+      await interceptor.intercept(invocationContextStoreEncryptionKeyNoPrivateKeyAccess);
+    } catch (error) {
+      expect(error.message).to.equal('encryptionKey.error.privateKeyAccess.missing');
+      expect(error.statusCode).to.equal(StatusCode.BadRequest);
+    }
+  });
+
+  it('FunderInterceptor encryption_key : asserts encryption key has been stored for funder', async () => {
+    funderRepository.stubs.findById.resolves(funderEnterprise);
+    const result = await interceptor.intercept(invocationContextStoreEncryptionKey, () => {});
     expect(result).to.Null;
   });
 
-  it('storeEncryptionKey : encryption key stored for enterprise hris without privateKeyAccess', async () => {
-    collectivityRepository.stubs.findOne.resolves(undefined);
-    enterpriseRepository.stubs.findOne.resolves(mockEnterpriseHris);
+  it('FunderInterceptor storeEncryptionKey : key stored hris without privateKeyAccess', async () => {
+    funderRepository.stubs.findById.resolves(funderEnterpriseSIRH);
     const result = await interceptor.intercept(
       invocationContextStoreEncryptionKeyNoPrivateKeyAccess,
       () => {},
@@ -126,31 +173,147 @@ describe('FunderInterceptor', () => {
     expect(result).to.Null;
   });
 
-  it('encryption_key : asserts encryption key has been stored for enterprise hris', async () => {
-    collectivityRepository.stubs.findOne.resolves(undefined);
-    enterpriseRepository.stubs.findOne.resolves(mockEnterpriseHris);
-    const result = await interceptor.intercept(
-      invocationContextStoreEncryptionKey,
-      () => {},
-    );
+  it('FunderInterceptor encryption_key : encryption key stored for enterprise hris', async () => {
+    funderRepository.stubs.findById.resolves(funderEnterpriseSIRH);
+    const result = await interceptor.intercept(invocationContextStoreEncryptionKey, () => {});
     expect(result).to.Null;
   });
 
-  function givenStubbedService() {
-    collectivityRepository = createStubInstance(CollectivityRepository);
-    enterpriseRepository = createStubInstance(EnterpriseRepository);
-    currentUser = {
-      id: 'citizenId',
-      groups: ['funder'],
-      clientName: 'funder-backend',
-      emailVerified: true,
-      [securityId]: 'citizenId',
-    };
-  }
+  it('FunderInterceptor find : request fields error ', async () => {
+    try {
+      await interceptor.intercept(invocationContextFindKORequestFields);
+    } catch (err) {
+      expect(err.message).to.equal('find.error.requested.fields');
+      expect(err.statusCode).to.equal(StatusCode.BadRequest);
+    }
+  });
 
-  const today = new Date();
-  const expirationDate = new Date(today.setMonth(today.getMonth() + 7));
-  const publicKey = `-----BEGIN PUBLIC KEY-----
+  it('FunderInterceptor find : OK ', async () => {
+    const result = await interceptor.intercept(invocationContextFindOK, () => {});
+    expect(result).to.Null;
+  });
+
+  it('FunderInterceptor findById : not found ', async () => {
+    try {
+      funderRepository.stubs.findOne.resolves(undefined);
+      await interceptor.intercept(invocationContextFindById);
+    } catch (err) {
+      expect(err.message).to.equal('Access denied');
+      expect(err.statusCode).to.equal(StatusCode.Forbidden);
+    }
+  });
+
+  it('FunderInterceptor getCitizens : funder not found ', async () => {
+    try {
+      funderRepository.stubs.getFunderByNameAndType.resolves(null);
+      await interceptor.intercept(invocationContextGetCitizens);
+    } catch (err) {
+      expect(err.message).to.equal('Funder not found');
+      expect(err.statusCode).to.equal(StatusCode.NotFound);
+    }
+  });
+
+  it('FunderInterceptor getCitizens : funder ID is not matched', async () => {
+    const funder: Funder = {
+      id: 'funderId',
+      type: FUNDER_TYPE.ENTERPRISE,
+      name: 'funder',
+    } as Funder;
+
+    try {
+      funderRepository.stubs.getFunderByNameAndType.resolves(funder);
+      await interceptor.intercept(invocationContextGetCitizensDifferentId);
+    } catch (err) {
+      expect(err.message).to.equal('Access denied');
+      expect(err.statusCode).to.equal(StatusCode.Forbidden);
+    }
+  });
+
+  it('FunderInterceptor getCitizens : OK', async () => {
+    const funder: Funder = {
+      id: 'funderId',
+      type: FUNDER_TYPE.ENTERPRISE,
+      name: 'funder',
+    } as Funder;
+    funderRepository.stubs.getFunderByNameAndType.resolves(funder);
+
+    const result = await interceptor.intercept(invocationContextGetCitizens, () => {});
+
+    expect(result).to.not.be.null();
+  });
+});
+
+const funderEnterprise: Funder = new Enterprise({
+  id: 'funderEnterpriseId',
+  type: FUNDER_TYPE.ENTERPRISE,
+  name: 'funder',
+  mobilityBudget: 1110000,
+  clientId: 'funder-backend',
+
+  enterpriseDetails: new EnterpriseDetails({
+    isHris: false,
+    hasManualAffiliation: false,
+    emailDomainNames: ['@example.com'],
+  }),
+}) as Funder;
+
+const funderEnterpriseKOClient: Funder = new Enterprise({
+  id: 'funderEnterpriseId',
+  type: FUNDER_TYPE.ENTERPRISE,
+  name: 'Capgemini',
+  mobilityBudget: 1110000,
+  enterpriseDetails: new EnterpriseDetails({
+    isHris: false,
+    hasManualAffiliation: false,
+    emailDomainNames: ['@example.com'],
+  }),
+}) as Funder;
+
+const funderEnterpriseSIRH: Funder = new Enterprise({
+  id: 'funderEnterpriseId',
+  type: FUNDER_TYPE.ENTERPRISE,
+  name: 'funder',
+  mobilityBudget: 1110000,
+  clientId: 'enterprise-client',
+
+  enterpriseDetails: new EnterpriseDetails({
+    isHris: true,
+    hasManualAffiliation: false,
+    emailDomainNames: ['@example.com'],
+  }),
+}) as Funder;
+
+const funderEnterpriseKOOptions: Funder = new Enterprise({
+  id: 'funderEnterpriseId',
+  type: FUNDER_TYPE.ENTERPRISE,
+  name: 'Capgemini',
+  mobilityBudget: 1110000,
+  clientId: 'enterprise-client',
+
+  enterpriseDetails: new EnterpriseDetails({
+    isHris: true,
+    hasManualAffiliation: true,
+    emailDomainNames: ['@example.com'],
+  }),
+}) as Funder;
+
+const funderEnterpriseKOEmail: Funder = new Enterprise({
+  id: 'funderEnterpriseId',
+  type: FUNDER_TYPE.ENTERPRISE,
+  name: 'Capgemini',
+  mobilityBudget: 1110000,
+  clientId: 'enterprise-client',
+
+  enterpriseDetails: new EnterpriseDetails({
+    isHris: false,
+    hasManualAffiliation: false,
+    emailDomainNames: ['erreurEmail'],
+  }),
+}) as Funder;
+
+const today = new Date();
+const expirationDate = new Date(today.setMonth(today.getMonth() + 7));
+const publicKey = `-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApkUKTww771tjeFsYFCZq
 n76SSpOzolmtf9VntGlPfbP5j1dEr6jAuTthQPoIDaEed6P44yyL3/1GqWJMgRbf
 n8qqvnu8dH8xB+c9+er0tNezafK9eK37RqzsTj7FNW2Dpk70nUYncTiXxjf+ofLq
@@ -161,91 +324,72 @@ owIDAQAB
 -----END PUBLIC KEY-----
 `;
 
-  const mockencryptionKeyValid = new EncryptionKey({
-    id: '62977dc80929474f84c403de',
-    version: 1,
-    publicKey,
-    expirationDate,
-    lastUpdateDate: new Date(),
-    privateKeyAccess: new PrivateKeyAccess({
-      loginURL: 'loginURL',
-      getKeyURL: 'getKeyURL',
-    }),
-  });
+const invocationContextStoreEncryptionKey = {
+  target: {},
+  methodName: 'storeEncryptionKey',
+  args: [
+    'id',
+    {
+      id: '62977dc80929474f84c403de',
+      publicKey,
+      expirationDate,
+      lastUpdateDate: new Date(),
+      privateKeyAccess: new PrivateKeyAccess({
+        loginURL: 'loginURL',
+        getKeyURL: 'getKeyURL',
+      }),
+    },
+  ],
+};
 
-  const mockCollectivity2 = new Collectivity({
-    id: '2b6ee373-4c5b-403b-afe5-3bf3cbd2473c',
-    name: 'funder',
-    citizensCount: 1,
-    mobilityBudget: 1,
-    encryptionKey: mockencryptionKeyValid,
-  });
+const invocationContextStoreEncryptionKeyNoPrivateKeyAccess = {
+  target: {},
+  methodName: 'storeEncryptionKey',
+  args: [
+    'id',
+    {
+      id: '62977dc80929474f84c403de',
+      publicKey,
+      expirationDate,
+      lastUpdateDate: new Date(),
+    },
+  ],
+};
 
-  const mockCollectivity = new Collectivity({
-    id: 'randomInputIdCollectivity',
-    name: 'funder',
-    citizensCount: 10,
-    mobilityBudget: 12,
-    encryptionKey: mockencryptionKeyValid,
-  });
-  const mockEnterprise = new Enterprise({
-    id: 'randomInputIdEnterprise',
-    emailFormat: ['test@outlook.com', 'test@outlook.fr', 'test@outlook.xxx'],
-    name: 'funder',
-    siretNumber: 50,
-    employeesCount: 2345,
-    budgetAmount: 102,
-  });
+const invocationContextFindKORequestFields = {
+  target: {},
+  methodName: 'find',
+  args: [
+    {
+      fields: {enterpriseDetails: true},
+    },
+  ],
+};
 
-  const mockEnterpriseHris = new Enterprise({
-    id: 'randomInputIdEnterprise',
-    emailFormat: ['test@outlook.com', 'test@outlook.fr', 'test@outlook.xxx'],
-    name: 'funder',
-    siretNumber: 50,
-    employeesCount: 2345,
-    budgetAmount: 102,
-    isHris: true,
-  });
+const invocationContextFindOK = {
+  target: {},
+  methodName: 'find',
+  args: [
+    {
+      fields: {name: true},
+    },
+  ],
+};
 
-  const mockOtherEnterpise = new Enterprise({
-    id: 'randomInputIdEnterprise',
-    emailFormat: ['test@outlook.com', 'test@outlook.fr', 'test@outlook.xxx'],
-    name: 'funder-other',
-    siretNumber: 50,
-    employeesCount: 2345,
-    budgetAmount: 102,
-    isHris: false,
-  });
+const invocationContextFindById = {
+  target: {},
+  methodName: 'findById',
+  args: ['id'],
+};
 
-  const invocationContextStoreEncryptionKey = {
-    target: {},
-    methodName: 'storeEncryptionKey',
-    args: [
-      'id',
-      {
-        id: '62977dc80929474f84c403de',
-        publicKey,
-        expirationDate,
-        lastUpdateDate: new Date(),
-        privateKeyAccess: new PrivateKeyAccess({
-          loginURL: 'loginURL',
-          getKeyURL: 'getKeyURL',
-        }),
-      },
-    ],
-  };
+const invocationContextGetCitizens = {
+  target: {},
+  methodName: 'getCitizens',
+  args: ['funderId'],
+};
 
-  const invocationContextStoreEncryptionKeyNoPrivateKeyAccess = {
-    target: {},
-    methodName: 'storeEncryptionKey',
-    args: [
-      'id',
-      {
-        id: '62977dc80929474f84c403de',
-        publicKey,
-        expirationDate,
-        lastUpdateDate: new Date(),
-      },
-    ],
-  };
-});
+const invocationContextGetCitizensDifferentId = {
+  target: {},
+  methodName: 'getCitizens',
+  args: ['differentFunderId'],
+};

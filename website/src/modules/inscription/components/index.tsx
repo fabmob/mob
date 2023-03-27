@@ -1,4 +1,3 @@
-import CreationCompteMessage from './CreationCompteMessage';
 import CreationCompteSuccesMessage from './CreationCompteSuccesMessage';
 import Pilote1Message from './Pilote1Message';
 import LetterM from './LetterM';
@@ -9,7 +8,6 @@ import AffiliateFailedMessage from './affiliate/AffiliateFailedMessage';
 import AffiliateAlreadyExistsMessage from './affiliate/AffiliateAlreadyExistsMessage';
 
 export {
-  CreationCompteMessage,
   CreationCompteSuccesMessage,
   Pilote1Message,
   LetterM,

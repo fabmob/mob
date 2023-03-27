@@ -3,9 +3,9 @@ import { useNotify, CheckboxGroupInput } from 'react-admin';
 import { useFormState } from 'react-final-form';
 import { useQuery } from 'react-query';
 
-import CommunautesMessages from '../../utils/Communaute/fr.json';
+import CommunityMessages from '../../utils/Community/fr.json';
 import { ROLES } from '../../utils/constant';
-import { getFunderCommunityList } from '../../api/communautes';
+import { getFunderCommunityList } from '../../api/communities';
 
 const CommunauteCheckBox = () => {
   const notify = useNotify();
@@ -25,7 +25,7 @@ const CommunauteCheckBox = () => {
     },
     {
       onError: () => {
-        notify(CommunautesMessages['communautés.error'], 'error');
+        notify(CommunityMessages['communautés.error'], 'error');
       },
       enabled,
       staleTime: 300000,

@@ -1,7 +1,7 @@
 import React, { FC, useCallback, useEffect, useState } from 'react';
 import { Breadcrumb } from 'gatsby-plugin-breadcrumb/';
 import { useQueryParam, StringParam } from 'use-query-params';
-import { useQuery } from 'react-query';
+import { useQueryClient, useQuery } from 'react-query';
 import { useMatomo } from '@datapunt/matomo-tracker-react';
 
 import { AuthorizationRoute } from '@modules/routes';
@@ -17,8 +17,9 @@ import SearchResultsTitle from '@components/SearchResultsTitle/SearchResultsTitl
 import Button from '@components/Button/Button';
 import Tab from '@components/Tabs/Tabs';
 
-import { searchAide } from '@api/AideService';
+import { searchAide, countIncentives } from '@api/AideService';
 import { getTerritories, Territory } from '@api/TerritoryService';
+import { Count, IFilter } from '@utils/api';
 
 import { Incentive, transportMapping } from '@utils/aides';
 import { INCENTIVE_TYPE } from '@utils/demandes';
@@ -28,6 +29,9 @@ import { sortData } from '@utils/helpers';
 import { Roles, AffiliationStatus } from '../constants';
 import { useSession, useUser } from '../context';
 import Strings from './locale/fr.json';
+import { Helmet } from 'react-helmet';
+
+import mobLogo from '../../static/mob-favicon.png';
 
 interface RechercheProps {
   pageContext: { breadcrumb: { crumbs: string } };
@@ -39,6 +43,13 @@ interface tabsArrayObj {
   statusState: INCENTIVE_TYPE;
 }
 
+interface IncentivesCount {
+  allIncentives: number;
+  nationalIncentives: number;
+  territoryIncentives: number;
+  employerIncentives: number;
+}
+
 const RechercheComponent: FC<RechercheProps> = ({ pageContext }) => {
   const {
     breadcrumb: { crumbs },
@@ -47,10 +58,15 @@ const RechercheComponent: FC<RechercheProps> = ({ pageContext }) => {
   const { citizen, authenticated } = useUser();
 
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
-  const [incentiveList, setIncentiveList] = useState<Incentive[]>([]);
   const [filteredIncentiveList, setFilteredIncentiveList] = useState<
-    Incentive[]
+    Incentive[] | undefined
   >([]);
+  const [incentivesCount, setIncentivesCount] = useState<IncentivesCount>({
+    allIncentives: 0,
+    nationalIncentives: 0,
+    territoryIncentives: 0,
+    employerIncentives: 0,
+  });
   const [territoryOptions, setTerritoryOptions] = useState<OptionType[]>([]);
   const [territoryFilter, setTerritoryFilter] = useState<OptionType[]>([]);
   const [transportsFilter, setTransportsFilter] = useState<OptionType[]>([]);
@@ -59,11 +75,102 @@ const RechercheComponent: FC<RechercheProps> = ({ pageContext }) => {
     routeSelectedTab || INCENTIVE_TYPE.ALL_INCENTIVE
   );
 
+  const queryClient = useQueryClient();
   const { keycloak } = useSession();
   const { trackPageView } = useMatomo();
   const [termSearch, setTermSearch] = useQueryParam('search', StringParam);
   const { data: territories } = useQuery<Territory[]>([`getTerritories`], () =>
     getTerritories()
+  );
+
+  const STALE_TIME = 3300000; // 55min ==> (55min * (60sec * 1000)) Duration data is considered fresh - once it's stale new calls will be triggered
+  const CACHE_TIME = 3600000; // 60min ==> (60min * (60sec * 1000)) Duration React Query stores inactive data before it is deleted from the cache
+
+  /*
+   * Get Filters
+   */
+  const getFilters = () => {
+    let where: Record<string, unknown> = {};
+    const selectedTerritories: string[] = territoryFilter.map(
+      (territoryOption: OptionType) => {
+        return territoryOption.value;
+      }
+    );
+    const selectedTransports: string[] = transportsFilter.map(
+      (transportOption: OptionType) => {
+        return transportOption.value;
+      }
+    );
+
+    if (selectedTerritories?.length) {
+      where = {
+        territoryIds: { inq: selectedTerritories },
+      };
+    }
+
+    if (selectedTransports?.length) {
+      where = { ...where, transportList: { inq: selectedTransports } };
+    }
+
+    return where;
+  };
+
+  const { data: incentives, isSuccess } = useQuery<Incentive[]>(
+    [
+      `searchAide-${selectedTab}-${termSearch}-${territoryFilter}-${transportsFilter}`,
+      [selectedTab, termSearch, territoryFilter, transportsFilter],
+    ],
+    () => {
+      const filter: IFilter<Incentive> = {
+        order: ['funderName ASC', 'title ASC'],
+        fields: {
+          id: true,
+          title: true,
+          description: true,
+          funderName: true,
+          funderId: true,
+          incentiveType: true,
+          transportList: true,
+        },
+      };
+
+      const params: Record<string, unknown> = getFilters();
+
+      if (Object.keys(params).length) {
+        filter.where = {
+          ...params,
+        };
+      }
+
+      if (selectedTab !== INCENTIVE_TYPE.ALL_INCENTIVE) {
+        if (selectedTab === INCENTIVE_TYPE.EMPLOYER_INCENTIVE) {
+          if (
+            authenticated &&
+            citizen &&
+            citizen.affiliation?.status === AffiliationStatus.AFFILIATED
+          ) {
+            filter.where = {
+              ...params,
+              incentiveType: selectedTab,
+              funderId: citizen.affiliation?.enterpriseId,
+            };
+          } else {
+            return [];
+          }
+        } else {
+          filter.where = {
+            ...params,
+            incentiveType: selectedTab,
+          };
+        }
+      }
+
+      return searchAide(termSearch, filter);
+    },
+    {
+      staleTime: STALE_TIME,
+      cacheTime: CACHE_TIME,
+    }
   );
 
   useEffect(() => {
@@ -75,35 +182,31 @@ const RechercheComponent: FC<RechercheProps> = ({ pageContext }) => {
       id: 0,
       tabLabel: Strings['search.incentive.tabs.all.incentives'].replace(
         '{0}',
-        `(${filteredIncentiveList.length})`
+        `(${incentivesCount.allIncentives})`
       ),
       statusState: INCENTIVE_TYPE.ALL_INCENTIVE,
     },
     {
       id: 1,
+      tabLabel: Strings['search.incentive.tabs.nationals.incentives'].replace(
+        '{0}',
+        `(${incentivesCount.nationalIncentives})`
+      ),
+      statusState: INCENTIVE_TYPE.NATIONAL_INCENTIVE,
+    },
+    {
+      id: 2,
       tabLabel: Strings['search.incentive.tabs.territory.incentives'].replace(
         '{0}',
-        `(${
-          filteredIncentiveList.filter((incentive: Incentive) => {
-            return (
-              incentive.incentiveType === INCENTIVE_TYPE.TERRITORY_INCENTIVE
-            );
-          }).length
-        })`
+        `(${incentivesCount.territoryIncentives})`
       ),
       statusState: INCENTIVE_TYPE.TERRITORY_INCENTIVE,
     },
     {
-      id: 2,
+      id: 3,
       tabLabel: Strings['search.incentive.tabs.employees.incentives'].replace(
         '{0}',
-        `(${
-          filteredIncentiveList.filter((incentive: Incentive) => {
-            return (
-              incentive.incentiveType === INCENTIVE_TYPE.EMPLOYER_INCENTIVE
-            );
-          }).length
-        })`
+        `(${incentivesCount.employerIncentives})`
       ),
       statusState: INCENTIVE_TYPE.EMPLOYER_INCENTIVE,
     },
@@ -119,28 +222,131 @@ const RechercheComponent: FC<RechercheProps> = ({ pageContext }) => {
     return tab?.id;
   };
 
-  const getIncentives = async (term?: string): Promise<void> => {
-    try {
-      const incentiveType: INCENTIVE_TYPE = [
-        INCENTIVE_TYPE.NATIONAL_INCENTIVE,
-        INCENTIVE_TYPE.TERRITORY_INCENTIVE,
-      ];
-      const enterpriseId: string | undefined =
-        citizen?.affiliation?.status ===
-          AffiliationStatus.AFFILIATED && citizen?.affiliation?.enterpriseId
-          ? citizen.affiliation.enterpriseId
-          : undefined;
-      const incentives = await searchAide<Incentive[]>(
-        term,
-        incentiveType,
-        enterpriseId
-      );
-      setIncentiveList(incentives as Incentive[]);
-      setIsLoaded(true);
-    } catch (error) {
-      setIsLoaded(true);
+  /*
+   * Get Incentives Count
+   */
+  const getIncentivesCount = (incentiveTypeParam?: string): Promise<Count> => {
+    const params: Record<string, unknown> = getFilters();
+    let whereCondition: Record<string, unknown> = { ...params };
+
+    if (termSearch) {
+      whereCondition = {
+        ...whereCondition,
+        $text: { $search: termSearch, $caseSensitive: true },
+      };
     }
+
+    if (incentiveTypeParam) {
+      whereCondition = {
+        ...whereCondition,
+        incentiveType: incentiveTypeParam,
+      };
+
+      if (incentiveTypeParam === INCENTIVE_TYPE.EMPLOYER_INCENTIVE) {
+        whereCondition = {
+          ...whereCondition,
+          funderId: citizen.affiliation?.enterpriseId,
+        };
+      }
+    } else {
+      const isAffiliated: boolean =
+        authenticated &&
+        citizen &&
+        citizen.affiliation?.status === AffiliationStatus.AFFILIATED;
+      whereCondition = {
+        ...whereCondition,
+        and: [
+          isAffiliated
+            ? {
+                or: [
+                  {
+                    incentiveType: {
+                      inq: [
+                        INCENTIVE_TYPE.NATIONAL_INCENTIVE,
+                        INCENTIVE_TYPE.TERRITORY_INCENTIVE,
+                      ],
+                    },
+                  },
+                  {
+                    incentiveType: INCENTIVE_TYPE.EMPLOYER_INCENTIVE,
+                    funderId: citizen.affiliation?.enterpriseId,
+                  },
+                ],
+              }
+            : {
+                incentiveType: {
+                  neq: INCENTIVE_TYPE.EMPLOYER_INCENTIVE,
+                },
+              },
+        ],
+      };
+    }
+    return countIncentives<Count>(whereCondition);
   };
+
+  /*
+   * Get All Incentives Count
+   */
+  const { data: allIncentivesCount } = useQuery<Count>(
+    [
+      `allIncentivesCount-${termSearch}-${territoryFilter}-${transportsFilter}`,
+      [termSearch, territoryFilter, transportsFilter],
+    ],
+    () => getIncentivesCount(),
+    {
+      staleTime: STALE_TIME,
+      cacheTime: CACHE_TIME,
+    }
+  );
+
+  /*
+   * Get National Incentives Count
+   */
+  const { data: nationalIncentivesCount } = useQuery<Count>(
+    [
+      `nationalIncentivesCount-${termSearch}-${territoryFilter}-${transportsFilter}`,
+      [termSearch, territoryFilter, transportsFilter],
+    ],
+    () => getIncentivesCount(INCENTIVE_TYPE.NATIONAL_INCENTIVE),
+    {
+      staleTime: STALE_TIME,
+      cacheTime: CACHE_TIME,
+    }
+  );
+
+  /*
+   * Get Territory Incentives Count
+   */
+  const { data: territoryIncentivesCount } = useQuery<Count>(
+    [
+      `territoryIncentivesCount-${termSearch}-${territoryFilter}-${transportsFilter}`,
+      [termSearch, territoryFilter, transportsFilter],
+    ],
+    () => getIncentivesCount(INCENTIVE_TYPE.TERRITORY_INCENTIVE),
+    {
+      staleTime: STALE_TIME,
+      cacheTime: CACHE_TIME,
+    }
+  );
+
+  /*
+   * Get Employer Incentives Count
+   */
+  const { data: employerIncentivesCount } = useQuery<Count>(
+    [
+      `employerIncentivesCount-${termSearch}-${territoryFilter}-${transportsFilter}`,
+      [termSearch, territoryFilter, transportsFilter],
+    ],
+    () => getIncentivesCount(INCENTIVE_TYPE.EMPLOYER_INCENTIVE),
+    {
+      enabled:
+        authenticated &&
+        citizen &&
+        citizen.affiliation?.status === AffiliationStatus.AFFILIATED,
+      staleTime: STALE_TIME,
+      cacheTime: CACHE_TIME,
+    }
+  );
 
   const transportOptions = Object.entries(transportMapping).map(
     ([value, label]) => {
@@ -175,37 +381,58 @@ const RechercheComponent: FC<RechercheProps> = ({ pageContext }) => {
   };
 
   useEffect(() => {
-    const selectedTerritories: string[] = territoryFilter.map(
-      (territoryOption: OptionType) => {
-        return territoryOption.label;
-      }
-    );
-    const selectedTransports: string[] = transportsFilter.map(
-      (transportOption: OptionType) => {
-        return transportOption.value;
-      }
-    );
+    if (allIncentivesCount) {
+      setIncentivesCount((previousState) => ({
+        ...previousState,
+        allIncentives: allIncentivesCount?.count,
+      }));
+    }
+  }, [allIncentivesCount]);
 
-    const filteredIncentives: Incentive[] = incentiveList.filter(
-      (incentive: Incentive) => {
-        const incentiveMatchTransport =
-          selectedTransports.length === 0 ||
-          selectedTransports.some((transport: string) =>
-            incentive.transportList.includes(transport)
-          );
-        const incentiveMatchTerritory =
-          selectedTerritories.length === 0 ||
-          selectedTerritories.includes(incentive.territory.name);
-        return incentiveMatchTransport && incentiveMatchTerritory;
-      }
-    );
-    setFilteredIncentiveList(filteredIncentives);
-  }, [territoryFilter, transportsFilter, incentiveList]);
+  useEffect(() => {
+    if (nationalIncentivesCount) {
+      setIncentivesCount((previousState) => ({
+        ...previousState,
+        nationalIncentives: nationalIncentivesCount?.count,
+      }));
+    }
+  }, [nationalIncentivesCount]);
+
+  useEffect(() => {
+    if (territoryIncentivesCount) {
+      setIncentivesCount((previousState) => ({
+        ...previousState,
+        territoryIncentives: territoryIncentivesCount?.count,
+      }));
+    }
+  }, [territoryIncentivesCount]);
+
+  useEffect(() => {
+    if (employerIncentivesCount) {
+      setIncentivesCount((previousState) => ({
+        ...previousState,
+        employerIncentives: employerIncentivesCount?.count,
+      }));
+    }
+  }, [employerIncentivesCount]);
 
   useEffect(() => {
     matomoPageTracker(trackPageView, 'Trouver une aide', 2);
-    getIncentives(termSearch as string | undefined);
-  }, [termSearch]);
+    if (incentives && isSuccess) {
+      const data: Incentive[] | undefined = queryClient.getQueryData([
+        `searchAide-${selectedTab}-${termSearch}-${territoryFilter}-${transportsFilter}`,
+        [selectedTab, termSearch, territoryFilter, transportsFilter],
+      ]);
+      setFilteredIncentiveList(data);
+      setIsLoaded(true);
+    }
+  }, [
+    termSearch,
+    incentives?.length,
+    selectedTab,
+    territoryFilter,
+    transportsFilter,
+  ]);
 
   return (
     <Layout
@@ -220,11 +447,25 @@ const RechercheComponent: FC<RechercheProps> = ({ pageContext }) => {
           : Strings['search.incentive.text']
       }
     >
+      <Helmet
+        title={Strings['search.head.page.title']}
+        titleTemplate={`%s ${Strings['search.head.title.separator']} ${Strings['search.head.title.siteName']}`}
+      >
+        <html lang="fr" />
+        <meta name="description" content={Strings['search.head.description']} />
+        <meta property="og:image" content={mobLogo}></meta>
+        <meta property="og:image:alt" content="logo-mob"></meta>
+      </Helmet>
+
       <div className="page-container">
         <Breadcrumb
           crumbs={crumbs}
           crumbSeparator=" > "
-          crumbLabel={authenticated && citizen ? Strings['search.incentive.authenticated.text'] : Strings['search.incentive.text']}
+          crumbLabel={
+            authenticated && citizen
+              ? Strings['search.incentive.authenticated.text']
+              : Strings['search.incentive.text']
+          }
         />
       </div>
 
@@ -236,11 +477,7 @@ const RechercheComponent: FC<RechercheProps> = ({ pageContext }) => {
               : Strings['search.incentive.text']}
           </h1>
 
-          {authenticated && citizen ? (
-            <p id="search-subtitle-authenticated-text" className="mb-s">
-              {Strings['search.subtitle.authenticated.text']}
-            </p>
-          ) : (
+          {!authenticated && (
             <p className="mb-s">
               {Strings['search.subtitle.non.authenticated.text']}
               <Button
@@ -300,7 +537,7 @@ const RechercheComponent: FC<RechercheProps> = ({ pageContext }) => {
             {isLoaded && (
               <>
                 <SearchResultsTitle
-                  nbResult={filteredIncentiveList.length}
+                  nbResult={filteredIncentiveList?.length}
                   termSearch={termSearch as string | undefined}
                   filtersSearch={territoryFilter
                     .concat(transportsFilter)
@@ -311,39 +548,23 @@ const RechercheComponent: FC<RechercheProps> = ({ pageContext }) => {
                 {selectedTab === INCENTIVE_TYPE.ALL_INCENTIVE && (
                   <AideSearchList
                     items={filteredIncentiveList}
-                    greenCard={!authenticated}
-                  />
-                )}
-                {selectedTab === INCENTIVE_TYPE.TERRITORY_INCENTIVE && (
-                  <AideSearchList
-                    items={filteredIncentiveList.filter(
-                      (incentive: Incentive) => {
-                        return (
-                          incentive.incentiveType ===
-                          INCENTIVE_TYPE.TERRITORY_INCENTIVE
-                        );
-                      }
-                    )}
-                    greenCard={!authenticated}
-                  />
-                )}
-
-                {selectedTab === INCENTIVE_TYPE.EMPLOYER_INCENTIVE && (
-                  <AideSearchList
-                    items={filteredIncentiveList.filter(
-                      (incentive: Incentive) => {
-                        return (
-                          incentive.incentiveType ===
-                          INCENTIVE_TYPE.EMPLOYER_INCENTIVE
-                        );
-                      }
-                    )}
                     greenCard={
                       !authenticated ||
-                      citizen?.affiliation?.status !==
-                        AffiliationStatus.AFFILIATED
+                      citizen.affiliation?.status !==
+                        AffiliationStatus.AFFILIATED ||
+                      (!citizen.postcode && !citizen.city)
                     }
                   />
+                )}
+                {selectedTab === INCENTIVE_TYPE.NATIONAL_INCENTIVE && (
+                  <AideSearchList
+                    items={filteredIncentiveList}
+                    greenCard={!authenticated}
+                  />
+                )}
+                {(selectedTab === INCENTIVE_TYPE.TERRITORY_INCENTIVE ||
+                  selectedTab === INCENTIVE_TYPE.EMPLOYER_INCENTIVE) && (
+                  <AideSearchList items={filteredIncentiveList} />
                 )}
               </>
             )}

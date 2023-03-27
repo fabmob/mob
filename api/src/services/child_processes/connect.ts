@@ -1,7 +1,7 @@
 import amqp, {Channel, Connection} from 'amqplib';
 
 import {RabbitmqConfig} from '../../config';
-import {logger} from '../../utils';
+import {Logger} from '../../utils';
 
 const rabbitmqConfig = new RabbitmqConfig();
 
@@ -13,7 +13,7 @@ export async function connect(): Promise<Connection> {
     rabbitmqConfig.getAmqpUrl(),
     rabbitmqConfig.getUserLogin(),
   );
-  logger.info(`RabbitMQ connected to: ${rabbitmqConfig.getAmqpUrl()}`);
+  Logger.info(connect.name, connect.name, 'RabbitMQ connected to', rabbitmqConfig.getAmqpUrl());
   return connection;
 }
 
@@ -25,6 +25,6 @@ export async function createChannel(
   isTestChannel: boolean = false,
 ): Promise<Channel> {
   const channel: Channel = await connection.createChannel();
-  !isTestChannel && logger.info(`RabbitMQ channel created`);
+  !isTestChannel && Logger.info(createChannel.name, createChannel.name, 'RabbitMQ channel created');
   return channel;
 }

@@ -11,13 +11,11 @@ const companyOptionsMock = [
     id: 'd3fc12be-1f90-49da-9fb4-f6f7af6eea44',
     value: 'Atos',
     label: 'Atos',
-    formats: ['@atos.com'],
   },
   {
     id: '33f3a463-4b2f-42ab-a183-d5bd9e2007a0',
     value: 'Capgemini',
     label: 'Capgemini',
-    formats: ['@capgemini.com'],
   },
 ];
 

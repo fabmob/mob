@@ -1,6 +1,12 @@
 {
-  "card.title": "Découvrez les aides proposées par votre employeur en créant votre compte.",
-  "card.employee.title": "Affiliez-vous à votre employeur depuis votre profil afin d'accéder aux aides employeurs.",
-  "icon.label": "Créer mon compte",
-  "icon.employee.label": "Accéder à mon profil"
+  "card.not.connected.title": "Connectez-vous ou créez votre compte pour :",
+  "card.not.connected.value1": "Bénéficier d'un affichage personnalisé de vos aides",
+  "card.not.connected.value2": "Découvrir les aides proposées par votre employeur",
+  "card.connected.notAffiliated.noProfileInfo.title": "Complétez votre profil avec :",
+  "card.connected.notAffiliated.noProfileInfo.value1": "Votre ville et code postal pour bénéficier d'un affichage personnalisé de vos aides",
+  "card.connected.notAffiliated.noProfileInfo.value2": "Votre activité professionnelle pour découvrir les aides proposées par votre employeur",
+  "card.connected.affiliated.noProfileInfo.title": "Compléter votre profil avec votre ville et code postal pour bénéficier d'un affichage personnalisé de vos aides",
+  "card.connected.notAffiliated.hasProfileInfo.title": "Compléter votre activité professionnelle pour découvrir les aides proposées par votre employeur",
+  "icon.label": "Me connecter",
+  "icon.connected.label": "Mon Profil"
 }

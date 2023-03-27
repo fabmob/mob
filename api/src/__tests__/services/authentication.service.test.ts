@@ -1,13 +1,11 @@
 import {expect, sinon} from '@loopback/testlab';
 import {Request} from 'express';
 import jwt from 'jsonwebtoken';
-import axios from 'axios';
 
 import {AuthenticationService} from '../../services';
 import 'regenerator-runtime/runtime';
 import {securityId} from '@loopback/security';
-import {ValidationError} from '../../validationError';
-import {StatusCode} from '../../utils';
+import {FUNDER_TYPE, StatusCode} from '../../utils';
 
 describe('authentication service', () => {
   let authenticationService: AuthenticationService;
@@ -27,27 +25,18 @@ describe('authentication service', () => {
   });
 
   it('should extractCredentials: KO no header', () => {
-    const expectedError = new ValidationError(
-      `Authorization header not found`,
-      '/authorization',
-      StatusCode.Unauthorized,
-    );
     const errorRequest = {
       headers: {},
     };
     try {
       authenticationService.extractCredentials(errorRequest as Request);
     } catch (err) {
-      expect(err).to.deepEqual(expectedError);
+      expect(err.message).to.equal('Authorization header not found');
+      expect(err.statusCode).to.equal(StatusCode.Unauthorized);
     }
   });
 
   it('should extractCredentials: KO not bearer', () => {
-    const expectedError = new ValidationError(
-      `Authorization header is not of type 'Bearer'.`,
-      '/authorization',
-      StatusCode.Unauthorized,
-    );
     const errorRequest = {
       headers: {
         authorization: 'Test',
@@ -56,16 +45,12 @@ describe('authentication service', () => {
     try {
       authenticationService.extractCredentials(errorRequest as Request);
     } catch (err) {
-      expect(err).to.deepEqual(expectedError);
+      expect(err.message).to.equal("Authorization header is not of type 'Bearer'");
+      expect(err.statusCode).to.equal(StatusCode.Unauthorized);
     }
   });
 
   it('should extractCredentials: KO bearer too many parts', () => {
-    const expectedError = new ValidationError(
-      `Authorization header not valid`,
-      '/authorization',
-      StatusCode.Unauthorized,
-    );
     const errorRequest = {
       headers: {
         authorization: 'Bearer xxx.yyy.zzz test',
@@ -74,35 +59,28 @@ describe('authentication service', () => {
     try {
       authenticationService.extractCredentials(errorRequest as Request);
     } catch (err) {
-      expect(err).to.deepEqual(expectedError);
+      expect(err.message).to.equal('Authorization header not valid');
+      expect(err.statusCode).to.equal(StatusCode.Unauthorized);
     }
   });
 
   it('should verifyToken: KO no token', async () => {
-    const expectedError = new ValidationError(
-      `Error verifying token'.`,
-      '/authorization',
-      StatusCode.Unauthorized,
-    );
     const token: any = undefined;
     try {
       await authenticationService.verifyToken(token);
     } catch (err) {
-      expect(err).to.deepEqual(expectedError);
+      expect(err.message).to.equal('Error verifying token');
+      expect(err.statusCode).to.equal(StatusCode.Unauthorized);
     }
   });
 
   it('should verifyToken: KO jwt expired', async () => {
-    const expectedError = new ValidationError(
-      `Error verifying token`,
-      '/authorization',
-      StatusCode.Unauthorized,
-    );
-    const verifyStub = sinon.stub(jwt, 'verify').returns(expectedError as any);
+    const verifyStub = sinon.stub(jwt, 'verify').rejects('error');
     try {
       await authenticationService.verifyToken('token');
     } catch (err) {
-      expect(err).to.deepEqual(expectedError);
+      expect(err.message).to.equal('Error verifying token');
+      expect(err.statusCode).to.equal(StatusCode.Unauthorized);
     }
     verifyStub.restore();
   });
@@ -115,17 +93,18 @@ describe('authentication service', () => {
       realm_access: {
         roles: ['roles'],
       },
+      scope: 'openid',
     };
     const userResult = {
       [securityId]: user.sub,
       id: user.sub,
       clientName: undefined,
       emailVerified: user.email_verified,
-      funderType: 'collectivités',
+      funderType: FUNDER_TYPE.COLLECTIVITY,
       groups: ['Mulhouse'],
       funderName: 'Mulhouse',
-      incentiveType: 'AideTerritoire',
       roles: user.realm_access.roles,
+      scopes: ['openid'],
     };
     const result = authenticationService.convertToUser(user);
     expect(result).to.deepEqual(userResult);
@@ -145,17 +124,17 @@ describe('authentication service', () => {
       id: user.sub,
       clientName: undefined,
       emailVerified: user.email_verified,
-      funderType: 'entreprises',
+      funderType: FUNDER_TYPE.ENTERPRISE,
       funderName: 'Capgemini',
       groups: ['Capgemini'],
-      incentiveType: 'AideEmployeur',
       roles: user.realm_access.roles,
+      scopes: undefined,
     };
     const result = authenticationService.convertToUser(user);
     expect(result).to.deepEqual(userResult);
   });
 
-  it('should convertToUser: OK undefined funderType && funderName && incentiveType', () => {
+  it('should convertToUser: OK undefined funderType && funderName', () => {
     const user = {
       sub: 'id',
       email_verified: true,
@@ -164,6 +143,7 @@ describe('authentication service', () => {
       realm_access: {
         roles: ['roles'],
       },
+      scope: 'profile openid email',
     };
     const userResult = {
       [securityId]: user.sub,
@@ -173,8 +153,8 @@ describe('authentication service', () => {
       funderType: undefined,
       funderName: undefined,
       groups: ['undefined'],
-      incentiveType: undefined,
       roles: user.realm_access.roles,
+      scopes: ['profile', 'openid', 'email'],
     };
     const result = authenticationService.convertToUser(user);
     expect(result).to.deepEqual(userResult);
@@ -187,6 +167,7 @@ describe('authentication service', () => {
       realm_access: {
         roles: ['roles'],
       },
+      scope: 'profile openid email',
     };
     const userResult = {
       [securityId]: user.sub,
@@ -196,8 +177,8 @@ describe('authentication service', () => {
       funderType: undefined,
       funderName: undefined,
       groups: undefined,
-      incentiveType: undefined,
       roles: user.realm_access.roles,
+      scopes: ['profile', 'openid', 'email'],
     };
     const result = authenticationService.convertToUser(user);
     expect(result).to.deepEqual(userResult);
@@ -216,6 +197,7 @@ describe('authentication service', () => {
           roles: ['moreRoles'],
         },
       },
+      scope: 'profile openid email',
     };
     const userResult = {
       [securityId]: user.sub,
@@ -225,10 +207,36 @@ describe('authentication service', () => {
       funderType: undefined,
       funderName: undefined,
       groups: undefined,
-      incentiveType: undefined,
       roles: ['roles', 'moreRoles'],
+      scopes: ['profile', 'openid', 'email'],
     };
     const result = authenticationService.convertToUser(user);
     expect(result).to.deepEqual(userResult);
+  });
+
+  it('should extractApiKey: KO no header', () => {
+    try {
+      const request = {
+        headers: undefined,
+      };
+      authenticationService.extractApiKey(request as unknown as Request);
+    } catch (err) {
+      expect(err.message).to.equal(`Header is not of type 'X-API-Key'`);
+      expect(err.statusCode).to.equal(StatusCode.Unauthorized);
+    }
+  });
+
+  it('should extractApiKey: KO api key', () => {
+    try {
+      const request = {
+        headers: {
+          ['x-api-key']: 'error',
+        },
+      };
+      authenticationService.extractApiKey(request as unknown as Request);
+    } catch (err) {
+      expect(err.message).to.equal(`Wrong API-KEY`);
+      expect(err.statusCode).to.equal(StatusCode.Unauthorized);
+    }
   });
 });

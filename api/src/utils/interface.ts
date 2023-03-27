@@ -1,4 +1,4 @@
-import {SUBSCRIPTION_STATUS, EVENT_MESSAGE, FUNDER_TYPE, GENDER, StatusCode} from '.';
+import {SUBSCRIPTION_STATUS, EVENT_MESSAGE, GENDER, StatusCode, FUNDER_TYPE} from '.';
 
 import {SubscriptionRejection, SubscriptionValidation} from '../models';
 import {PersonalInformation} from '../models/citizen/personalInformation.model';
@@ -91,18 +91,6 @@ export interface IUsersResult {
   lastName: string;
 }
 
-export interface IFunder {
-  funderType?: FUNDER_TYPE;
-  id?: string;
-  name?: string;
-  siretNumber?: number;
-  emailFormat?: string[];
-  employeesCount?: number;
-  budgetAmount?: number;
-  isHris?: boolean;
-  hasManualAffiliation?: boolean;
-}
-
 export interface ICreate {
   id: string | undefined;
   email?: string;
@@ -118,8 +106,8 @@ export interface IScore {
   updatedAt?: undefined;
 }
 
-export interface IUpdateAt {
-  updatedAt: number;
+export interface IFunderName {
+  funderName: number;
   score?: undefined;
 }
 
@@ -165,10 +153,9 @@ export interface MaasSubscriptionList {
 export interface IUser extends UserProfile {
   [securityId]: string;
   id: string;
-  emailVerified: boolean;
+  emailVerified: boolean | undefined;
   funderName?: string;
-  funderType?: string;
-  incentiveType?: string;
+  funderType?: FUNDER_TYPE;
   clientName?: string;
   roles?: string[];
   key?: string;
@@ -187,6 +174,21 @@ export interface User {
   gender?: GENDER;
   identity?: Identity;
   personalInformation?: PersonalInformation;
+}
+
+/** GeoApiGouv Service */
+export interface IGeoApiGouvRequestParam {
+  nom: string;
+  codePostal: string;
+  format: string;
+  fields: string;
+}
+export interface IGeoApiGouvResponseResult {
+  nom: string;
+  code: string;
+  codeRegion: string;
+  codeDepartement: string;
+  _score: number;
 }
 
 type shortDistance = 'short';
@@ -234,3 +236,13 @@ export interface RpcReturnedData {
 export type AdditionalProps = {
   [key: string]: string;
 };
+
+export interface PartialCitizen {
+  id: string;
+  lastName: string;
+  firstName: string;
+  birthdate: string;
+  email: string;
+  isCitizenDeleted: boolean;
+  enterpriseEmail?: string;
+}

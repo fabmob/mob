@@ -1,14 +1,9 @@
-import {
-  createStubInstance,
-  expect,
-  StubbedInstanceWithSinonAccessor,
-} from '@loopback/testlab';
+import {createStubInstance, expect, StubbedInstanceWithSinonAccessor} from '@loopback/testlab';
 import {IncentiveRepository, TerritoryRepository} from '../../repositories';
 import {TerritoryController} from '../../controllers';
-import {ValidationError} from '../../validationError';
 import {TerritoryService} from '../../services/territory.service';
 import {Incentive, Territory} from '../../models';
-import {ResourceName, StatusCode} from '../../utils';
+import {SCALE, StatusCode} from '../../utils';
 
 describe('TerritoryController', () => {
   let territoryRepository: StubbedInstanceWithSinonAccessor<TerritoryRepository>,
@@ -16,20 +11,39 @@ describe('TerritoryController', () => {
     territoryService: StubbedInstanceWithSinonAccessor<TerritoryService>,
     territoryController: TerritoryController;
 
+  const response: any = {
+    status: function () {
+      return this;
+    },
+    contentType: function () {
+      return this;
+    },
+    send: (body: any) => body,
+  };
   beforeEach(() => {
     givenStubbedRepository();
     givenStubbedService();
     territoryController = new TerritoryController(
+      response,
       territoryRepository,
       incentiveRepository,
       territoryService,
     );
   });
 
-  it('TerritoryController Post /territories : Succesfull', async () => {
+  it('TerritoryController Post /territories : Successful', async () => {
     territoryService.stubs.createTerritory.resolves(territoryMock);
     const result = await territoryController.create(territoryPayload);
     expect(result).to.deepEqual(territoryMock);
+  });
+
+  it('TerritoryController Post /territories : ERROR', async () => {
+    try {
+      territoryService.stubs.createTerritory.rejects(new Error('Error'));
+      await territoryController.create(territoryPayload);
+    } catch (err) {
+      expect(err.message).to.equal('Error');
+    }
   });
 
   it('TerritoryController Get /territories : Successful', async () => {
@@ -46,17 +60,26 @@ describe('TerritoryController', () => {
 
   it('TerritoryController Patch /territories/{id} unique name', async () => {
     try {
-      territoryRepository.stubs.findOne.resolves(territoryMockMatchName);
+      territoryRepository.stubs.execute.resolves(
+        Promise.resolve({
+          get: () => [territoryMockMatchName],
+        }),
+      );
       await territoryController.updateById('634c83b994f56f610415f9c6', {
         name: 'new Territory name',
       } as Territory);
     } catch (error) {
-      expect(error).to.deepEqual(territoryNameUnique);
+      expect(error.message).to.equal('territory.name.error.unique');
+      expect(error.statusCode).to.equal(StatusCode.Conflict);
     }
   });
 
   it('TerritoryController Patch /territories/{id} Successful', async () => {
-    territoryRepository.stubs.findOne.resolves();
+    territoryRepository.stubs.execute.resolves(
+      Promise.resolve({
+        get: () => [],
+      }),
+    );
     incentiveRepository.stubs.find.resolves([mockIncentive]);
     territoryRepository.stubs.updateById.resolves();
     incentiveRepository.stubs.updateById.resolves();
@@ -67,7 +90,11 @@ describe('TerritoryController', () => {
 
   // TODO: REMOVING DEPRECATED territoryName.
   it('TerritoryController Patch /territories/{id} Successful with territoryName', async () => {
-    territoryRepository.stubs.findOne.resolves();
+    territoryRepository.stubs.execute.resolves(
+      Promise.resolve({
+        get: () => [],
+      }),
+    );
     incentiveRepository.stubs.find.resolves([mockIncentive2]);
     territoryRepository.stubs.updateById.resolves();
     incentiveRepository.stubs.updateById.resolves();
@@ -95,10 +122,12 @@ describe('TerritoryController', () => {
   }
 
   const territoryPayload = new Territory({
+    scale: SCALE.NATIONAL,
     name: 'Toulouse',
   });
 
   const territoryMock = new Territory({
+    scale: SCALE.NATIONAL,
     name: 'Toulouse',
     id: '634c83b994f56f610415f9c6',
   });
@@ -108,16 +137,9 @@ describe('TerritoryController', () => {
     id: '634c83b994f56f610415f9c6',
   });
 
-  const territoryNameUnique = new ValidationError(
-    'territory.name.error.unique',
-    '/territoryName',
-    StatusCode.UnprocessableEntity,
-    ResourceName.Territory,
-  );
-
   // TODO: REMOVING DEPRECATED territoryName.
   const mockIncentive2 = new Incentive({
-    territory: {name: 'Toulouse', id: '634c83b994f56f610415f9c6'} as Territory,
+    territoryIds: ['randomTerritoryId'],
     territoryName: 'Toulouse', // TODO: REMOVING DEPRECATED territoryName.
     additionalInfos: 'test',
     funderName: 'Mairie',
@@ -140,7 +162,7 @@ describe('TerritoryController', () => {
   });
 
   const mockIncentive = new Incentive({
-    territory: {name: 'Toulouse', id: '634c83b994f56f610415f9c6'} as Territory,
+    territoryIds: ['randomTerritoryId'],
     additionalInfos: 'test',
     funderName: 'Mairie',
     allocatedAmount: '200 €',

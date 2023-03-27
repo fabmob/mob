@@ -4,7 +4,7 @@ import Strings from '../locale/fr.json';
 import './_bullet-point.scss';
 const PatternCompositionMessage = (): JSX.Element => {
   return (
-    <div className="mb-m">
+    <div className="pattern-composition-block">
       <p>{Strings['pattern.composition.message']}</p>
 
       <ul className="bullet-point">

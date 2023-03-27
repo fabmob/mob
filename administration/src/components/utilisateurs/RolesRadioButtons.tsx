@@ -43,10 +43,6 @@ const RolesRadioButtons = () => {
           name: capitalize(role.replace(/s$/, '')),
         }))
       }
-      options={{
-        checkedIcon: <RadioButtonChecked />,
-        icon: <RadioButtonUnchecked />,
-      }}
       validate={[validateRoles]}
     />
   );

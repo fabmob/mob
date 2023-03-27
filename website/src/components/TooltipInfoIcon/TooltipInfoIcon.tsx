@@ -27,9 +27,9 @@ const TooltipInfoIcon: FC<TooltipProps> = ({
       placement={placement}
       offset={[0, 16]}
     >
-      <button type="button">
+      <p>
         <SVG size={iconSize} icon={iconName} />
-      </button>
+      </p>
     </Tippy>
   );
 };

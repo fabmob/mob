@@ -1,16 +1,10 @@
-import {
-  createStubInstance,
-  expect,
-  StubbedInstanceWithSinonAccessor,
-  sinon,
-} from '@loopback/testlab';
+import {createStubInstance, expect, StubbedInstanceWithSinonAccessor, sinon} from '@loopback/testlab';
 import {securityId} from '@loopback/security';
 
 import {AffiliationPublicInterceptor} from '../../interceptors';
-import {ValidationError} from '../../validationError';
 import {IncentiveRepository} from '../../repositories';
 import {Incentive, Territory} from '../../models';
-import {IUser, ResourceName, StatusCode} from '../../utils';
+import {IUser, StatusCode} from '../../utils';
 
 describe('affiliation Interceptor', () => {
   let interceptor: any = null;
@@ -22,24 +16,9 @@ describe('affiliation Interceptor', () => {
   beforeEach(() => {
     givenStubbedRepository();
     givenStubbedRepository2();
-    interceptor = new AffiliationPublicInterceptor(
-      incentiveRepository,
-      currentUserProfile,
-    );
+    interceptor = new AffiliationPublicInterceptor(incentiveRepository, currentUserProfile);
     interceptor2 = new AffiliationPublicInterceptor(incentiveRepository, otherUser);
   });
-  const error = new ValidationError(
-    'Access denied',
-    '/authorization',
-    StatusCode.Forbidden,
-  );
-
-  const errorNotFound = new ValidationError(
-    `Incentive not found`,
-    '/incentiveNotFound',
-    StatusCode.NotFound,
-    ResourceName.Incentive,
-  );
 
   it('AffiliationInterceptor value', async () => {
     const res = 'successful binding';
@@ -56,7 +35,8 @@ describe('affiliation Interceptor', () => {
 
       await interceptor.intercept(invocationCtxFindId, () => {});
     } catch (err) {
-      expect(err).to.deepEqual(error);
+      expect(err.message).to.equal('Access denied');
+      expect(err.statusCode).to.equal(StatusCode.Forbidden);
     }
     incentiveRepository.stubs.findOne.restore();
   });
@@ -67,7 +47,8 @@ describe('affiliation Interceptor', () => {
 
       await interceptor.intercept(invocationCtxFindId, () => {});
     } catch (err) {
-      expect(err).to.deepEqual(error);
+      expect(err.message).to.equal('Access denied');
+      expect(err.statusCode).to.equal(StatusCode.Forbidden);
     }
     incentiveRepository.stubs.findOne.restore();
   });
@@ -78,7 +59,8 @@ describe('affiliation Interceptor', () => {
 
       await interceptor2.intercept(invocationCtxFindId2, () => {});
     } catch (err) {
-      expect(err).to.deepEqual(error);
+      expect(err.message).to.equal('Access denied');
+      expect(err.statusCode).to.equal(StatusCode.Forbidden);
     }
     incentiveRepository.stubs.findOne.restore();
   });
@@ -89,7 +71,8 @@ describe('affiliation Interceptor', () => {
 
       await interceptor2.intercept(invocationCtxFindId2, () => {});
     } catch (err) {
-      expect(err).to.deepEqual(errorNotFound);
+      expect(err.message).to.equal(`Incentive not found`);
+      expect(err.statusCode).to.equal(StatusCode.NotFound);
     }
     incentiveRepository.stubs.findOne.restore();
   });
@@ -127,7 +110,7 @@ const invocationCtxFindId2 = {
 };
 
 const mockPublicIncentive = new Incentive({
-  territory: {name: 'Toulouse', id: 'randomTerritoryId'} as Territory,
+  territoryIds: ['randomTerritoryId'],
   additionalInfos: 'test',
   funderName: 'Mairie',
   allocatedAmount: '200 €',
@@ -149,7 +132,7 @@ const mockPublicIncentive = new Incentive({
 });
 
 const mockPrivateIncentive = new Incentive({
-  territory: {name: 'Toulouse', id: 'randomTerritoryId'} as Territory,
+  territoryIds: ['randomTerritoryId'],
   additionalInfos: 'test',
   funderName: 'Mairie',
   allocatedAmount: '200 €',

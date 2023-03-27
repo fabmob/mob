@@ -11,8 +11,7 @@ export class RabbitmqConfig {
   private exchangeValue = process.env.BUS_MCM_HEADERS ?? 'mob.headers';
   private publishMessageType = process.env.BUS_MCM_MESSAGE_TYPE ?? 'subscriptions.put';
 
-  private consumerMessageType =
-    process.env.BUS_CONSUMER_QUEUE ?? 'mob.subscriptions.status';
+  private consumerMessageType = process.env.BUS_CONSUMER_QUEUE ?? 'mob.subscriptions.status';
 
   /**
    * Return the message type (put) and the secret key of the client

@@ -1,5 +1,7 @@
 /* eslint-disable */
 import AidesMessages from './Aide/fr.json';
+import { TERRITORY_SCALE, TERRITORY_SCALE_INSEE_VALIDATION } from './constant';
+import TerritoryMessages from './Territory/fr.json';
 
 export const isEmailFormatValid = (email) => {
   const regex = new RegExp(
@@ -9,17 +11,67 @@ export const isEmailFormatValid = (email) => {
 };
 
 /**
- * Returns the string with white spaces removed
+ * Validation method for INSEE Code pattern
+ * @param inseeValueList string[]
+ * @returns string | undefined
  */
-export const removeWhiteSpace = (word: string): string => {
-  /**
-   * Regex for removing white spaces.
-   * Exemple : "  Removing   white spaces  " returns "Removing white spaces".
-   */
-  const removeSpacesRegex: RegExp = new RegExp('^\\s+|\\s+$|\\s+(?=\\s)', 'g');
-  const newWord: string = word.replace(removeSpacesRegex, '');
-  return newWord;
+export const inseeCodePatternValidation = (inseeValueList: string[]): string | undefined => {
+  const regex = new RegExp(
+    /\d/
+  );
+  return inseeValueList?.find((inseeValue: string) => !inseeValue?.match(regex)) ? TerritoryMessages['territory.insee.error.format'] : undefined;
 };
+
+/**
+ * Validation method for duplicated values
+ * @param valueList string []
+ * @returns string | undefined
+ */
+export const duplicatedValueValidation = (valueList: string[]): string | undefined => {
+  if(!valueList) {
+    return undefined;
+  }
+  const valueSet: Set<string> = new Set(valueList);
+  return valueList?.length !== valueSet?.size ? TerritoryMessages['territory.insee.error.duplicated'] : undefined;
+};
+
+/**
+ * Validation method between scale and INSEE Code 
+ * @param scale TERRITORY_SCALE
+ * @param inseeValueList string[]
+ * @returns string | undefined
+ */
+export const scaleInseeCodeValidation = (scale: TERRITORY_SCALE, inseeValueList: string[]): string | undefined => {
+  const scaleInsee: { minItems: number, maxItems: number | undefined, inseeValueLength: number[] } = TERRITORY_SCALE_INSEE_VALIDATION[scale];
+  
+  if (inseeValueList.length < scaleInsee.minItems || (scaleInsee.maxItems && inseeValueList.length > scaleInsee.maxItems)) {
+    return TerritoryMessages['territory.scale.insee.error.minMaxItems'];
+  }
+
+  const inseeValueLengthList: number[] = inseeValueList.map((inseeValue: string) => { return inseeValue.length});
+
+  if (inseeValueLengthList.filter((inseeValueLength: number) => !scaleInsee.inseeValueLength.includes(inseeValueLength)).length) {
+    return TerritoryMessages['territory.scale.insee.error.inseeValueLength'];
+  }
+  return undefined;
+};
+
+/**
+ * Validate territory edit and create forms
+ * @param values { name: string, scale: TERRITORY_SCALE, inseeValueList: string[]}
+ * @returns Record<string, unknown>
+ */
+export const validateTerritoryForm = (values: {name: string, scale: TERRITORY_SCALE, inseeValueList: string[]}) : Record<string, unknown> => {
+  let errors: Record<string, unknown> = {};
+  if (values.inseeValueList) {
+    errors.inseeValueList = scaleInseeCodeValidation(values.scale, values.inseeValueList);
+  }
+  if ((values.scale !== TERRITORY_SCALE.NATIONAL) && !values.inseeValueList) {
+    errors.scale = TerritoryMessages['territory.scale.insee.error.noValue']
+  }
+  return errors;
+};
+
 
 const duplicatedChecksErrors = (eligibilityChecks) => {
   const eligibilityChecksId = eligibilityChecks.map((item) => {
@@ -79,3 +131,10 @@ export interface EligibilityChecks {
   active: boolean;
   value?: string[];
 }
+
+export interface Territory {
+  scale: string;
+  name: string;
+  id: string;
+}
+

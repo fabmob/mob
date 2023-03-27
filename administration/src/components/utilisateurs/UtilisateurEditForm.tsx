@@ -3,7 +3,7 @@ import { TextInput, required, BooleanInput } from 'react-admin';
 import { CardContent, Box } from '@material-ui/core';
 import { useFormState } from 'react-final-form';
 
-import FinanceurDropDown from '../common/FinanceurDropDown';
+import FunderDropDown from '../common/FunderDropDown';
 import CommunauteCheckBox from './CommunauteCheckBox';
 import RolesRadioButtons from './RolesRadioButtons';
 import { checkNamesLength } from '../../utils/checkNamesLength';
@@ -25,7 +25,7 @@ const UtilisateurEditForm = () => {
                 <TextInput source="id" disabled label="Id" />
               </Box>
               <Box mt={2} maxWidth={700}>
-                <FinanceurDropDown disabled={true} />
+                <FunderDropDown disabled={true}/>
               </Box>
               <Box display="flex" maxWidth={700}>
                 <TextInput

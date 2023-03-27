@@ -1,0 +1,11 @@
+{
+  "communautés.error": "Problème durant la récupération des communautés",
+  "communities.error.name.required": "Merci de renseigner le nom de la communauté",
+  "communities.error.name.unique": "Attention, ce nom de communauté est déjà utilisé",
+  "communities.aside.title":"Créer une communauté",
+  "communities.aside.message1": "Mon Compte Mobilité s’adapte à l’organisation interne de chaque partenaire, que ce soit une collectivité ou une entreprise.",
+  "communities.aside.message2": "L’employeur peut ainsi créer des communautés regroupant des salariés selon : leur entité, statut, localisation etc.",
+  "communities.aside.message3": "Il est possible de paramétrer les aides employeurs visibles dans moB et de les restreindre à une ou plusieurs communautés."
+
+
+}

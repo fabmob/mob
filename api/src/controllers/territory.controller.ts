@@ -1,13 +1,8 @@
-import {
-  AnyObject,
-  Count,
-  CountSchema,
-  Filter,
-  repository,
-  Where,
-} from '@loopback/repository';
-import {service} from '@loopback/core';
-import {post, param, get, getModelSchemaRef, patch, requestBody} from '@loopback/rest';
+import {Schema} from 'jsonschema';
+import {inject} from '@loopback/context';
+import {Count, CountSchema, Filter, repository, Where} from '@loopback/repository';
+import {intercept, service} from '@loopback/core';
+import {post, param, get, getModelSchemaRef, patch, requestBody, RestBindings} from '@loopback/rest';
 import {authenticate} from '@loopback/authentication';
 import {authorize} from '@loopback/authorization';
 import {Incentive, Territory} from '../models';
@@ -18,16 +13,21 @@ import {
   StatusCode,
   Roles,
   ResourceName,
-  SECURITY_SPEC_API_KEY,
+  Logger,
+  SECURITY_SPEC_ALL,
 } from '../utils';
-import {ValidationError} from '../validationError';
+import {ConflictError} from '../validationError';
 import {TerritoryService} from '../services/territory.service';
 import {removeWhiteSpace} from './utils/helpers';
+import {TerritoryInterceptor} from '../interceptors';
+import {defaultSwaggerError} from './utils/swagger-errors';
+import {TAG_MAAS} from '../constants';
+import express, {Request, Response} from 'express';
 
-const ObjectId = require('mongodb').ObjectId;
-
+@intercept(TerritoryInterceptor.BINDING_KEY)
 export class TerritoryController {
   constructor(
+    @inject(RestBindings.Http.RESPONSE) private response: Response,
     @repository(TerritoryRepository)
     public territoryRepository: TerritoryRepository,
     @repository(IncentiveRepository)
@@ -43,42 +43,15 @@ export class TerritoryController {
     summary: 'Crée un territoire',
     security: SECURITY_SPEC_KC_PASSWORD,
     responses: {
-      [StatusCode.Success]: {
+      [StatusCode.Created]: {
         description: 'Le territoire est créé',
-        content: {},
-      },
-      [StatusCode.Forbidden]: {
-        description: "L'utilisateur n'a pas les droits pour gérer les territoires",
         content: {
           'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 403,
-                name: 'Error',
-                message: 'Access denied',
-              },
-            },
+            schema: getModelSchemaRef(Territory),
           },
         },
       },
-      [StatusCode.UnprocessableEntity]: {
-        description: 'Le nom de territoire que vous avez fourni existe déjà',
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 422,
-                name: 'Error',
-                message: 'territory.name.error.unique',
-                path: '/territoryName',
-                resourceName: 'Territoire',
-              },
-            },
-          },
-        },
-      },
+      ...defaultSwaggerError,
     },
   })
   async create(
@@ -94,21 +67,54 @@ export class TerritoryController {
     })
     territory: Omit<Territory, 'id'>,
   ): Promise<Territory> {
-    return this.territoryService.createTerritory(territory);
+    this.response.status(201);
+    try {
+      const result: Territory = await this.territoryService.createTerritory(territory);
+      Logger.info(TerritoryController.name, this.create.name, 'Territory created', result.id);
+      return result;
+    } catch (error) {
+      Logger.error(TerritoryController.name, this.create.name, 'Error', error);
+      throw error;
+    }
   }
 
   @authenticate(AUTH_STRATEGY.KEYCLOAK, AUTH_STRATEGY.API_KEY)
   @authorize({
-    allowedRoles: [Roles.CONTENT_EDITOR, Roles.API_KEY, Roles.CITIZENS],
+    allowedRoles: [Roles.CONTENT_EDITOR, Roles.API_KEY, Roles.CITIZENS, Roles.MAAS, Roles.MAAS_BACKEND],
   })
   @get('/v1/territories', {
     'x-controller-name': 'Territories',
     summary: 'Retourne la liste des territoires',
-    security: SECURITY_SPEC_API_KEY,
+    security: SECURITY_SPEC_ALL,
+    tags: ['Territories', TAG_MAAS],
+    description: `Ce service permet de récupérer la liste des territoires.<br>
+    Il permet également de filtrer sur les territoires en fonction des critères \
+    spécifiés dans la clause where du filtre.
+    Les codes INSEE peuvent être obtenus auprès de l'<a href="https://api.gouv.fr/documentation/api-geo">
+    API Découpage Adminitratif</a>.
+    <p><strong>Exemples de requête :</strong></p>
+    <code>GET /v1/territories?filter={"where": {"name": "Mulhouse Alsace Agglomération"},
+    "fields": {"id": true, "name": true, "scale": true, "inseeValueList": true}}
+    </code><br><br>
+    <code>GET /v1/territories?filter={"where": {"inseeValueList": {"inq": ["68224", "68"]}},
+    "fields": {"id": true, "name": true, "scale": true, "inseeValueList": true}}
+    </code>
+    `,
     responses: {
       [StatusCode.Success]: {
-        description: 'La liste des territoires est retournée',
+        description: 'La liste des territoires',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'array',
+              items: {
+                allOf: [getModelSchemaRef(Territory)],
+              },
+            },
+          },
+        },
       },
+      ...defaultSwaggerError,
     },
   })
   async find(@param.filter(Territory) filter?: Filter<Territory>): Promise<Territory[]> {
@@ -123,13 +129,14 @@ export class TerritoryController {
     security: SECURITY_SPEC_KC_PASSWORD,
     responses: {
       [StatusCode.Success]: {
-        description: 'Le nombre de territoires est retourné',
+        description: 'Le nombre de territoires',
         content: {
           'application/json': {
             schema: {...CountSchema, ...{title: 'Count'}},
           },
         },
       },
+      ...defaultSwaggerError,
     },
   })
   async count(@param.where(Territory) where?: Where<Territory>): Promise<Count> {
@@ -138,7 +145,7 @@ export class TerritoryController {
 
   @authenticate(AUTH_STRATEGY.KEYCLOAK)
   @authorize({allowedRoles: [Roles.CONTENT_EDITOR]})
-  @patch('/v1/territories/{id}', {
+  @patch('/v1/territories/{territoryId}', {
     'x-controller-name': 'Territories',
     summary: 'Modifie un territoire',
     security: SECURITY_SPEC_KC_PASSWORD,
@@ -146,74 +153,11 @@ export class TerritoryController {
       [StatusCode.NoContent]: {
         description: 'Modification du territoire réussie',
       },
-      [StatusCode.Unauthorized]: {
-        description: "L'utilisateur est non connecté",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: StatusCode.Unauthorized,
-                name: 'Error',
-                message: 'Authorization header not found',
-                path: '/authorization',
-              },
-            },
-          },
-        },
-      },
-      [StatusCode.Forbidden]: {
-        description: "L'utilisateur n'a pas les droits pour gérer les territoires",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: StatusCode.Unauthorized,
-                name: 'Error',
-                message: 'Access denied',
-              },
-            },
-          },
-        },
-      },
-      [StatusCode.NotFound]: {
-        description: "Le territoire que vous voulez modifier n'existe pas",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: StatusCode.NotFound,
-                name: 'Error',
-                message: 'Entity not found: Territory',
-                code: 'ENTITY_NOT_FOUND',
-              },
-            },
-          },
-        },
-      },
-      [StatusCode.UnprocessableEntity]: {
-        description: 'Le nom de territoire que vous avez fourni existe déjà',
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: StatusCode.UnprocessableEntity,
-                name: 'Error',
-                message: 'territory.name.error.unique',
-                path: '/territoryName',
-                resourceName: 'Territoire',
-              },
-            },
-          },
-        },
-      },
+      ...defaultSwaggerError,
     },
   })
   async updateById(
-    @param.path.string('id') id: string,
+    @param.path.string('territoryId') id: string,
     @requestBody({
       content: {
         'application/json': {
@@ -227,86 +171,103 @@ export class TerritoryController {
     })
     newTerritory: Omit<Territory, 'id'>,
   ): Promise<void> {
-    /**
-     * Removing white spaces.
-     * Exemple : "  Mulhouse   aglo " returns "Mulhouse aglo".
-     */
-    newTerritory.name = removeWhiteSpace(newTerritory.name);
+    try {
+      /**
+       * Removing white spaces.
+       * Exemple : "  Mulhouse   aglo " returns "Mulhouse aglo".
+       */
+      newTerritory.name = removeWhiteSpace(newTerritory.name);
 
-    /**
-     * Perform a case-insensitive search excluding the territory that will be updated.
-     */
-    const result: Territory | null = await this.territoryRepository.findOne({
-      where: {id: {neq: new ObjectId(id)}, name: {regexp: `/^${newTerritory.name}$/i`}},
-    });
+      /**
+       * Perform a case-insensitive search excluding the territory that will be updated.
+       */
+      const result: Territory[] = await this.territoryRepository
+        .execute('Territory', 'aggregate', [
+          {
+            $project: {
+              name: 1,
+              stringId: {$toString: '$_id'},
+            },
+          },
+          {
+            $match: {
+              $and: [{stringId: {$ne: id}}, {name: {$regex: newTerritory.name, $options: 'i'}}],
+            },
+          },
+        ])
+        .then((res: any) => res.get());
 
-    /**
-     * Throw an error if the territory name is duplicated.
-     */
-    if (result) {
-      throw new ValidationError(
-        'territory.name.error.unique',
-        '/territoryName',
-        StatusCode.UnprocessableEntity,
-        ResourceName.Territory,
+      Logger.debug(TerritoryController.name, this.updateById.name, 'Case insensitive Match', result);
+
+      /**
+       * Throw an error if the territory name is duplicated.
+       */
+      if (result.length) {
+        throw new ConflictError(
+          TerritoryController.name,
+          this.updateById.name,
+          'territory.name.error.unique',
+          '/territoryName',
+          ResourceName.Territory,
+          newTerritory.name,
+        );
+      }
+
+      // TODO: REMOVING DEPRECATED territoryName.
+      /**
+       * Get all incentives related to the territory.
+       */
+      const incentiveWithTerritory: Incentive[] = await this.incentiveRepository.find({
+        where: {
+          territoryIds: id,
+        } as Where<Incentive>,
+        include: ['territories'],
+      });
+
+      /**
+       * Loop throught the incentives and change the territory name.
+       */
+      await Promise.all(
+        incentiveWithTerritory.map(async (incentive: Incentive) => {
+          if (incentive.territoryName) {
+            return this.incentiveRepository.updateById(incentive.id, {
+              territoryName: newTerritory.name,
+            });
+          }
+        }),
       );
+      Logger.debug(
+        TerritoryController.name,
+        this.updateById.name,
+        'Incentive updated',
+        incentiveWithTerritory,
+      );
+
+      await this.territoryRepository.updateById(id, newTerritory);
+      Logger.info(TerritoryController.name, this.updateById.name, 'Territory updated', id);
+    } catch (error) {
+      Logger.error(TerritoryController.name, this.updateById.name, 'Error', error);
+      throw error;
     }
-
-    /**
-     * Get all incentives related to the territory.
-     */
-    const incentiveWithTerritory: Incentive[] = await this.incentiveRepository.find({
-      where: {
-        'territory.id': id,
-      } as AnyObject,
-    });
-
-    /**
-     * Loop throught the incentives and change the territory name.
-     */
-    await Promise.all(
-      incentiveWithTerritory.map((incentive: Incentive) => {
-        const queryParams = {
-          'territory.name': newTerritory.name,
-        } as AnyObject;
-        if (incentive.territoryName) {
-          queryParams.territoryName = newTerritory.name; // TODO: REMOVING DEPRECATED territoryName.
-        }
-        return this.incentiveRepository.updateById(incentive.id, queryParams);
-      }),
-    );
-    await this.territoryRepository.updateById(id, newTerritory);
   }
 
   @authenticate(AUTH_STRATEGY.KEYCLOAK)
   @authorize({allowedRoles: [Roles.CONTENT_EDITOR]})
-  @get('/v1/territories/{id}', {
+  @get('/v1/territories/{territoryId}', {
     'x-controller-name': 'Territories',
     summary: `Retoune les informations d'un territoire`,
     security: SECURITY_SPEC_KC_PASSWORD,
     responses: {
       [StatusCode.Success]: {
         description: 'Le territoire est retourné',
-      },
-      [StatusCode.NotFound]: {
-        description: "Le territoire n'existe pas",
         content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 404,
-                name: 'Error',
-                message: 'Entity not found: Territory',
-                code: 'ENTITY_NOT_FOUND',
-              },
-            },
-          },
+          'application/json': {schema: getModelSchemaRef(Territory)},
         },
       },
+      ...defaultSwaggerError,
     },
   })
-  async findById(@param.path.string('id') id: string): Promise<Territory> {
+  async findById(@param.path.string('territoryId') id: string): Promise<Territory> {
     return this.territoryRepository.findById(id);
   }
 }

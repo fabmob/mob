@@ -4,7 +4,7 @@ import {CronJob, cronJob} from '@loopback/cron';
 import {isEqual, difference} from 'lodash';
 
 import {ParentProcessService, RabbitmqService} from '../services';
-import {EVENT_MESSAGE, UPDATE_MODE, logger} from '../utils';
+import {EVENT_MESSAGE, UPDATE_MODE, Logger} from '../utils';
 
 @cronJob()
 export class RabbitmqCronJob extends CronJob {
@@ -19,18 +19,15 @@ export class RabbitmqCronJob extends CronJob {
     super({
       name: 'rabbitmq-job',
       onTick: async () => {
-        logger.info(`${RabbitmqCronJob.name} - ticked`);
+        Logger.info(RabbitmqCronJob.name, 'onTick', 'ticked');
         await this.performJob();
       },
-      cronTime: '0 2 * * *',
+      cronTime: '0 0 2 * * *',
       start: false,
     });
 
     // Start cronjob once process is ready
-    this.parentProcessService.on(
-      EVENT_MESSAGE.READY,
-      () => this.fireOnTick() && this.start(),
-    );
+    this.parentProcessService.on(EVENT_MESSAGE.READY, () => this.fireOnTick() && this.start());
   }
 
   /**
@@ -38,16 +35,15 @@ export class RabbitmqCronJob extends CronJob {
    */
   private async performJob(): Promise<void> {
     try {
-      const repositoryList: string[] =
-        await this.rabbitmqService.getHRISEnterpriseNameList();
+      const repositoryList: string[] = await this.rabbitmqService.getHRISEnterpriseNameList();
 
       // If arrays are the same, no need to send updated list
       if (!isEqual(repositoryList, this.enterpriseHRISNameList)) {
         // Find added HRIS enterprise
-        const added = difference(repositoryList, this.enterpriseHRISNameList);
+        const added: string[] = difference(repositoryList, this.enterpriseHRISNameList);
 
         // Find deleted HRIS enterprise
-        const deleted = difference(this.enterpriseHRISNameList, repositoryList);
+        const deleted: string[] = difference(this.enterpriseHRISNameList, repositoryList);
 
         this.enterpriseHRISNameList = repositoryList;
         this.parentProcessService.emit(EVENT_MESSAGE.UPDATE, {
@@ -56,6 +52,7 @@ export class RabbitmqCronJob extends CronJob {
         });
       }
     } catch (err) {
+      Logger.error(RabbitmqCronJob.name, this.performJob.name, 'Error', err);
       throw new Error('An error occurred');
     }
   }

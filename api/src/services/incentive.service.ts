@@ -1,5 +1,6 @@
 import {injectable, BindingScope} from '@loopback/core';
 import {EligibilityCheck, Incentive} from '../models';
+import {Logger} from '../utils';
 
 @injectable({scope: BindingScope.TRANSIENT})
 export class IncentiveService {
@@ -85,6 +86,24 @@ export class IncentiveService {
     exclusionControlId: string,
     active: boolean,
   ): EligibilityCheck[] {
+    Logger.debug(
+      IncentiveService.name,
+      this.addIncentiveToExclusions.name,
+      'Eligibility checks data',
+      eligibilityChecks,
+    );
+    Logger.debug(
+      IncentiveService.name,
+      this.addIncentiveToExclusions.name,
+      'Incentive to exclude check data',
+      incentiveToExclude,
+    );
+    Logger.debug(
+      IncentiveService.name,
+      this.addIncentiveToExclusions.name,
+      'Exclusion control Id value',
+      exclusionControlId,
+    );
     if (!eligibilityChecks || eligibilityChecks.length === 0) {
       // Create eligibilityChecks field if don't exist
       eligibilityChecks = [
@@ -132,30 +151,40 @@ export class IncentiveService {
     incentiveToExclude: Incentive,
     exclusionControlId: string,
   ): Incentive {
-    const exclusionCheck: EligibilityCheck | undefined =
-      incentiveToUpdate.eligibilityChecks?.find(check => {
-        return check.id === exclusionControlId;
-      });
+    Logger.debug(
+      IncentiveService.name,
+      this.removeIncentiveFromExclusions.name,
+      'Incentive ToUpdate data',
+      incentiveToUpdate,
+    );
+    Logger.debug(
+      IncentiveService.name,
+      this.removeIncentiveFromExclusions.name,
+      'Incentive to exclude check data',
+      incentiveToExclude,
+    );
+    Logger.debug(
+      IncentiveService.name,
+      this.removeIncentiveFromExclusions.name,
+      'Exclusion control Id value',
+      exclusionControlId,
+    );
+    const exclusionCheck: EligibilityCheck | undefined = incentiveToUpdate.eligibilityChecks?.find(check => {
+      return check.id === exclusionControlId;
+    });
 
     if (exclusionCheck!.value.length > 1) {
       // Delete current incentive from exclusion list if at least 2 items in list
-      incentiveToUpdate.eligibilityChecks = incentiveToUpdate.eligibilityChecks?.map(
-        eligibilityCheck => {
-          if (eligibilityCheck.id === exclusionCheck!.id) {
-            eligibilityCheck.value = eligibilityCheck.value.filter(
-              (incentiveToDeleteId: string) => {
-                return incentiveToDeleteId !== incentiveToExclude.id;
-              },
-            );
-          }
-          return eligibilityCheck;
-        },
-      );
+      incentiveToUpdate.eligibilityChecks = incentiveToUpdate.eligibilityChecks?.map(eligibilityCheck => {
+        if (eligibilityCheck.id === exclusionCheck!.id) {
+          eligibilityCheck.value = eligibilityCheck.value.filter((incentiveToDeleteId: string) => {
+            return incentiveToDeleteId !== incentiveToExclude.id;
+          });
+        }
+        return eligibilityCheck;
+      });
     } else {
-      if (
-        incentiveToUpdate.eligibilityChecks &&
-        incentiveToUpdate.eligibilityChecks.length > 1
-      ) {
+      if (incentiveToUpdate.eligibilityChecks && incentiveToUpdate.eligibilityChecks.length > 1) {
         // Delete exclusion control if only 1 item in list but other controls present
         incentiveToUpdate.eligibilityChecks = incentiveToUpdate.eligibilityChecks?.filter(
           eligibilityCheck => {

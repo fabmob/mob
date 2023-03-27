@@ -14,6 +14,8 @@ import {
 import TerritoryEditForm from './TerritoryEditForm';
 import { errorFetching } from '../../utils/constant';
 import TerritoryMessages from '../../utils/Territory/fr.json';
+import { validateTerritoryForm } from '../../utils/helpers';
+import { Aside } from './TerritoryAside';
 
 const TerritoryEdit: FC<EditProps> = (props) => {
   const notify = useNotify();
@@ -21,7 +23,7 @@ const TerritoryEdit: FC<EditProps> = (props) => {
   const redirect = useRedirect();
 
   const onSuccess = (): void => {
-    notify(`Le terriotire a été modifié avec succes`, 'success');
+    notify(`Le territoire a été modifié avec succes`, 'success');
     redirect('/territoires');
     refresh();
   };
@@ -48,9 +50,10 @@ const TerritoryEdit: FC<EditProps> = (props) => {
       {...props}
       onSuccess={onSuccess}
       onFailure={onFailure}
+      aside={<Aside />}
       title="Modification d'un territoire"
     >
-      <SimpleForm toolbar={<EditToolbar />}>
+      <SimpleForm toolbar={<EditToolbar />} validate={validateTerritoryForm}>
         <TerritoryEditForm />
       </SimpleForm>
     </Edit>

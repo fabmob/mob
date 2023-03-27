@@ -32,10 +32,7 @@ export class UserEntityRepository extends DefaultCrudRepository<
     typeof UserEntity.prototype.id
   >;
 
-  public readonly userAttributes: HasManyRepositoryFactory<
-    UserAttribute,
-    typeof UserEntity.prototype.id
-  >;
+  public readonly userAttributes: HasManyRepositoryFactory<UserAttribute, typeof UserEntity.prototype.id>;
 
   constructor(
     @inject('datasources.idpdbDS') dataSource: IdpDbDataSource,
@@ -53,34 +50,24 @@ export class UserEntityRepository extends DefaultCrudRepository<
       'userAttributes',
       userAttributeRepositoryGetter,
     );
-    this.registerInclusionResolver(
-      'userAttributes',
-      this.userAttributes.inclusionResolver,
-    );
+    this.registerInclusionResolver('userAttributes', this.userAttributes.inclusionResolver);
     this.keycloakGroups = this.createHasManyThroughRepositoryFactoryFor(
       'keycloakGroups',
       keycloakGroupRepositoryGetter,
       userGroupMembershipRepositoryGetter,
     );
-    this.registerInclusionResolver(
-      'keycloakGroups',
-      this.keycloakGroups.inclusionResolver,
-    );
+    this.registerInclusionResolver('keycloakGroups', this.keycloakGroups.inclusionResolver);
   }
 
   async getUserRoles(id: string): Promise<KeycloakRole[]> {
     const groups = await this.keycloakGroups(id).find({fields: {id: true}});
 
     return Promise.all(
-      groups.map(({id}) =>
-        this.keycloakGroupRepository.keycloakRoles(id).find({fields: {name: true}}),
-      ),
+      groups.map(({id}) => this.keycloakGroupRepository.keycloakRoles(id).find({fields: {name: true}})),
     ).then(res => res.flat().filter(x => x));
   }
 
-  async getServiceUser(
-    clientId: string,
-  ): Promise<(UserEntity & UserEntityRelations) | null> {
+  async getServiceUser(clientId: string): Promise<(UserEntity & UserEntityRelations) | null> {
     return this.findOne({
       where: {serviceAccountClientLink: clientId},
     });
@@ -94,11 +81,11 @@ export class UserEntityRepository extends DefaultCrudRepository<
   async getUserWithAttributes(
     userId: string,
     group: GROUPS,
+    userAttributeFilter?: Filter<UserAttribute>,
   ): Promise<(UserEntity & UserEntityRelations) | null> {
-    const user: (UserEntity & UserEntityRelations) | null = await this.findOne({
-      where: {id: userId},
+    const user: UserEntity & UserEntityRelations = await this.findById(userId, {
       include: [
-        {relation: 'userAttributes'},
+        {relation: 'userAttributes', scope: userAttributeFilter},
         {relation: 'keycloakGroups', scope: {where: {name: group}}},
       ],
     });
@@ -116,13 +103,8 @@ export class UserEntityRepository extends DefaultCrudRepository<
     group: GROUPS,
   ): Promise<(UserEntity & UserEntityRelations)[] | []> {
     Object.assign(filter, {
-      include: [
-        {relation: 'userAttributes'},
-        {relation: 'keycloakGroups', scope: {where: {name: group}}},
-      ],
+      include: [{relation: 'userAttributes'}, {relation: 'keycloakGroups', scope: {where: {name: group}}}],
     });
-    return (await this.find(filter)).filter(
-      userEntity => userEntity.keycloakGroups?.length,
-    );
+    return (await this.find(filter)).filter(userEntity => userEntity.keycloakGroups?.length);
   }
 }

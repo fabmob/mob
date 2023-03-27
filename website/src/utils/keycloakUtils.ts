@@ -23,11 +23,9 @@ export function useGetFunder(): any {
   let funder: {
     funderName: string | undefined;
     funderType: string | undefined;
-    incentiveType: string | undefined;
   } = {
     funderName: undefined,
     funderType: undefined,
-    incentiveType: undefined,
   };
 
   if (keycloak && keycloak.tokenParsed && keycloak.tokenParsed.membership) {
@@ -37,7 +35,7 @@ export function useGetFunder(): any {
 
     const funderType = membership.find(
       (elt: string) =>
-        elt.startsWith('/collectivités') || elt.startsWith('/entreprises')
+        elt.startsWith('/collectivités') || elt.startsWith('/entreprises') || elt.startsWith('/administrations_nationales')
     );
     const funderTypeArray =
       funderType &&
@@ -45,11 +43,7 @@ export function useGetFunder(): any {
     if (funderTypeArray && funderTypeArray.length > 1) {
       funder = {
         funderName: last(funderTypeArray),
-        funderType: head(funderTypeArray),
-        incentiveType:
-          head(funderTypeArray) === FunderType.ENTERPRISES
-            ? INCENTIVE_TYPE.EMPLOYER_INCENTIVE
-            : INCENTIVE_TYPE.TERRITORY_INCENTIVE,
+        funderType: head(funderTypeArray)
       };
     }
   }

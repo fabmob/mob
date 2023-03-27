@@ -18,11 +18,7 @@ import {
   GroupAttribute,
 } from '../../models';
 import {GROUPS} from '../../utils';
-import {
-  GroupRoleMappingRepository,
-  KeycloakRoleRepository,
-  GroupAttributeRepository,
-} from './index';
+import {GroupRoleMappingRepository, KeycloakRoleRepository, GroupAttributeRepository} from './index';
 
 export class KeycloakGroupRepository extends DefaultCrudRepository<
   KeycloakGroup,
@@ -69,9 +65,7 @@ export class KeycloakGroupRepository extends DefaultCrudRepository<
       where: {realmId: realmName},
     });
 
-    const funder: KeycloakGroup | undefined = groups.find(
-      ({name}) => name === GROUPS.funders,
-    );
+    const funder: KeycloakGroup | undefined = groups.find(({name}) => name === GROUPS.funders);
 
     const funderSubGroups = groups
       .filter(({parentGroup}) => parentGroup === funder?.id)
@@ -85,17 +79,13 @@ export class KeycloakGroupRepository extends DefaultCrudRepository<
       where: {realmId: realmName},
     });
 
-    const funder: KeycloakGroup | undefined = groups.find(
-      ({name}) => name === GROUPS.funders,
-    );
+    const funder: KeycloakGroup | undefined = groups.find(({name}) => name === GROUPS.funders);
 
     const funderSubGroups = groups.filter(({parentGroup}) => parentGroup === funder?.id);
 
     const funderRoles: string[] = await Promise.all(
       funderSubGroups.map(({id}) => this.keycloakRoles(id).find({fields: {name: true}})),
-    ).then((result: KeycloakRole[][]) =>
-      uniq(result.flat().map(({name}: {name: string}) => name)),
-    );
+    ).then((result: KeycloakRole[][]) => uniq(result.flat().map(({name}: {name: string}) => name)));
 
     return funderRoles.sort();
   }
@@ -104,9 +94,7 @@ export class KeycloakGroupRepository extends DefaultCrudRepository<
    * Get citizens group
    * @returns KeycloakGroup
    */
-  async getGroupByName(
-    groupName: string,
-  ): Promise<(KeycloakGroup & KeycloakGroupRelations) | null> {
+  async getGroupByName(groupName: string): Promise<(KeycloakGroup & KeycloakGroupRelations) | null> {
     const group: (KeycloakGroup & KeycloakGroupRelations) | null = await this.findOne({
       where: {and: [{realmId: realmName}, {name: groupName}]},
     });

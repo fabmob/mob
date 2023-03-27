@@ -17,7 +17,8 @@
       "@modules": ["src/modules"],
       "@assets": ["src/assets"],
       "@constants": ["src/constants"],
-      "@environment": ["src/environment"]
+      "@environment": ["src/environment"],
+      "@context": ["src/context"]
     },
     "jsx": "preserve",
     "lib": ["es5", "es6", "dom", "esnext", "dom.iterable"],
@@ -28,7 +29,7 @@
     "typeRoots": ["./src/@types", "./node_modules/@types"],
     "noUnusedLocals": false,
     "allowJs": true,
-    "types": ["@types/jest", "node", "@testing-library/jest-dom"],
+    "types": ["@types/jest", "node", "@testing-library/jest-dom"]
   },
   "exclude": ["node_modules", "public", ".cache"],
   "include": ["./src/**/*"]

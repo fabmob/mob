@@ -3,7 +3,7 @@ import {repository} from '@loopback/repository';
 import {CronJobRepository} from '../repositories';
 import {CronJob} from '../models';
 
-import {logger} from '../utils';
+import {Logger} from '../utils';
 
 @injectable({scope: BindingScope.TRANSIENT})
 export class CronJobService {
@@ -28,10 +28,11 @@ export class CronJobService {
   async createCronLog(type: string): Promise<CronJob> {
     try {
       const createdCron: CronJob = await this.cronJobRepository.create({type});
+      Logger.debug(CronJobService.name, this.createCronLog.name, 'Cron created', createdCron.id);
       return createdCron;
     } catch (error) {
-      logger.error(`Failed to create a cron log: ${error}`);
-      throw new Error(`An error occurred: ${error}`);
+      Logger.error(CronJobService.name, this.createCronLog.name, 'Error', error);
+      throw error;
     }
   }
 
@@ -41,9 +42,10 @@ export class CronJobService {
   async delCronLog(type: string): Promise<void> {
     try {
       await this.cronJobRepository.deleteAll({type: type});
+      Logger.debug(CronJobService.name, this.delCronLog.name, 'Cron deleted', type);
     } catch (error) {
-      logger.error(`Failed to delete a cron log: ${error}`);
-      throw new Error(`An error occurred: ${error}`);
+      Logger.error(CronJobService.name, this.delCronLog.name, 'Error', error);
+      throw error;
     }
   }
 
@@ -53,9 +55,10 @@ export class CronJobService {
   async delCronLogById(id: string): Promise<void> {
     try {
       await this.cronJobRepository.deleteById(id);
+      Logger.debug(CronJobService.name, this.delCronLog.name, 'Cron deleted', id);
     } catch (error) {
-      logger.error(`Failed to delete a cron log: ${error}`);
-      throw new Error(`An error occurred: ${error}`);
+      Logger.error(CronJobService.name, this.delCronLogById.name, 'Error', error);
+      throw error;
     }
   }
 }

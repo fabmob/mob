@@ -6,7 +6,7 @@ import {AdditionalProps, REJECTION_REASON} from '../../utils';
 export class CommonRejection extends Model {
   @property({
     type: 'string',
-    description: `Motif du rejet de la demande`,
+    description: `Motif du rejet de la souscription`,
     required: true,
     jsonSchema: {
       example: REJECTION_REASON.OTHER,
@@ -16,7 +16,7 @@ export class CommonRejection extends Model {
   type: string;
 
   @property({
-    description: `Message indiquant un commentaire relatif au traitement de la demande`,
+    description: `Message indiquant un commentaire relatif au traitement de la souscription`,
     jsonSchema: {
       example: `Le justificatif demandé pour la souscription de l'aide est obligatoire`,
     },

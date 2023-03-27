@@ -20,7 +20,7 @@ export class FunderCommunity extends Community {
     description: `Type du financeur attaché à la communauté`,
     required: true,
     jsonSchema: {
-      example: FUNDER_TYPE.collectivity,
+      example: FUNDER_TYPE.COLLECTIVITY,
       enum: Object.values(FUNDER_TYPE),
     },
   })

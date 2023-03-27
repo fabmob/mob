@@ -1,22 +1,30 @@
 ---
 templateKey: decouvrir-le-projet
-title: Le Projet moB
-description: >-
-  Mon Compte Mobilité est un projet porté par ​Capgemini Invent et La Fabrique
-  des mobilités. ​
+title: Le programme Mon Compte Mobilité
+description: >
+  Mon Compte Mobilité (moB) est **lauréat d’un appel à programme CEE** soutenu
+  par Le Ministère de la Transition Ecologique depuis 2020. Porté par Capgemini
+  Invent et La Fabrique des Mobilités en partenariat avec les élus et
+  partenaires locaux de **3 territoires d’expérimentation** : l’Ile-de-France,
+  Mulhouse Alsace Agglomération et le département de l’Aude.
 
 
-  Lauréat de l’appel à programme des certificats d’économies d’énergies (AAP CEE) lancé par le ministère de la Transition écologique, ce projet est financé ​par l’Ademe, Total et Carfuel.​
+  Mon Compte Mobilité (moB) est une plateforme au service de la mobilité durable qui **centralise** au même endroit l’ensemble **des aides** proposées par l’Etat, les territoires (commune, département, région) et les employeurs partenaires afin de promouvoir une mobilité plus vertueuse.
 
-  ​
 
-   moB a pour ambition d’accélérer les mutations des mobilités pour réduire massivement l'autosolisme et encourager l'utilisation des mobilités durables.
-subtitle: Un développement incrémental expérimenté sur 3 territoires pilotes en 2022
-subText: Le projet Mon Compte Mobilité est une expérimentation réalisée en
-  partenariat avec des collectivités, employeurs et acteurs de la mobilité. Dans
-  une approche itérative, elle permettra de tester et d'améliorer la solution
-  déployée. Les territoires d'expérimentation sont l’Île-de-France,
-  l'Agglomération de Mulhouse et le Département de l'Aude.
+  En créant son compte, tout citoyen peut accéder à la **présentation détaillée des aides** référencées dans moB (montant, conditions d'éligibilité, etc.), et **souscrire directement aux dispositifs auxquels il est éligible** avec un suivi en continu du statut de ses demandes.
+
+
+  En janvier 2023, **Mon Compte Mobilité (moB) participe au plan national “Covoiturage du quotidien”** et référence la « prime covoiturage de 100€ » réservée aux primo-covoitureurs inscrits sur une plateforme de covoiturage partenaire. Les primo-covoitureurs se connectent à moB et s’authentifient via la fonctionnalité FranceConnect.
+subtitle: La standardisation des MAS (Mobilité par Association de Services)
+subText: Le programme moB participe également à la standardisation des échanges
+  entre les opérateurs de mobilité et les services numériques multimodaux. Ces
+  standards ont pour but de présenter aux citoyens l’offre de mobilité la plus
+  riche possible au sein des territoires et leur permettre d’acheter et de
+  réserver différents titres de mobilité sur une même application. A titre
+  d’exemple, le département de l’Aude expérimente l’agrégation de l’offre de
+  l’ensemble des covoitureurs présents sur son territoire au sein de la
+  plateforme de mobilité Mobil’Aude.
 cardSection:
   title: "Participer à l'aventure "
   cards:
@@ -49,4 +57,7 @@ linkSection:
       url: https://www.linkedin.com/showcase/mon-compte-mobilit%C3%A9/
     - label: Convention CEE Mon Compte Mobilité
       url: https://www.ecologie.gouv.fr/sites/default/files/Mon%20compte%20mobilit%C3%A9_convention%20sign%C3%A9e.pdf
+    - file: /uploads/new-pdf
+      url: https://github.com/fabmob/mob
+      label: Les ressources moB en Open Source
 ---

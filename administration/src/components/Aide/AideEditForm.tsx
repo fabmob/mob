@@ -18,7 +18,7 @@ import {
   Toolbar,
   EditProps,
 } from 'react-admin';
-import { CardContent, Box } from '@material-ui/core';
+import { CardContent, Box, Tooltip } from '@material-ui/core';
 import {
   TRANSPORT_CHOICE,
   INCENTIVE_TYPE_CHOICE,
@@ -36,21 +36,30 @@ import CustomAddButton from '../common/CustomAddButton';
 import '../styles/DynamicForm.css';
 import TerritoriesDropDown from '../common/TerritoriesDropDown';
 import SubscriptionModeForm from '../common/SubscriptionModeForm';
+import { InfoRounded } from '@material-ui/icons';
+import AidesMessages from '../../utils/Aide/fr.json';
 
 const AideEditForm = (props: EditProps) => {
   const { save, record } = useEditContext();
   const recordContext = useRecordContext();
   const [isMobilityChecked, setIsMobilityChecked] = useState(false);
+  const [isSendEmailChecked, setIsSendEmailChecked] = React.useState(false);
   const [isCertifiedTimestampChecked, setIsCertifiedTimestampChecked] =
     React.useState(false);
 
   // Check the isMobilityChecked at the willmount
   useEffect(() => {
-    if (recordContext?.isMCMStaff) {
-      setIsMobilityChecked(true);
-    } else {
-      setIsMobilityChecked(false);
-    }
+    setIsMobilityChecked(recordContext?.isMCMStaff);
+  }, []);
+
+  // Check the IsSendEmailChecked at the willmount
+  useEffect(() => {
+    setIsSendEmailChecked(recordContext?.isCitizenNotificationsDisabled);
+  }, []);
+
+  // Check the IsCertifiedTimestampChecked at the willmount
+  useEffect(() => {
+    setIsCertifiedTimestampChecked(recordContext?.isCertifiedTimestampRequired);
   }, []);
 
   // format attribute validityDate useEffect
@@ -93,11 +102,15 @@ const AideEditForm = (props: EditProps) => {
                         disabled
                         label="Id"
                         source="id"
+                        fullWidth
                       />
+                      <h3>
+                        {AidesMessages['incentive.mainCharacteristics.title']}
+                      </h3>
                       <TextInput
                         resource="aides"
                         source="title"
-                        label="Nom de l'aide"
+                        label="Nom"
                         fullWidth
                         validate={[required()]}
                       />
@@ -113,37 +126,35 @@ const AideEditForm = (props: EditProps) => {
                       <SelectInput
                         resource="aides"
                         source="incentiveType"
-                        label="Financeur"
+                        label="Type d'aide"
+                        disabled
                         fullWidth
                         validate={[required()]}
                         choices={INCENTIVE_TYPE_CHOICE}
                       />
-                      <TerritoriesDropDown canCreate={false} />
+
                       <TextInput
                         resource="aides"
                         disabled
                         source="funderName"
-                        label="Nom du financeur"
+                        label="Financeur"
                         fullWidth
                       />
                       <TextInput
-                        resource="aides"
-                        source="conditions"
-                        label="Condition d'obtention"
-                        rowsMax={10}
+                        source="minAmount"
+                        label="Montant minimum de l'aide"
                         validate={[required()]}
-                        multiline
                         fullWidth
                       />
-                      <TextInput
-                        resource="aides"
-                        source="paymentMethod"
-                        label="Modalité de versement"
-                        rowsMax={10}
-                        validate={[required()]}
-                        multiline
+                      <AutocompleteArrayInput
+                        source="transportList"
+                        label="Mode de transport"
                         fullWidth
+                        validate={[required()]}
+                        choices={TRANSPORT_CHOICE}
                       />
+                      <TerritoriesDropDown />
+                      <h3>{AidesMessages['incentive.detailsInfo.title']}</h3>
                       <TextInput
                         resource="aides"
                         source="allocatedAmount"
@@ -155,38 +166,20 @@ const AideEditForm = (props: EditProps) => {
                       />
                       <TextInput
                         resource="aides"
-                        source="minAmount"
-                        label="Montant minimum de l'aide"
+                        source="conditions"
+                        label="Conditions d'obtention"
+                        rowsMax={10}
                         validate={[required()]}
+                        multiline
                         fullWidth
                       />
-                      <AutocompleteArrayInput
-                        resource="aides"
-                        source="transportList"
-                        label="Mode de transport"
-                        fullWidth
-                        validate={[required()]}
-                        choices={TRANSPORT_CHOICE}
-                      />
-                      <AutocompleteArrayInput
-                        resource="aides"
-                        source="attachments"
-                        label="Justificatif (possibilité d'en créer)"
-                        onCreate={(value) => {
-                          if (value) {
-                            const newProof = { id: value, name: value };
-                            PROOF_CHOICE.push(newProof);
-                            return newProof;
-                          }
-                        }}
-                        fullWidth
-                        choices={PROOF_CHOICE}
-                      />
-
                       <TextInput
                         resource="aides"
-                        source="additionalInfos"
-                        label="Informations complémentaires"
+                        source="paymentMethod"
+                        label="Modalités de versement"
+                        rowsMax={10}
+                        validate={[required()]}
+                        multiline
                         fullWidth
                       />
                       <TextInput
@@ -195,6 +188,12 @@ const AideEditForm = (props: EditProps) => {
                         label="Contact"
                         maxRows={10}
                         multiline
+                        fullWidth
+                      />
+                      <TextInput
+                        resource="aides"
+                        source="additionalInfos"
+                        label="Informations complémentaires"
                         fullWidth
                       />
                       <TextInput
@@ -214,54 +213,44 @@ const AideEditForm = (props: EditProps) => {
                         format={getDate}
                       />
                     </Box>
-                    <hr style={{ width: '695px', margin: '0px' }} />
-                    <h3>Horodatage</h3>
-                    <div style={{ marginTop: '10px', marginLeft: '10px' }}>
-                      <span>Description :</span>
-                      <p
-                        style={{
-                          fontSize: '12px',
-                          color: '#464cd0',
-                          top: '-20px',
-                        }}
-                      >
-                        Horodatage des souscriptions
-                      </p>
-                      <Box display="flex">
-                        <BooleanInput
-                          checked={isCertifiedTimestampChecked}
-                          onChange={() =>
-                            setIsCertifiedTimestampChecked(
-                              !isCertifiedTimestampChecked
-                            )
-                          }
-                          source="isCertifiedTimestampRequired"
-                          label="Actif"
-                        />
-                      </Box>
-                    </div>
-                    <hr style={{ width: '695px', margin: '0px' }} />
-                    <BooleanInput
-                      resource="aides"
-                      source="isMCMStaff"
-                      label="Mon Compte Mobilité"
-                      checked={isMobilityChecked}
-                      onChange={handleShowMobilityInputs}
-                    />
+                    <h3>
+                      {' '}
+                      {AidesMessages['incentive.subscription.management.title']}
+                    </h3>
                     <Box maxWidth={700}>
-                      <TextInput
-                        source="subscriptionLink"
-                        label="Site de souscription"
-                        fullWidth
-                        validate={
-                          isMobilityChecked
-                            ? [validateUrl]
-                            : [required(), validateUrl]
-                        }
+                      <h3 className="subtitle">
+                        {AidesMessages['incentive.mob.title']}
+                      </h3>
+                      <BooleanInput
+                        checked={isMobilityChecked}
+                        onChange={handleShowMobilityInputs}
+                        source="isMCMStaff"
+                        label={isMobilityChecked === true ? 'Oui' : 'Non'}
                       />
+                      {isMobilityChecked ? (
+                        <TextInput
+                          source="subscriptionLink"
+                          label="Site de souscription externe (facultatif)"
+                          fullWidth
+                        />
+                      ) : (
+                        <TextInput
+                          source="subscriptionLink"
+                          label="Site de souscription externe"
+                          fullWidth
+                          validate={
+                            isMobilityChecked
+                              ? [validateUrl]
+                              : [required(), validateUrl]
+                          }
+                        />
+                      )}
                     </Box>
                     {isMobilityChecked && (
                       <>
+                        <h3>
+                          {AidesMessages['incentive.subscription.form.title']}
+                        </h3>
                         <Box
                           mt={2}
                           display="flex"
@@ -269,79 +258,147 @@ const AideEditForm = (props: EditProps) => {
                           flexWrap="wrap"
                           justifyContent="space-between"
                         >
-                          <ArrayInput source="specificFields" label="">
-                            <SimpleFormIterator
-                              className="simpleForm1"
-                              addButton={
-                                <CustomAddButton
-                                  label={'Ajouter un champ spécifique'}
-                                />
+                          <AutocompleteArrayInput
+                            resource="aides"
+                            source="attachments"
+                            label="Justificatifs"
+                            onCreate={(value) => {
+                              if (value) {
+                                const newProof = { id: value, name: value };
+                                PROOF_CHOICE.push(newProof);
+                                return newProof;
                               }
-                            >
-                              <TextInput
-                                source="title"
-                                label="Champ libre"
-                                fullWidth
-                                validate={[required()]}
-                              />
-                              <SelectInput
-                                source="inputFormat"
-                                label="Format"
-                                fullWidth
-                                validate={[required()]}
-                                choices={INPUT_FORMAT_CHOICE}
-                              />
-                              <FormDataConsumer>
-                                {({
-                                  formData, // The whole form data
-                                  scopedFormData, // The data for this item of the ArrayInput
-                                  getSource, // A function to get the valid source inside an ArrayInput
-                                  ...rest
-                                }) =>
-                                  scopedFormData?.inputFormat ===
-                                  'listeChoix' ? (
-                                    <>
-                                      <NumberInput
-                                        source={getSource(
-                                          'choiceList.possibleChoicesNumber'
-                                        )}
-                                        label="Nombre de choix possible"
-                                        min={0}
-                                        validate={[required()]}
-                                      />
-                                      <ArrayInput
-                                        source={getSource(
-                                          'choiceList.inputChoiceList'
-                                        )}
-                                        label=""
-                                      >
-                                        <SimpleFormIterator className="simpleForm2">
-                                          <TextInput
-                                            source="inputChoice"
-                                            label="Nom du champ"
-                                            fullWidth
-                                            validate={[required()]}
-                                          />
-                                        </SimpleFormIterator>
-                                      </ArrayInput>
-                                    </>
-                                  ) : null
+                            }}
+                            fullWidth
+                            choices={PROOF_CHOICE}
+                          />
+                          <ArrayInput source="specificFields" label="">
+                            <div>
+                              <h3 className="subtitle">
+                                {AidesMessages['incentive.specificFields']}
+                              </h3>
+                              <SimpleFormIterator
+                                className="simpleForm1"
+                                addButton={
+                                  <CustomAddButton
+                                    label={'Ajouter un champ spécifique'}
+                                  />
                                 }
-                              </FormDataConsumer>
-                              <BooleanInput
-                                source="isRequired"
-                                label="Champ obligatoire"
-                              />
-                            </SimpleFormIterator>
+                              >
+                                <TextInput
+                                  source="title"
+                                  label="Champ libre"
+                                  fullWidth
+                                  validate={[required()]}
+                                />
+                                <SelectInput
+                                  source="inputFormat"
+                                  label="Format"
+                                  fullWidth
+                                  validate={[required()]}
+                                  choices={INPUT_FORMAT_CHOICE}
+                                />
+                                <FormDataConsumer>
+                                  {({
+                                    formData, // The whole form data
+                                    scopedFormData, // The data for this item of the ArrayInput
+                                    getSource, // A function to get the valid source inside an ArrayInput
+                                    ...rest
+                                  }) =>
+                                    scopedFormData?.inputFormat ===
+                                    'listeChoix' ? (
+                                      <>
+                                        <NumberInput
+                                          source={getSource(
+                                            'choiceList.possibleChoicesNumber'
+                                          )}
+                                          label="Nombre de choix possible"
+                                          min={0}
+                                          validate={[required()]}
+                                        />
+                                        <ArrayInput
+                                          source={getSource(
+                                            'choiceList.inputChoiceList'
+                                          )}
+                                          label=""
+                                        >
+                                          <SimpleFormIterator className="simpleForm2">
+                                            <TextInput
+                                              source="inputChoice"
+                                              label="Nom du champ"
+                                              fullWidth
+                                              validate={[required()]}
+                                            />
+                                          </SimpleFormIterator>
+                                        </ArrayInput>
+                                      </>
+                                    ) : null
+                                  }
+                                </FormDataConsumer>
+                                <BooleanInput
+                                  source="isRequired"
+                                  label="Champ obligatoire"
+                                />
+                              </SimpleFormIterator>
+                            </div>
                           </ArrayInput>
                         </Box>
+                        <h3>
+                          {
+                            AidesMessages[
+                              'incentive.subscription.treatment.title'
+                            ]
+                          }
+                        </h3>
                         <SubscriptionModeForm />
+                        <Box
+                          display="flex"
+                          alignItems="center"
+                          maxWidth={700}
+                          height={60}
+                        >
+                          <h3 className="subtitle">
+                            {AidesMessages['incentive.timestamp.title']}
+                          </h3>
+
+                          <Tooltip title="Un horodatage des métadonnées de la souscription est effectué à chaque étape avant sa vérification finale.">
+                            <InfoRounded color="primary" />
+                          </Tooltip>
+                        </Box>
                         <Box display="flex">
                           <BooleanInput
-                            checked={false}
+                            checked={isCertifiedTimestampChecked}
+                            onChange={() =>
+                              setIsCertifiedTimestampChecked(
+                                !isCertifiedTimestampChecked
+                              )
+                            }
+                            source="isCertifiedTimestampRequired"
+                            label={
+                              isCertifiedTimestampChecked ? 'Actif' : 'Inactif'
+                            }
+                          />
+                        </Box>
+                        <h3>
+                          {
+                            AidesMessages[
+                              'incentive.subscription.communication.title'
+                            ]
+                          }
+                        </h3>
+                        <Box display="flex">
+                          <BooleanInput
+                            resource="aides"
+                            checked={isSendEmailChecked}
                             source="isCitizenNotificationsDisabled"
-                            label="Désactiver l'envoi des notifications au citoyen"
-                            initialValue={false}
+                            onChange={() =>
+                              setIsSendEmailChecked(!isSendEmailChecked)
+                            }
+                            label={
+                              isSendEmailChecked
+                                ? 'Désactivation des notifications citoyen'
+                                : 'Envoi des notifications au citoyen'
+                            }
                           />
                         </Box>
                       </>

@@ -20,26 +20,6 @@ export const revokePreviewURL = (url: string) => {
   URL.revokeObjectURL(url);
 };
 
-export const stringifyParams = (queryParams: {
-  [key: string]: string[] | string | undefined | number;
-}): string => {
-  const keys = Object.keys(queryParams);
-  if (!keys.length) {
-    return '';
-  }
-
-  const stringifiedParams: string = keys
-    .map((key) => {
-      const value = queryParams[key];
-      return value !== undefined && value !== ''
-        ? `${key}=${value}`
-        : undefined;
-    })
-    .filter((key) => !!key)
-    .join('&');
-
-  return stringifiedParams !== '' ? `?${stringifiedParams}` : '';
-};
 
 export const formattedDateFile = (date: Date) => {
   const dd = String(date.getDate()).padStart(2, '0');
@@ -74,30 +54,6 @@ export const firstCharUpper = (item: string = ''): string => {
     separateWord[i] = capitalize(separateWord[i]);
   }
   return separateWord?.join(' ');
-};
-
-export const setCompaniesList = (enterprisesList: []): [] => {
-  /**
-   * generate the companies options list
-   */
-  const companies: [] = [];
-
-  enterprisesList.forEach(
-    (item: { id: string; name: string; emailFormat: string }) =>
-      companies.push({
-        id: item.id,
-        value: item.name,
-        label: item.name,
-        formats: item.emailFormat,
-      })
-  );
-
-  /**
-   * sort the companies options list
-   */
-  companies.sort((a: any, b: any) => compareObjects(a, b, 'label'));
-
-  return companies;
 };
 
 /**

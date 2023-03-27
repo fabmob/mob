@@ -1,12 +1,7 @@
 import {expect} from '@loopback/testlab';
 
 import {realmName} from '../../constants';
-import {
-  KeycloakGroup,
-  UserAttribute,
-  UserEntity,
-  UserGroupMembership,
-} from '../../models';
+import {KeycloakGroup, UserAttribute, UserEntity, UserGroupMembership} from '../../models';
 
 import {
   GroupAttributeRepository,
@@ -63,8 +58,8 @@ describe('UserEntity repository (unit)', () => {
   it('UserEntity repository  getUserWithAttributes(): successful 1 result', async () => {
     const citizenUserEntity: UserEntity = new UserEntity({
       id: 'userId',
-      emailVerified: 1 as unknown as Boolean,
-      enabled: 1 as unknown as Boolean,
+      emailVerified: true,
+      enabled: true,
       notBefore: 0,
     });
 
@@ -81,17 +76,11 @@ describe('UserEntity repository (unit)', () => {
       realmId: realmName,
     });
 
-    const createdUserEntity: UserEntity = await userEntityRepository.create(
-      citizenUserEntity,
-    );
+    const createdUserEntity: UserEntity = await userEntityRepository.create(citizenUserEntity);
 
-    const createdUserAttribute: UserAttribute = await userAttributeRepository.create(
-      citizenUserAttributes,
-    );
+    const createdUserAttribute: UserAttribute = await userAttributeRepository.create(citizenUserAttributes);
 
-    const createdKeycloakGroup: KeycloakGroup = await keycloakGroupRepository.create(
-      citizenKeycloakGroup,
-    );
+    const createdKeycloakGroup: KeycloakGroup = await keycloakGroupRepository.create(citizenKeycloakGroup);
 
     await userGroupMembershipRepository.create(
       new UserGroupMembership({
@@ -100,15 +89,12 @@ describe('UserEntity repository (unit)', () => {
       }),
     );
 
-    const result = await userEntityRepository.getUserWithAttributes(
-      'userId',
-      GROUPS.citizens,
-    );
+    const result = await userEntityRepository.getUserWithAttributes('userId', GROUPS.citizens);
     expect(result).to.deepEqual(
       new UserEntity({
         ...createdUserEntity,
-        emailVerified: {data: [0], type: 'Buffer'} as unknown as Boolean,
-        enabled: {data: [0], type: 'Buffer'} as unknown as Boolean,
+        emailVerified: true,
+        enabled: true,
         userAttributes: [createdUserAttribute],
         keycloakGroups: [createdKeycloakGroup],
       }),
@@ -118,8 +104,8 @@ describe('UserEntity repository (unit)', () => {
   it('UserEntity repository  getUserWithAttributes(): successful no result', async () => {
     const citizenUserEntity: UserEntity = new UserEntity({
       id: 'userId',
-      emailVerified: 1 as unknown as Boolean,
-      enabled: 1 as unknown as Boolean,
+      emailVerified: true,
+      enabled: true,
       notBefore: 0,
     });
 
@@ -149,18 +135,15 @@ describe('UserEntity repository (unit)', () => {
       }),
     );
 
-    const result = await userEntityRepository.getUserWithAttributes(
-      'userId',
-      GROUPS.funders,
-    );
+    const result = await userEntityRepository.getUserWithAttributes('userId', GROUPS.funders);
     expect(result).to.deepEqual(null);
   });
 
   it('UserEntity repository searchUserWithAttributesByFilter(): no filter, 1 result', async () => {
     const citizenUserEntity: UserEntity = new UserEntity({
       id: 'userId',
-      emailVerified: 1 as unknown as Boolean,
-      enabled: 1 as unknown as Boolean,
+      emailVerified: true,
+      enabled: true,
       notBefore: 0,
     });
 
@@ -177,17 +160,11 @@ describe('UserEntity repository (unit)', () => {
       realmId: realmName,
     });
 
-    const createdUserEntity: UserEntity = await userEntityRepository.create(
-      citizenUserEntity,
-    );
+    const createdUserEntity: UserEntity = await userEntityRepository.create(citizenUserEntity);
 
-    const createdUserAttribute: UserAttribute = await userAttributeRepository.create(
-      citizenUserAttributes,
-    );
+    const createdUserAttribute: UserAttribute = await userAttributeRepository.create(citizenUserAttributes);
 
-    const createdKeycloakGroup: KeycloakGroup = await keycloakGroupRepository.create(
-      citizenKeycloakGroup,
-    );
+    const createdKeycloakGroup: KeycloakGroup = await keycloakGroupRepository.create(citizenKeycloakGroup);
 
     await userGroupMembershipRepository.create(
       new UserGroupMembership({
@@ -196,15 +173,12 @@ describe('UserEntity repository (unit)', () => {
       }),
     );
 
-    const result = await userEntityRepository.searchUserWithAttributesByFilter(
-      {},
-      GROUPS.citizens,
-    );
+    const result = await userEntityRepository.searchUserWithAttributesByFilter({}, GROUPS.citizens);
     expect(result).to.deepEqual([
       new UserEntity({
         ...createdUserEntity,
-        emailVerified: {data: [0], type: 'Buffer'} as unknown as Boolean,
-        enabled: {data: [0], type: 'Buffer'} as unknown as Boolean,
+        emailVerified: true,
+        enabled: true,
         userAttributes: [createdUserAttribute],
         keycloakGroups: [createdKeycloakGroup],
       }),
@@ -215,8 +189,8 @@ describe('UserEntity repository (unit)', () => {
     const citizenUserEntity: UserEntity = new UserEntity({
       id: 'userId',
       lastName: 'lastName',
-      emailVerified: 1 as unknown as Boolean,
-      enabled: 1 as unknown as Boolean,
+      emailVerified: true,
+      enabled: true,
       notBefore: 0,
     });
 
@@ -233,17 +207,11 @@ describe('UserEntity repository (unit)', () => {
       realmId: realmName,
     });
 
-    const createdUserEntity: UserEntity = await userEntityRepository.create(
-      citizenUserEntity,
-    );
+    const createdUserEntity: UserEntity = await userEntityRepository.create(citizenUserEntity);
 
-    const createdUserAttribute: UserAttribute = await userAttributeRepository.create(
-      citizenUserAttributes,
-    );
+    const createdUserAttribute: UserAttribute = await userAttributeRepository.create(citizenUserAttributes);
 
-    const createdKeycloakGroup: KeycloakGroup = await keycloakGroupRepository.create(
-      citizenKeycloakGroup,
-    );
+    const createdKeycloakGroup: KeycloakGroup = await keycloakGroupRepository.create(citizenKeycloakGroup);
 
     await userGroupMembershipRepository.create(
       new UserGroupMembership({
@@ -259,8 +227,8 @@ describe('UserEntity repository (unit)', () => {
     expect(result).to.deepEqual([
       new UserEntity({
         ...createdUserEntity,
-        emailVerified: {data: [0], type: 'Buffer'} as unknown as Boolean,
-        enabled: {data: [0], type: 'Buffer'} as unknown as Boolean,
+        emailVerified: true,
+        enabled: true,
         userAttributes: [createdUserAttribute],
         keycloakGroups: [createdKeycloakGroup],
       }),
@@ -270,8 +238,8 @@ describe('UserEntity repository (unit)', () => {
   it('UserEntity repository searchUserWithAttributesByFilter(): successful no result', async () => {
     const citizenUserEntity: UserEntity = new UserEntity({
       id: 'userId',
-      emailVerified: 1 as unknown as Boolean,
-      enabled: 1 as unknown as Boolean,
+      emailVerified: true,
+      enabled: true,
       notBefore: 0,
     });
 
@@ -301,10 +269,7 @@ describe('UserEntity repository (unit)', () => {
       }),
     );
 
-    const result = await userEntityRepository.searchUserWithAttributesByFilter(
-      {},
-      GROUPS.funders,
-    );
+    const result = await userEntityRepository.searchUserWithAttributesByFilter({}, GROUPS.funders);
     expect(result).to.deepEqual([]);
   });
 });

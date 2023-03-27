@@ -44,23 +44,17 @@ fs.readFile(OPENAPI_FILEPATH, 'utf8', (err, data) => {
 
   let finished = false;
   let schemasList = findAllByKey(maasPaths, '$ref');
-  let schemaNames = [...new Set(schemasList)].map(
-    value => value.split('#/components/schemas/')[1],
-  );
+  let schemaNames = [...new Set(schemasList)].map(value => value.split('#/components/schemas/')[1]);
   let schemasCount = schemaNames.length;
   let maasSchemas = {};
 
   while (!finished) {
     maasSchemas = Object.fromEntries(
-      Object.entries(parsedData.components.schemas).filter(([key]) =>
-        schemaNames.includes(key),
-      ),
+      Object.entries(parsedData.components.schemas).filter(([key]) => schemaNames.includes(key)),
     );
 
     let nestedSchemas = findAllByKey(maasSchemas, '$ref');
-    nestedSchemas = [...new Set(nestedSchemas)].map(
-      value => value.split('#/components/schemas/')[1],
-    );
+    nestedSchemas = [...new Set(nestedSchemas)].map(value => value.split('#/components/schemas/')[1]);
 
     schemaNames.push(...nestedSchemas);
     schemaNames = [...new Set(schemaNames)];

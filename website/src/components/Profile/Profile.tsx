@@ -12,6 +12,7 @@ import ScrollTopButton from '@components/ScrollTopButton/ScrollTopButton';
 import Table from '@components/Table/Table';
 import TextField from '@components/TextField/TextField';
 import Button from '@components/Button/Button';
+import LoginFC from '@components/LoginFC/LoginFC';
 import TooltipInfoIcon from '@components/TooltipInfoIcon/TooltipInfoIcon';
 import ProfessionalForm from '@components/Form/ProfessionalForm/ProfessionalForm';
 import SelectField from '@components/SelectField/SelectField';
@@ -25,16 +26,12 @@ import {
   downloadRgpdFileXlsx,
   deleteCitizenAccount,
 } from '@api/CitizenService';
-import { getEntreprisesList, EntrepriseName } from '@api/EntrepriseService';
 import { UserFunder, getUserFunderCommunities } from '@api/UserFunderService';
+import { getFunders } from '@api/FunderService';
 
 import { computeServerErrorsV2 } from '@utils/form';
 import { Action, InputFormat } from '@utils/table';
-import {
-  setCompaniesList,
-  formattedDateFile,
-  firstCharUpper,
-} from '@utils/helpers';
+import { formattedDateFile, firstCharUpper } from '@utils/helpers';
 import { useGetFunder, useFromFranceConnect } from '@utils/keycloakUtils';
 import {
   Citizen,
@@ -43,18 +40,22 @@ import {
   CitizenUpdate,
   CmsType,
 } from '@utils/citoyens';
-import { isManager, isSupervisor, Community } from '@utils/funders';
-
-import { UrlFc, URL_LOGOUT_FC } from '@constants';
+import {
+  Funder,
+  FUNDER_TYPE,
+  isManager,
+  isSupervisor,
+  Community,
+} from '@utils/funders';
+import { UrlFc, URL_LOGOUT_FC, CertificationSource } from '@constants';
 import { useSession, useUser } from '../../context';
-
 import Strings from './locale/fr.json';
 import schema from './schema';
 import UserFunderProfile from './UserFunderProfile';
 import { environment } from '@environment';
+import { matomoPageTracker, matomoTrackEvent } from '@utils/matomo';
 
 import './_profile.scss';
-import { matomoPageTracker, matomoTrackEvent } from '@utils/matomo';
 
 export interface User {
   gender: string;
@@ -95,9 +96,8 @@ export interface User {
 
 interface CompanyOption {
   id: string;
-  value: string;
   label: string;
-  formats: string[];
+  value: string;
 }
 
 interface ProfileProps {
@@ -155,7 +155,7 @@ const Profile: FC<ProfileProps> = ({ crumbs }) => {
   const { citizen, userFunder, refetchCitizen } = useUser();
   const { trackEvent, trackPageView } = useMatomo();
   const { funderName } = useGetFunder();
-  const isFromFranceConnect = useFromFranceConnect();
+  let isFromFranceConnect = useFromFranceConnect();
 
   const [userData, setUserData] = useState<User | undefined>(undefined);
   const [profileFormData, setProfileFormData] = useState<CitizenUpdate | null>(
@@ -192,6 +192,11 @@ const Profile: FC<ProfileProps> = ({ crumbs }) => {
       },
     },
   });
+  //source verification for franceconnect
+
+  if (userData?.identity?.birthDate?.source === CertificationSource.FC) {
+    isFromFranceConnect = true;
+  }
 
   let enterpriseTipPhrase: string | null = null;
   if (userData?.affiliation?.status === AFFILIATION_STATUS.TO_AFFILIATE)
@@ -357,13 +362,23 @@ const Profile: FC<ProfileProps> = ({ crumbs }) => {
   const sanitizeCitizenData = async (saniCitizen: Citizen) => {
     let sanitizedCitizenData: User = { ...saniCitizen };
     const consentsData = await getConsentsById(saniCitizen.id);
-    const enterprisesList = await getEntreprisesList<EntrepriseName[]>();
-    const company = enterprisesList.find(
+    const enterpriseList = await getFunders<Funder[]>([FUNDER_TYPE.ENTERPRISE]);
+    const company: Funder = enterpriseList.find(
       (item: { id: string }) =>
         item.id === saniCitizen.affiliation?.enterpriseId
     );
-    const companies: object[] = setCompaniesList(enterprisesList);
-    setCompanyOptions(companies);
+    setCompanyOptions(
+      enterpriseList.map((enterprise: Funder) => {
+        if (enterprise.id === saniCitizen.affiliation?.enterpriseId) {
+          company.name = enterprise.name;
+        }
+        return {
+          id: enterprise.id,
+          label: enterprise.name,
+          value: enterprise.name,
+        };
+      })
+    );
     sanitizedCitizenData.gender = firstCharUpper(
       sanitizedCitizenData.identity.gender.value === 2
         ? Strings['profile.label.gender.female']
@@ -828,7 +843,30 @@ const Profile: FC<ProfileProps> = ({ crumbs }) => {
           </div>
           {citizen && (
             <>
-              <h2>{Strings['profile.form.title.identity']}</h2>
+              <div className="profile-form-title-container">
+                <h2>{Strings['profile.form.title.identity']}</h2>
+                <div className="identity-container">
+                  {isFromFranceConnect ? (
+                    <SVG icon="identityChecked" size="30" />
+                  ) : (
+                    <SVG icon="identityUnchecked" size="30" />
+                  )}
+                </div>
+              </div>
+              <LoginFC
+                isFCCitizen={isFromFranceConnect}
+                contentText={{
+                  notExtendedMessage:
+                    Strings['profile.unextended.login.FC.message'],
+                  extendedQuestion:
+                    Strings['profile.Extended.login.FC.question'],
+                  extendedMessage1:
+                    Strings['profile.Extended.login.FC.message1'],
+                  extendedMessage2:
+                    Strings['profile.Extended.login.FC.message2'],
+                }}
+              />
+
               <Table inputFormatList={identityList} data={userData} />
               <h2>{Strings['profile.form.title.address']}</h2>
               {isEditing ? (

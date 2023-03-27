@@ -1,4 +1,9 @@
 {
+  "homePage.head.title": "moB",
+  "homePage.head.description": "Mon Compte Mobilité (moB) encourage le recours aux mobilités douces en facilitant l'accès aux aides et services de mobilité.",
+  "homePage.head.title.separator":"|",
+  "homePage.head.title.siteName":"Mon Compte Mobilité",
+  
   "homePage.title": "Avec moB j’accède à l’ensemble de mes aides à la mobilité et réduis mon empreinte carbone.",
   "create.account": "Créer un compte",
   "title.help": "Rechercher facilement des aides à la mobilité pour financer mes déplacements",

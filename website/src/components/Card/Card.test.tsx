@@ -53,4 +53,18 @@ describe('Card component', () => {
     const { getByTestId } = render(<RenderTags tags={['Tag 1']} />);
     expect(getByTestId('tagComponent')).toBeInTheDocument();
   });
+
+  it('Should display the element passed in valueElement prop and not display tags', () => {
+    const { getByText } = render(
+      <Card
+        theId="toto"
+        title="Title of card"
+        valueElement={<p>Hello</p>}
+        href="#"
+        tags={[]}
+      />
+    );
+    expect(getByText('Hello')).toBeInTheDocument();
+    expect(document.querySelector('.card-body-tags')).toBeEmptyDOMElement();
+  });
 });

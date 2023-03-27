@@ -1,35 +1,19 @@
-import {Citizen} from '../models';
-import {AFFILIATION_STATUS, FUNDER_TYPE} from './enum';
+import {Citizen, Enterprise} from '../models';
+import {AFFILIATION_STATUS} from './enum';
 
 const isEnterpriseAffilitation = ({
   citizen,
-  funderMatch,
-  inputFunderId,
+  enterprise,
 }: {
   citizen: Citizen | null;
-  funderMatch:
-    | ''
-    | {
-        funderType: FUNDER_TYPE;
-        id?: string;
-        name: string;
-        siretNumber?: number | undefined;
-        emailFormat?: string[];
-        employeesCount?: number | undefined;
-        budgetAmount?: number | undefined;
-        isHris?: boolean;
-      }
-    | undefined;
-  inputFunderId?: string | undefined;
+  enterprise: Enterprise | null;
 }) => {
   return (
-    funderMatch &&
+    enterprise &&
     !!citizen &&
-    !!inputFunderId &&
     citizen.affiliation &&
-    citizen.affiliation.enterpriseId === inputFunderId &&
-    citizen.affiliation.status === AFFILIATION_STATUS.AFFILIATED &&
-    funderMatch.funderType === FUNDER_TYPE.enterprise
+    citizen.affiliation.enterpriseId === enterprise.id &&
+    citizen.affiliation.status === AFFILIATION_STATUS.AFFILIATED
   );
 };
 

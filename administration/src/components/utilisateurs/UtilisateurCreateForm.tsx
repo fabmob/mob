@@ -3,8 +3,9 @@ import { useEffect } from 'react';
 import { TextInput, required, email, BooleanInput } from 'react-admin';
 import { CardContent, Box } from '@material-ui/core';
 import { useFormState } from 'react-final-form';
+import React from 'react';
 
-import FinanceurDropDown from '../common/FinanceurDropDown';
+import FunderDropDown from '../common/FunderDropDown';
 import CompteMessages from '../../utils/Compte/fr.json';
 import CommunauteCheckBox from './CommunauteCheckBox';
 import RolesRadioButtons from './RolesRadioButtons';
@@ -12,6 +13,8 @@ import { checkNamesLength } from '../../utils/checkNamesLength';
 
 const UtilisateurCreateForm = (save, record) => {
   const { values } = useFormState();
+  const [isReceivedNotificationChecked, setisReceivedNotificationChecked] =
+    React.useState(false);
 
   useEffect(() => {
     !values.hasManualAffiliation
@@ -24,8 +27,8 @@ const UtilisateurCreateForm = (save, record) => {
   const checkPatternEmail = (email) => {
     if (
       email &&
-      values.emailFormat &&
-      values.emailFormat.some((elt: string) => email.endsWith(elt)) !== true
+      values.emailDomainNames &&
+      values.emailDomainNames.some((elt: string) => email.endsWith(elt)) !== true
     ) {
       return CompteMessages['email.error.emailFormat'];
     }
@@ -35,13 +38,13 @@ const UtilisateurCreateForm = (save, record) => {
   const validateEmail = email();
 
   return (
-    <Box width={2000} display="flex">
+   
       <Box flex="1">
         <CardContent>
           <Box display="flex">
-            <Box flex="1" mt={-1} width={2000}>
+            <Box flex="1" mt={-1} width={200}>
               <Box mt={2} maxWidth={700}>
-                <FinanceurDropDown />
+                <FunderDropDown/>
               </Box>
               <Box display="flex" maxWidth={700}>
                 <TextInput
@@ -70,8 +73,18 @@ const UtilisateurCreateForm = (save, record) => {
                 <Box display="flex">
                   <BooleanInput
                     defaultValue={false}
+                    checked={isReceivedNotificationChecked}
                     source="canReceiveAffiliationMail"
-                    label="Notification par mail des affiliations manuelles"
+                    onChange={() =>
+                      setisReceivedNotificationChecked(
+                        !isReceivedNotificationChecked
+                      )
+                    }
+                    label={
+                      isReceivedNotificationChecked
+                        ? 'Notification par mail des affiliations manuelles'
+                        : 'Aucune notification par mail des affiliations manuelles'
+                    }
                   />
                 </Box>
               )}
@@ -85,7 +98,7 @@ const UtilisateurCreateForm = (save, record) => {
           </Box>
         </CardContent>
       </Box>
-    </Box>
+   
   );
 };
 

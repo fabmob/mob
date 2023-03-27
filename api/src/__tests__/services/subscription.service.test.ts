@@ -1,42 +1,32 @@
-import {
-  expect,
-  sinon,
-  StubbedInstanceWithSinonAccessor,
-  createStubInstance,
-} from '@loopback/testlab';
-import {AnyObject} from '@loopback/repository';
+import {expect, sinon, StubbedInstanceWithSinonAccessor, createStubInstance} from '@loopback/testlab';
+import {securityId, UserProfile} from '@loopback/security';
 import {Express} from 'express';
 import axios from 'axios';
 
-import {
-  SubscriptionService,
-  MailService,
-  S3Service,
-  KeycloakService,
-  CitizenService,
-} from '../../services';
+import {SubscriptionService, MailService, S3Service, KeycloakService, CitizenService} from '../../services';
 import {
   AffiliationRepository,
   CommunityRepository,
-  EnterpriseRepository,
+  FunderRepository,
   IncentiveRepository,
   SubscriptionRepository,
   SubscriptionTimestampRepository,
   UserEntityRepository,
+  UserRepository,
 } from '../../repositories';
 import {
   Subscription,
   AttachmentType,
-  Enterprise,
   Community,
   Citizen,
   Affiliation,
   Incentive,
-  Territory,
   UserEntity,
   UserAttribute,
+  Enterprise,
+  EnterpriseDetails,
+  User,
 } from '../../models';
-import {ValidationError} from '../../validationError';
 import {
   AFFILIATION_STATUS,
   INCENTIVE_TYPE,
@@ -57,48 +47,25 @@ import {
 import {NoReason} from '../../models/subscription/subscriptionRejection.model';
 import {Identity} from '../../models/citizen/identity.model';
 
-const expectedErrorPayment = new ValidationError(
-  'is not allowed to have the additional property "frequency"',
-  '/subscriptionBadPayment',
-  StatusCode.PreconditionFailed,
-);
-
-const expectedErrorPayment2 = new ValidationError(
-  'is not allowed to have the additional property "lastPayment"',
-  '/subscriptionBadPayment',
-  StatusCode.PreconditionFailed,
-);
-
-const expectedErrorBuffer = new ValidationError(
-  'subscriptions.error.bad.buffer',
-  '/subscriptionBadBuffer',
-  StatusCode.PreconditionFailed,
-);
-
-const expectedTokenNotFoundInGroup = new ValidationError(
-  'group.token.notFound',
-  'subscriptionTokenNotFound',
-  StatusCode.NotFound,
-);
-
 describe('Subscriptions service', () => {
   let subscriptionService: any = null;
   let subscriptionRepository: StubbedInstanceWithSinonAccessor<SubscriptionRepository>,
     subscriptionTimestampRepository: StubbedInstanceWithSinonAccessor<SubscriptionTimestampRepository>,
     s3Service: StubbedInstanceWithSinonAccessor<S3Service>,
-    enterpriseRepository: StubbedInstanceWithSinonAccessor<EnterpriseRepository>,
+    funderRepository: StubbedInstanceWithSinonAccessor<FunderRepository>,
     affiliationRepository: StubbedInstanceWithSinonAccessor<AffiliationRepository>,
     communityRepository: StubbedInstanceWithSinonAccessor<CommunityRepository>,
     keycloakService: StubbedInstanceWithSinonAccessor<KeycloakService>,
     citizenService: StubbedInstanceWithSinonAccessor<CitizenService>,
     userEntityRepository: StubbedInstanceWithSinonAccessor<UserEntityRepository>,
-    incentiveRepository: StubbedInstanceWithSinonAccessor<IncentiveRepository>;
+    incentiveRepository: StubbedInstanceWithSinonAccessor<IncentiveRepository>,
+    userRepository: StubbedInstanceWithSinonAccessor<UserRepository>;
 
   let mailService: any = null;
 
   beforeEach(() => {
     subscriptionRepository = createStubInstance(SubscriptionRepository);
-    enterpriseRepository = createStubInstance(EnterpriseRepository);
+    funderRepository = createStubInstance(FunderRepository);
     subscriptionTimestampRepository = createStubInstance(SubscriptionTimestampRepository);
     communityRepository = createStubInstance(CommunityRepository);
     affiliationRepository = createStubInstance(AffiliationRepository);
@@ -107,20 +74,35 @@ describe('Subscriptions service', () => {
     s3Service = createStubInstance(S3Service);
     userEntityRepository = createStubInstance(UserEntityRepository);
     keycloakService = createStubInstance(KeycloakService);
+    userRepository = createStubInstance(UserRepository);
+    mailService = createStubInstance(MailService);
+
+    const currentUser: UserProfile = {
+      id: 'idUser',
+      emailVerified: true,
+      maas: undefined,
+      membership: ['/entreprise/capgemini'],
+      roles: ['offline_access', 'uma_authorization'],
+      incentiveType: 'AideEmployeur',
+      funderName: 'funderName',
+      [securityId]: 'idUser',
+    };
+
     subscriptionService = new SubscriptionService(
       s3Service,
       subscriptionRepository,
       subscriptionTimestampRepository,
       communityRepository,
-      enterpriseRepository,
+      funderRepository,
       affiliationRepository,
       userEntityRepository,
+      userRepository,
       mailService,
       citizenService,
       keycloakService,
       incentiveRepository,
+      currentUser,
     );
-    mailService = createStubInstance(MailService);
   });
 
   it('check versement : aucun versement', () => {
@@ -160,7 +142,7 @@ describe('Subscriptions service', () => {
       subscriptionService.checkPayment(payment);
       sinon.assert.fail();
     } catch (error) {
-      expect(error.message).to.equal(expectedErrorPayment.message);
+      expect(error.message).to.equal('is not allowed to have the additional property "frequency"');
     }
 
     // Presence de la date
@@ -173,7 +155,7 @@ describe('Subscriptions service', () => {
       subscriptionService.checkPayment(paymentSecond);
       sinon.assert.fail();
     } catch (error) {
-      expect(error.message).to.equal(expectedErrorPayment2.message);
+      expect(error.message).to.equal('is not allowed to have the additional property "lastPayment"');
     }
   });
 
@@ -309,16 +291,6 @@ describe('Subscriptions service', () => {
     }
   });
 
-  it('check Buffer genereation: generation excel avec une liste vide : error', async () => {
-    const input: Subscription[] = [];
-    try {
-      await subscriptionService.generateExcelValidatedIncentives(input);
-      sinon.assert.fail();
-    } catch (error) {
-      expect(error.message).to.equal(expectedErrorBuffer.message);
-    }
-  });
-
   it('check Buffer generation: generation excel with specificFields : success', async () => {
     const input = [];
     input.push(secondDemande);
@@ -326,18 +298,29 @@ describe('Subscriptions service', () => {
     expect(result).to.be.instanceof(Buffer);
   });
 
-  it('get citizens with subscriptions: success', () => {
-    subscriptionRepository.stubs.execute.resolves(mockSubscriptions);
-    const match = [
-      {funderType: 'AideNationale'},
-      {funderName: 'simulation-maas'},
-      {status: {$ne: 'BROUILLON'}},
+  it('getCitizensWithSubscription: successful', async () => {
+    // Mock
+    const mockCitizensQueryParams = {
+      funderId: 'funderId',
+      lastName: 'lastName',
+      skip: 10,
+      limit: 10,
+    };
+
+    // Arrange
+    const expected = [
+      {id: 'citizenId', count: 1, firstName: 'fistName', lastName: 'lastName', isCitizenDeleted: false},
     ];
-    const result = subscriptionService
-      .getCitizensWithSubscription(match, 0)
-      .then((res: any) => res)
-      .catch((err: any) => err);
-    expect(result).deepEqual(mockCitizens);
+
+    // Setup stubs
+    userRepository.stubs.findOne.resolves(new User({communityIds: ['communityId']}));
+    subscriptionRepository.stubs.execute.resolves({get: () => expected});
+
+    // Act
+    const result = await subscriptionService.getCitizensWithSubscription(mockCitizensQueryParams);
+
+    // Assert
+    expect(result).to.eql(expected);
   });
 
   const sendMode = [SEND_MODE.VALIDATION, SEND_MODE.REJECTION];
@@ -359,9 +342,7 @@ describe('Subscriptions service', () => {
         mailService.sendMailAsHtml.calledWith(
           'email@email.com',
           `Votre demande d’aide a été ${mode}`,
-          mode === SEND_MODE.VALIDATION
-            ? 'subscription-validation'
-            : 'subscription-rejection',
+          mode === SEND_MODE.VALIDATION ? 'subscription-validation' : 'subscription-rejection',
         ),
       ).true();
     });
@@ -372,7 +353,7 @@ describe('Subscriptions service', () => {
       subscriptionRepository.stubs.findById.resolves(citizenSubscription);
       await subscriptionService.handleMessage(objError);
     } catch (error) {
-      expect(error.message).to.deepEqual('CitizenID does not match');
+      expect(error.message).to.equal('CitizenID does not match');
     }
   });
 
@@ -383,16 +364,17 @@ describe('Subscriptions service', () => {
     formattedAttachemnts[2].originalname = 'file(2).pdf';
     expect(result).deepEqual(formattedAttachemnts);
   });
+
   it('check formatAttachments no file: fail', async () => {
     const result = await subscriptionService.formatAttachments([]);
     expect(result).to.Null;
   });
+
   it('check formatAttachments no extension: fail', async () => {
-    const result = await subscriptionService.formatAttachments(
-      attachmentWithoutExtension,
-    );
+    const result = await subscriptionService.formatAttachments(attachmentWithoutExtension);
     expect(result).to.Null;
   });
+
   it('handleMessage REJECTED payload : success', async () => {
     subscriptionRepository.stubs.findById.resolves(RejectSubscription);
     s3Service.stubs.deleteObjectFile.resolves('any');
@@ -413,12 +395,14 @@ describe('Subscriptions service', () => {
       subscriptionRepository.stubs.findById.resolves(errorSubscription);
       await subscriptionService.handleMessage(objValidated);
     } catch (error) {
-      expect(error.message).to.deepEqual('subscriptions.error.bad.status');
+      expect(error.message).to.equal('subscriptions.error.bad.status');
+      expect(error.statusCode).to.equal(StatusCode.Conflict);
     }
   });
+
   it('getSubscriptionPayload test : Success', async () => {
     subscriptionRepository.stubs.findById.resolves(RejectSubscription);
-    enterpriseRepository.stubs.findById.resolves(enterprise);
+    funderRepository.stubs.getEnterpriseById.resolves(enterprise);
     communityRepository.stubs.findById.resolves(community);
     affiliationRepository.stubs.findOne.resolves({
       id: 'affId',
@@ -435,6 +419,7 @@ describe('Subscriptions service', () => {
     } as ISubscriptionBusError);
     expect(result).deepEqual(subscriptionCompare);
   });
+
   it('rejectSubscription test : Success', async () => {
     const objValidated = {
       status: SUBSCRIPTION_STATUS.REJECTED,
@@ -443,27 +428,10 @@ describe('Subscriptions service', () => {
     };
     s3Service.stubs.deleteObjectFile.resolves('any');
     incentiveRepository.stubs.findById.resolves(mockIncentiveNoNotification);
-    const result = await subscriptionService.rejectSubscription(
-      objValidated,
-      RejectWithAttachments,
-    );
+    const result = await subscriptionService.rejectSubscription(objValidated, RejectWithAttachments);
     expect(result).to.Null;
   });
-  it('rejectSubscription without aide type : Success', async () => {
-    const objValidated = {
-      status: SUBSCRIPTION_STATUS.REJECTED,
-      type: REJECTION_REASON.CONDITION,
-      comment: 'test',
-    };
-    s3Service.stubs.deleteObjectFile.resolves('any');
-    citizenService.stubs.getCitizenWithAffiliationById.resolves(citizenNoAffilation);
-    incentiveRepository.stubs.findById.resolves(mockIncentive);
-    const result = await subscriptionService.rejectSubscription(
-      objValidated,
-      RejectWithoutIncentive,
-    );
-    expect(result).to.Null;
-  });
+
   it('rejectSubscription test : fail', async () => {
     try {
       const objValidated = {
@@ -478,6 +446,7 @@ describe('Subscriptions service', () => {
       expect(error.message).to.deepEqual('subscriptionRejection.type.not.found');
     }
   });
+
   it('validateSubscription test : success', async () => {
     const objValidated = {
       status: SUBSCRIPTION_STATUS.VALIDATED,
@@ -486,25 +455,9 @@ describe('Subscriptions service', () => {
     citizenService.stubs.getCitizenWithAffiliationById.resolves(citizen);
     subscriptionRepository.stubs.updateById.resolves();
     incentiveRepository.stubs.findById.resolves(mockIncentive);
-    await subscriptionService.validateSubscription(
-      objValidated,
-      validateSubscriptionTest,
-    );
+    await subscriptionService.validateSubscription(objValidated, validateSubscriptionTest);
   });
-  it('validateSubscription test diffrent type : success', async () => {
-    incentiveRepository.stubs.findById.resolves(mockIncentive);
-    const objValidated = {
-      status: SUBSCRIPTION_STATUS.TO_PROCESS,
-      mode: 'aucun',
-    };
-    citizenService.stubs.getCitizenWithAffiliationById.resolves(citizen);
-    subscriptionRepository.stubs.updateById.resolves();
-    incentiveRepository.stubs.findById.resolves(mockIncentive);
-    await subscriptionService.validateSubscription(
-      objValidated,
-      validateSubscriptionOtherStatus,
-    );
-  });
+
   it('handleMessage Error status payload : success', async () => {
     subscriptionRepository.stubs.findById.resolves(validateSubscription);
     incentiveRepository.stubs.findById.resolves(mockIncentive);
@@ -512,6 +465,7 @@ describe('Subscriptions service', () => {
     const result = await subscriptionService.handleMessage(objValidatedError);
     expect(result).to.Null;
   });
+
   it('preparePayLoad  payload : success', async () => {
     communityRepository.stubs.findById.resolves(community);
     affiliationRepository.stubs.findOne.resolves({
@@ -530,6 +484,7 @@ describe('Subscriptions service', () => {
     } as ISubscriptionBusError);
     expect(result).to.Null;
   });
+
   it('preparePayLoad no attachments payload : success', async () => {
     communityRepository.stubs.findById.resolves(community2);
     affiliationRepository.stubs.findOne.resolves({
@@ -546,6 +501,7 @@ describe('Subscriptions service', () => {
       code: 'string',
     } as ISubscriptionBusError);
   });
+
   it('checkRefusMotif error payload : fail', async () => {
     try {
       await subscriptionService.checkRefusMotif({
@@ -580,11 +536,7 @@ describe('Subscriptions service', () => {
       data: applicationInfo,
     });
 
-    const result = await subscriptionService.callCEEApi(
-      apiUrl,
-      requestBodyExample,
-      'token',
-    );
+    const result = await subscriptionService.callCEEApi(apiUrl, requestBodyExample, 'token');
     expect(result).to.deepEqual({
       code: StatusCode.Created,
       status: 'success',
@@ -606,11 +558,7 @@ describe('Subscriptions service', () => {
       },
     });
 
-    const result = await subscriptionService.callCEEApi(
-      apiUrl,
-      requestBodyExample,
-      'token',
-    );
+    const result = await subscriptionService.callCEEApi(apiUrl, requestBodyExample, 'token');
     expect(result).to.deepEqual({
       code: StatusCode.Conflict,
       status: 'error',
@@ -628,11 +576,7 @@ describe('Subscriptions service', () => {
       },
     });
 
-    const result = await subscriptionService.callCEEApi(
-      apiUrl,
-      requestBodyExample,
-      'token',
-    );
+    const result = await subscriptionService.callCEEApi(apiUrl, requestBodyExample, 'token');
     expect(result).to.deepEqual({
       code: StatusCode.NotFound,
       status: 'error',
@@ -646,11 +590,7 @@ describe('Subscriptions service', () => {
       response: {status: StatusCode.InternalServerError, data: 'Authorization'},
     });
 
-    const result = await subscriptionService.callCEEApi(
-      apiUrl,
-      requestBodyExample,
-      'token',
-    );
+    const result = await subscriptionService.callCEEApi(apiUrl, requestBodyExample, 'token');
     expect(result).to.deepEqual({
       message: 'Authorization',
       code: StatusCode.InternalServerError,
@@ -664,11 +604,7 @@ describe('Subscriptions service', () => {
       message: 'no response returned',
     });
 
-    const result = await subscriptionService.callCEEApi(
-      apiUrl,
-      requestBodyExample,
-      'token',
-    );
+    const result = await subscriptionService.callCEEApi(apiUrl, requestBodyExample, 'token');
     expect(result).to.deepEqual({
       message: 'no response returned',
       status: 'error',
@@ -679,8 +615,9 @@ describe('Subscriptions service', () => {
   it('createSubscriptionTimestamp success ', async () => {
     const result = await subscriptionService.createSubscriptionTimestamp(
       citizenSubscription,
+      'POST v1/maas/subscriptions',
+      'platform',
     );
-
     expect(result).to.Null;
   });
 
@@ -717,7 +654,7 @@ describe('Subscriptions service', () => {
       await subscriptionService.checkCEEValidity(mockIncentive, mockSubscription);
       sinon.assert.fail();
     } catch (error) {
-      expect(error.message).to.equal(expectedTokenNotFoundInGroup.message);
+      expect(error.message).to.equal('group.token.notFound');
     }
   });
 
@@ -733,10 +670,7 @@ describe('Subscriptions service', () => {
       },
     });
 
-    const result = await subscriptionService.checkCEEValidity(
-      mockIncentive,
-      mockSubscription,
-    );
+    const result = await subscriptionService.checkCEEValidity(mockIncentive, mockSubscription);
     expect(result).to.eql({
       status: 'success',
       code: 201,
@@ -853,7 +787,7 @@ describe('Subscriptions service', () => {
   });
 
   const mockIncentive = new Incentive({
-    territory: {name: 'Toulouse', id: 'test'} as Territory,
+    territoryIds: ['test'],
     additionalInfos: 'test',
     funderName: 'nameTerritoire',
     allocatedAmount: '200 €',
@@ -877,7 +811,7 @@ describe('Subscriptions service', () => {
   });
 
   const mockIncentiveNoNotification = new Incentive({
-    territory: {name: 'Toulouse', id: 'test'} as Territory,
+    territoryIds: ['test'],
     additionalInfos: 'test',
     funderName: 'nameTerritoire',
     allocatedAmount: '200 €',
@@ -925,7 +859,9 @@ describe('Subscriptions service', () => {
   const enterprise = new Enterprise({
     id: 'incentiveId',
     name: 'enterprise',
-    emailFormat: ['@gmail.com'],
+    enterpriseDetails: new EnterpriseDetails({
+      emailDomainNames: ['@gmail.com'],
+    }),
   });
   const community2 = new Community({
     id: 'incentiveId',
@@ -944,9 +880,6 @@ describe('Subscriptions service', () => {
       enterpriseEmail: 'test@gmail.com',
       status: AFFILIATION_STATUS.AFFILIATED,
     },
-  });
-  const citizenNoAffilation = new Citizen({
-    id: 'email@gmail.com',
   });
   const objReject1 = {
     citizenId: 'email@gmail.com',
@@ -1112,20 +1045,6 @@ describe('Subscriptions service', () => {
       },
     ],
   });
-  const RejectWithoutIncentive = new Subscription({
-    id: 'randomInputId',
-    incentiveId: 'incentiveId',
-    funderName: 'funderName',
-    incentiveTitle: 'incentiveTitle',
-    citizenId: 'email@gmail.com',
-    lastName: 'lastName',
-    firstName: 'firstName',
-    email: 'email@gmail.com',
-    consent: true,
-    status: SUBSCRIPTION_STATUS.TO_PROCESS,
-    createdAt: new Date('2021-04-06T09:01:30.778Z'),
-    updatedAt: new Date('2021-04-06T09:01:30.778Z'),
-  });
   const RejectSubscriptionNoAttachment = new Subscription({
     id: 'randomInputId',
     incentiveId: 'incentiveId',
@@ -1169,21 +1088,6 @@ describe('Subscriptions service', () => {
     email: 'email@gmail.com',
     consent: true,
     status: SUBSCRIPTION_STATUS.TO_PROCESS,
-    createdAt: new Date('2021-04-06T09:01:30.778Z'),
-    updatedAt: new Date('2021-04-06T09:01:30.778Z'),
-  });
-  const validateSubscriptionOtherStatus = new Subscription({
-    id: 'randomInputId',
-    incentiveId: 'incentiveId',
-    funderName: 'funderName',
-    incentiveType: 'test',
-    incentiveTitle: 'incentiveTitle',
-    citizenId: 'email@gmail.com',
-    lastName: 'lastName',
-    firstName: 'firstName',
-    email: 'email@gmail.com',
-    consent: true,
-    status: SUBSCRIPTION_STATUS.REJECTED,
     createdAt: new Date('2021-04-06T09:01:30.778Z'),
     updatedAt: new Date('2021-04-06T09:01:30.778Z'),
   });
@@ -1245,54 +1149,6 @@ describe('Subscriptions service', () => {
       frequency: 'test',
       lastPayment: '11-11-2022',
     } as ValidationMultiplePayment,
-  });
-
-  const mockSubscriptions: Record<string, unknown>[] = [
-    {
-      id: 'randomInputId',
-      incentiveId: 'incentiveId',
-      funderName: 'funderName',
-      incentiveType: INCENTIVE_TYPE.TERRITORY_INCENTIVE,
-      incentiveTitle: 'incentiveTitle',
-      citizenId: '260a6356-3261-4335-bca8-4c1f8257613d',
-      lastName: 'lastName',
-      firstName: 'firstName',
-      email: 'email@gmail.com',
-      consent: true,
-      status: SUBSCRIPTION_STATUS.VALIDATED,
-      createdAt: new Date('2021-04-06T09:01:30.778Z'),
-      updatedAt: new Date('2021-04-06T09:01:30.778Z'),
-    },
-    {
-      id: 'randomInputId1',
-      incentiveId: 'incentiveId',
-      funderName: 'funderName',
-      incentiveType: INCENTIVE_TYPE.TERRITORY_INCENTIVE,
-      incentiveTitle: 'incentiveTitle',
-      citizenId: '260a6356-3261-4335-bca8-4c1f8257613d',
-      lastName: 'lastName',
-      firstName: 'firstName',
-      email: 'email@gmail.com',
-      consent: true,
-      status: SUBSCRIPTION_STATUS.VALIDATED,
-      createdAt: new Date('2021-04-06T09:01:30.778Z'),
-      updatedAt: new Date('2021-04-06T09:01:30.778Z'),
-    },
-  ];
-
-  const mockCitizens: Promise<AnyObject> = new Promise(() => {
-    return [
-      {
-        citizensData: [
-          {
-            citizenId: '260a6356-3261-4335-bca8-4c1f8257613d',
-            lastName: 'leYellow',
-            firstName: 'Bob',
-          },
-        ],
-        totalCitizens: 1,
-      },
-    ];
   });
 
   const attachmentFiles: Express.Multer.File[] = [

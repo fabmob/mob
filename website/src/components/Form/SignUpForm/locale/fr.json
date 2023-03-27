@@ -10,7 +10,7 @@
   "citizens.error.postcode.format": "Attention, le format de votre code postal est incorrect",
   "citizens.error.tos1.false": "Attention, vous devez avoir accepté les CGU pour pouvoir créer un compte",
   "citizens.error.tos2.false": "Attention, vous devez avoir accepté la politique de protection des données personnelles pour pouvoir créer un compte",
-  "citizens.error.enterpriseEmail.pattern": "Ce format de votre adresse email comporte une erreur. Votre adresse professionnelle doit correspondre au format mail de l'entreprise à laquelle vous souhaitez vous affilier",
+  "citizen.email.professional.error.format": "Ce format de votre adresse email comporte une erreur. Votre adresse professionnelle doit correspondre au format mail de l'entreprise à laquelle vous souhaitez vous affilier",
   "email.error.unique": "Attention, cette adresse mail est déjà utilisée par une autre personne",
   "email.error.format": "Attention, le format de votre email est incorrect",
   "citizen.email.error.unique": "Attention, cette adresse email professionnelle est déjà utilisée par une autre personne.",

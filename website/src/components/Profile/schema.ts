@@ -1,17 +1,8 @@
 import * as yup from 'yup';
 
-import { validateEmailPattern } from '../../utils/form';
-
 import Strings from './locale/fr.json';
 
 const defaultRequiredMessage = Strings['citizens.error.required'];
-
-interface CompanyOption {
-  id: string;
-  value: string;
-  label: string;
-  formats: string[];
-}
 
 /**
  * apply rules to inputs via form resolver.
@@ -45,20 +36,6 @@ const schema = yup.object().shape({
         then: yup.string().required(defaultRequiredMessage),
         otherwise: yup.string().nullable(),
       })
-      .test(
-        'pattern-company',
-        Strings['citoyens.error.emailCompany.pattern'],
-        (email: string | undefined, testContext: yup.TestContext) => {
-          const { enterpriseId } = testContext.parent;
-          const { companyOptions } = testContext.options.context! as {
-            companyOptions: CompanyOption[];
-          };
-          if (email && companyOptions?.length) {
-            return validateEmailPattern(email, companyOptions, enterpriseId);
-          }
-          return true;
-        }
-      ),
   }),
 });
 

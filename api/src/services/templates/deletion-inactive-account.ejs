@@ -1,0 +1,25 @@
+<%- include('css/style'); %> <%- include('commons/header'); %>
+
+<table style="max-width: 640px; width: 640px">
+  <tr>
+    <td>
+      <div style="margin-bottom: 40px">
+        <div>
+          <p>Bonjour <%= username %>,</p>
+        </div>
+        <p>Votre compte moB est inactif depuis votre dernière connexion le <%= inactiveDate %>.</p>
+        <p>
+          Comme indiqué il y a un mois, nous avons procédé à la suppression de votre compte moB. Vos données
+          personnelles ont été supprimées selon notre
+          <a href="<%= gdprLink %>">Charte de Protection des Données Personnelles</a>.
+        </p>
+        <div>
+          <p>Merci pour votre confiance,</p>
+          <p>L’équipe Mon Compte Mobilité</p>
+        </div>
+      </div>
+    </td>
+  </tr>
+</table>
+
+<%- include('commons/footer'); %>

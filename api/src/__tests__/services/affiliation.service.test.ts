@@ -1,24 +1,13 @@
-import {
-  StubbedInstanceWithSinonAccessor,
-  createStubInstance,
-  expect,
-  sinon,
-} from '@loopback/testlab';
+import {StubbedInstanceWithSinonAccessor, createStubInstance, expect, sinon} from '@loopback/testlab';
 import {securityId, UserProfile} from '@loopback/security';
-import {
-  AffiliationService,
-  JwtService,
-  MailService,
-  KeycloakService,
-} from '../../services';
-import {ValidationError} from '../../validationError';
-import {AFFILIATION_STATUS, CITIZEN_STATUS, ResourceName, StatusCode} from '../../utils';
-import {Citizen, Enterprise, UserEntity, User, Affiliation} from '../../models';
+import {AffiliationService, JwtService, MailService, KeycloakService} from '../../services';
+import {AFFILIATION_STATUS, CITIZEN_STATUS, StatusCode} from '../../utils';
+import {Citizen, UserEntity, User, Affiliation, Enterprise, EnterpriseDetails} from '../../models';
 import {
   UserRepository,
   AffiliationRepository,
-  EnterpriseRepository,
   SubscriptionRepository,
+  FunderRepository,
 } from '../../repositories';
 
 describe('Affiliation services', () => {
@@ -26,7 +15,7 @@ describe('Affiliation services', () => {
   let userRepository: StubbedInstanceWithSinonAccessor<UserRepository>,
     affiliationRepository: StubbedInstanceWithSinonAccessor<AffiliationRepository>,
     subscriptionRepository: StubbedInstanceWithSinonAccessor<SubscriptionRepository>,
-    enterpriseRepository: StubbedInstanceWithSinonAccessor<EnterpriseRepository>;
+    funderRepository: StubbedInstanceWithSinonAccessor<FunderRepository>;
   let mailService: any = null;
   let jwtService: any = null;
   let keycloakService: any = null;
@@ -42,49 +31,6 @@ describe('Affiliation services', () => {
     [securityId]: 'idUser',
   };
 
-  const citizen = new Citizen({
-    identity: {
-      gender: {
-        value: 1,
-        source: 'moncomptemobilite.fr',
-        certificationDate: new Date('2022-10-24'),
-        getId: () => {},
-        getIdObject: () => ({id: 'random'}),
-        toJSON: () => ({id: 'random'}),
-        toObject: () => ({id: 'random'}),
-      },
-      firstName: {
-        value: 'Xina',
-        source: 'moncomptemobilite.fr',
-        certificationDate: new Date('2022-10-24'),
-        getId: () => {},
-        getIdObject: () => ({id: 'random'}),
-        toJSON: () => ({id: 'random'}),
-        toObject: () => ({id: 'random'}),
-      },
-      lastName: {
-        value: 'Zhong',
-        source: 'moncomptemobilite.fr',
-        certificationDate: new Date('2022-10-24'),
-        getId: () => {},
-        getIdObject: () => ({id: 'random'}),
-        toJSON: () => ({id: 'random'}),
-        toObject: () => ({id: 'random'}),
-      },
-      birthDate: {
-        value: '1991-11-17',
-        source: 'moncomptemobilite.fr',
-        certificationDate: new Date('2022-10-24'),
-        getId: () => {},
-        getIdObject: () => ({id: 'random'}),
-        toJSON: () => ({id: 'random'}),
-        toObject: () => ({id: 'random'}),
-      },
-      toJSON: () => ({id: 'random'}),
-      toObject: () => ({id: 'random'}),
-    },
-  });
-
   beforeEach(() => {
     mailService = createStubInstance(MailService);
     keycloakService = createStubInstance(KeycloakService);
@@ -92,14 +38,14 @@ describe('Affiliation services', () => {
     userRepository = createStubInstance(UserRepository);
     affiliationRepository = createStubInstance(AffiliationRepository);
     subscriptionRepository = createStubInstance(SubscriptionRepository);
-    enterpriseRepository = createStubInstance(EnterpriseRepository);
+    funderRepository = createStubInstance(FunderRepository);
 
     jwtService = new JwtService();
     affiliationService = new AffiliationService(
       affiliationRepository,
       userRepository,
       subscriptionRepository,
-      enterpriseRepository,
+      funderRepository,
       keycloakService,
       mailService,
       jwtService,
@@ -138,7 +84,7 @@ describe('Affiliation services', () => {
   });
 
   it('Check Affiliation: OK', async () => {
-    enterpriseRepository.stubs.findById.resolves(mockEnterprise);
+    funderRepository.stubs.getEnterpriseById.resolves(mockEnterprise);
     sinon.stub(jwtService, 'verifyAffiliationAccessToken').returns(true);
 
     sinon.stub(jwtService, 'decodeAffiliationAccessToken').returns(mockedDecodedToken);
@@ -153,7 +99,8 @@ describe('Affiliation services', () => {
     try {
       await affiliationService.checkAffiliation(mockCitizen, mockedToken);
     } catch (err) {
-      expect(err).to.deepEqual(expectedErrorNotValid);
+      expect(err.message).to.equal('citizens.affiliation.not.valid');
+      expect(err.statusCode).to.equal(StatusCode.UnprocessableEntity);
     }
   });
 
@@ -165,7 +112,8 @@ describe('Affiliation services', () => {
     try {
       await affiliationService.checkAffiliation(mockCitizen, mockedToken);
     } catch (err) {
-      expect(err).to.deepEqual(expectedErrorNotValid);
+      expect(err.message).to.equal('citizens.affiliation.not.valid');
+      expect(err.statusCode).to.equal(StatusCode.UnprocessableEntity);
     }
   });
 
@@ -179,7 +127,8 @@ describe('Affiliation services', () => {
     try {
       await affiliationService.checkAffiliation(mockCitizenAffliationKO, mockedToken);
     } catch (err) {
-      expect(err).to.deepEqual(expectedErrorNotValid);
+      expect(err.message).to.equal('citizens.affiliation.not.valid');
+      expect(err.statusCode).to.equal(StatusCode.UnprocessableEntity);
     }
   });
 
@@ -197,7 +146,8 @@ describe('Affiliation services', () => {
     try {
       await affiliationService.checkAffiliation(mockCitizenAffliationKO, mockedToken);
     } catch (err) {
-      expect(err).to.deepEqual(expectedErrorNotValid);
+      expect(err.message).to.equal('citizens.affiliation.not.valid');
+      expect(err.statusCode).to.equal(StatusCode.UnprocessableEntity);
     }
   });
 
@@ -207,7 +157,7 @@ describe('Affiliation services', () => {
       affiliation: {...mockCitizen.affiliation},
     };
     mockCitizenAffliationKO.affiliation!.status = AFFILIATION_STATUS.AFFILIATED;
-    enterpriseRepository.stubs.findById.resolves(mockEnterprise);
+    funderRepository.stubs.getEnterpriseById.resolves(mockEnterprise);
     sinon.stub(jwtService, 'verifyAffiliationAccessToken').returns(true);
 
     sinon.stub(jwtService, 'decodeAffiliationAccessToken').returns(mockedDecodedToken);
@@ -215,7 +165,8 @@ describe('Affiliation services', () => {
     try {
       await affiliationService.checkAffiliation(mockCitizenAffliationKO, mockedToken);
     } catch (err) {
-      expect(err).to.deepEqual(expectedErrorBadStatus);
+      expect(err.message).to.equal('citizens.affiliation.bad.status');
+      expect(err.statusCode).to.equal(StatusCode.Conflict);
     }
   });
 
@@ -257,13 +208,10 @@ describe('Affiliation services', () => {
   });
 
   it('Check Disaffiliation: KO', async () => {
+    funderRepository.stubs.getFunderByNameAndType.resolves(mockEnterprise);
     userRepository.stubs.findOne.resolves(mockUserWithCom);
-
-    try {
-      await affiliationService.checkDisaffiliation('randomInputId');
-    } catch (err) {
-      expect(err).to.deepEqual(expectedErrorDisaffiliation);
-    }
+    const result = await affiliationService.checkDisaffiliation('randomInputId');
+    expect(result).to.equal(false);
   });
 
   it('isEmailProExisting : email do not exist', async () => {
@@ -310,27 +258,6 @@ describe('Affiliation services', () => {
     });
   });
 });
-
-const expectedErrorNotValid = new ValidationError(
-  'citizens.affiliation.not.valid',
-  '/citizensAffiliationNotValid',
-  StatusCode.UnprocessableEntity,
-  ResourceName.Affiliation,
-);
-
-const expectedErrorBadStatus = new ValidationError(
-  'citizens.affiliation.bad.status',
-  '/citizensAffiliationBadStatus',
-  StatusCode.PreconditionFailed,
-  ResourceName.AffiliationBadStatus,
-);
-
-const expectedErrorDisaffiliation = new ValidationError(
-  'citizens.disaffiliation.impossible',
-  '/citizensDisaffiliationImpossible',
-  StatusCode.PreconditionFailed,
-  ResourceName.Disaffiliation,
-);
 
 const mockedToken = 'montoken';
 
@@ -406,12 +333,14 @@ const mockCitizen = new Citizen({
 
 const mockEnterprise = new Enterprise({
   id: 'randomInputIdEntreprise',
-  emailFormat: ['test@outlook.com', 'test@outlook.fr', 'test@outlook.xxx'],
   name: 'nameEntreprise',
   siretNumber: 50,
-  budgetAmount: 102,
-  employeesCount: 100,
-  hasManualAffiliation: true,
+  mobilityBudget: 102,
+  citizensCount: 100,
+  enterpriseDetails: new EnterpriseDetails({
+    emailDomainNames: ['test@outlook.com', 'test@outlook.fr', 'test@outlook.xxx'],
+    hasManualAffiliation: true,
+  }),
 });
 
 const mockUserWithCom = new User({

@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault
+spec:
+  template:
+    spec:
+      containers:
+        - name: vault
+          volumeMounts:
+            - name: vault-cert-pem
+              mountPath: /etc/ssl/certs/vault-cert.pem
+              subPath: vault-cert.pem
+      securityContext:
+        fsGroup: 1000
+      volumes:
+        - name: vault-cert-pem
+          configMap:
+            name: vault-cert-pem
+            defaultMode: 420

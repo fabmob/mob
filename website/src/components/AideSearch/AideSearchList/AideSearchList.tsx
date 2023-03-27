@@ -8,14 +8,12 @@ import { getDispositifImgFilename } from '@utils/getDispositifImage';
 import { Incentive, aidesMapping } from '@utils/aides';
 import { flattenTransportList } from '@utils/helpers';
 
+import { environment } from '../../../environment';
+
 import Strings from './locale/fr.json';
 
 /**
  * INTERFACES
- *
- *
- *
- *
  */
 interface Props {
   items: Incentive[];
@@ -25,7 +23,9 @@ interface Props {
 /**
  * dispositif list length
  */
-const dispositifListLength = 12;
+const dispositifListLength = 11;
+
+const DEFAULT_LIMIT = environment.DEFAULT_LIMIT || 200;
 
 /**
  * @name AideSearchList
@@ -34,10 +34,6 @@ const dispositifListLength = 12;
 const AideSearchList: FC<Props> = ({ items, greenCard }) => {
   /**
    * COMPONENT STATES
-   *
-   *
-   *
-   *
    * only the items currently displayed on the page
    */
   const [showedDispositifList, setShowedDispositifList] = useState<Incentive[]>(
@@ -90,21 +86,13 @@ const AideSearchList: FC<Props> = ({ items, greenCard }) => {
 
   /**
    * USE EFFECTS
-   *
-   *
-   *
-   *
    */
   useEffect(() => {
-    setShowedDispositifList(items.slice(0, 11));
+    setShowedDispositifList(items.slice(0, 10));
   }, [items]);
 
   /**
    * RENDER
-   *
-   *
-   *
-   *
    */
   return (
     <>
@@ -112,6 +100,16 @@ const AideSearchList: FC<Props> = ({ items, greenCard }) => {
         {greenCard && <AideSearchGreenCard />}
         {renderDispositifs()}
       </div>
+
+      {showedDispositifList.length >= DEFAULT_LIMIT && (
+        <p className="limit-msg">
+          {Strings['incentives.limit.message'].replace(
+            '{0}',
+            `${DEFAULT_LIMIT}`
+          )}
+        </p>
+      )}
+
       {showedDispositifList.length < items.length && (
         <div className="load-more">
           <Button secondary onClick={renderNextItems}>

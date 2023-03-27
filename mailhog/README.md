@@ -37,7 +37,7 @@ Pas de précisions nécéssaires pour ce service
 
 # Relation avec les autres services
 
-L'[api](api) et l'[idp](idp) sont les deux services pouvant envoyer des mails aux utilisateurs.
+L'[api](/api/README.md) et l'[idp](/idp/README.md) sont les deux services pouvant envoyer des mails aux utilisateurs.
 
 **Bilan des relations:**
 

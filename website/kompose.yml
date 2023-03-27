@@ -26,6 +26,7 @@ services:
       - API_KEY
       - LANDSCAPE
       - NETLIFYCMS_APP_ID
+      - DEFAULT_LIMIT
     networks:
       - web-nw
       - storage-nw

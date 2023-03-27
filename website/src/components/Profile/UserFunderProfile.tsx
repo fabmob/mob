@@ -39,7 +39,9 @@ const UserFunderProfile: FC<UserFunderProfileProps> = ({ userFunder }) => {
       label:
         funderType === FunderType.ENTERPRISES
           ? Strings['profile.label.enterprise']
-          : Strings['profile.label.collectivity'],
+          : funderType === FunderType.COLLECTIVITIES ?
+          Strings['profile.label.collectivity'] :
+          Strings['profile.label.nationalAdministration'],
       json: 'funderName',
       type: 'text',
     },

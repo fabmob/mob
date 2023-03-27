@@ -1,15 +1,11 @@
-import {
-  createStubInstance,
-  expect,
-  sinon,
-  StubbedInstanceWithSinonAccessor,
-} from '@loopback/testlab';
+import {createStubInstance, expect, sinon, StubbedInstanceWithSinonAccessor} from '@loopback/testlab';
 
 import {SubscriptionV1Interceptor} from '../../interceptors';
-import {Incentive, Community, Territory} from '../../models';
-import {ValidationError} from '../../validationError';
+import {Incentive, Community} from '../../models';
 import {IncentiveRepository, CommunityRepository} from '../../repositories';
+import {StatusCode} from '../../utils';
 
+// TODO REMOVE BECAUSE endpoint v1/maas/subscriptions/{subscriptionId} is deprecated
 describe('SubscriptionV1 Interceptor', () => {
   let interceptor: any = null;
   let repository: StubbedInstanceWithSinonAccessor<IncentiveRepository>,
@@ -25,7 +21,8 @@ describe('SubscriptionV1 Interceptor', () => {
       repository.stubs.findById.resolves(mockIncentive);
       await interceptor.intercept(invocationContextCreates, () => {});
     } catch (err) {
-      expect(err.message).to.equal(errorFormat.message);
+      expect(err.message).to.equal('is not of a type(s) array');
+      expect(err.statusCode).to.equal(StatusCode.UnprocessableEntity);
     }
     repository.stubs.findById.restore();
   });
@@ -33,13 +30,12 @@ describe('SubscriptionV1 Interceptor', () => {
   it('SubscriptionV1Interceptor creates: error with funderId without communities', async () => {
     try {
       repository.stubs.findById.resolves(mockIncentiveFunderId);
-      communityRepository.stubs.findByFunderId.resolves([
-        new Community({id: 'community1'}),
-      ]);
+      communityRepository.stubs.findByFunderId.resolves([new Community({id: 'community1'})]);
 
       await interceptor.intercept(invocationContextCreatesuccessful, () => {});
     } catch (err) {
-      expect(err.message).to.equal('subscriptions.error.communities.mismatch');
+      expect(err.message).to.equal('subscription.error.communities.notValid');
+      expect(err.statusCode).to.equal(StatusCode.BadRequest);
     }
     repository.stubs.findById.restore();
     communityRepository.stubs.findByFunderId.restore();
@@ -53,37 +49,22 @@ describe('SubscriptionV1 Interceptor', () => {
       await interceptor.intercept(invocationContextCreatesuccessful, () => {});
     } catch (err) {
       expect(err.message).to.equal('Access denied');
+      expect(err.statusCode).to.equal(StatusCode.Forbidden);
     }
     repository.stubs.findById.restore();
   });
 
   it('SubscriptionV1Interceptor creates: successful with specificFields', async () => {
     repository.stubs.findById.resolves(mockIncentive);
-    const result = await interceptor.intercept(
-      invocationContextCreatesuccessful,
-      () => {},
-    );
+    const result = await interceptor.intercept(invocationContextCreatesuccessful, () => {});
     expect(result).to.Null;
     repository.stubs.findById.restore();
   });
 
   it('SubscriptionV1Interceptor creates: successful without specificFields', async () => {
     repository.stubs.findById.resolves(mockIncentiveWithoutSpecificFields);
-    const result = await interceptor.intercept(
-      invocationContextCreatesuccessfulwithoutSpecFields,
-      () => {},
-    );
+    const result = await interceptor.intercept(invocationContextCreatesuccessfulwithoutSpecFields, () => {});
     expect(result).to.Null;
-    repository.stubs.findById.restore();
-  });
-
-  it('SubscriptionV1Interceptor args', async () => {
-    try {
-      repository.stubs.findById.resolves(mockIncentive);
-      await interceptor.intercept(invocationContextArgsMimeTypeError);
-    } catch (err) {
-      expect(err).to.Null;
-    }
     repository.stubs.findById.restore();
   });
 
@@ -109,14 +90,9 @@ describe('SubscriptionV1 Interceptor', () => {
   }
 });
 
-const errorFormat: any = new ValidationError(
-  `is not of a type(s) array`,
-  '/subscription',
-);
-
 const invocationContextCreates = {
   target: {},
-  methodName: 'createSubscription',
+  methodName: 'createMaasSubscription',
   args: [
     {
       incentiveId: 'incentiveId',
@@ -129,7 +105,7 @@ const invocationContextCreates = {
 
 const invocationContextCreates2 = {
   target: {},
-  methodName: 'createSubscription',
+  methodName: 'createMaasSubscription',
   args: [
     {
       incentiveId: 'incentiveId2',
@@ -144,7 +120,7 @@ const invocationContextCreates2 = {
 
 const invocationContextCreatesuccessfulwithoutSpecFields = {
   target: {},
-  methodName: 'createSubscription',
+  methodName: 'createMaasSubscription',
   args: [
     {
       incentiveId: 'incentiveId',
@@ -154,7 +130,7 @@ const invocationContextCreatesuccessfulwithoutSpecFields = {
 };
 
 const mockIncentive = new Incentive({
-  territory: {name: 'IDF', id: 'randomTerritoryId'} as Territory,
+  territoryIds: ['randomTerritoryId'],
   additionalInfos: 'test',
   funderName: 'Mairie',
   allocatedAmount: '200 €',
@@ -220,7 +196,7 @@ const mockIncentive = new Incentive({
 });
 
 const mockIncentiveWithOptionalSpecField = new Incentive({
-  territory: {name: 'IDF', id: 'randomTerritoryId'} as Territory,
+  territoryIds: ['randomTerritoryId'],
   additionalInfos: 'test',
   funderName: 'Mairie',
   allocatedAmount: '200 €',
@@ -310,7 +286,7 @@ const mockIncentiveWithOptionalSpecField = new Incentive({
 });
 
 const mockIncentiveFunderId = new Incentive({
-  territory: {name: 'IDF', id: 'randomTerritoryId'} as Territory,
+  territoryIds: ['randomTerritoryId'],
   additionalInfos: 'test',
   funderName: 'Mairie',
   allocatedAmount: '200 €',
@@ -377,7 +353,7 @@ const mockIncentiveFunderId = new Incentive({
 });
 
 const mockIncentiveWithoutSpecificFields = new Incentive({
-  territory: {name: 'IDF', id: 'randomTerritoryId'} as Territory,
+  territoryIds: ['randomTerritoryId'],
   additionalInfos: 'test',
   funderName: 'Mairie',
   allocatedAmount: '200 €',
@@ -398,25 +374,9 @@ const mockIncentiveWithoutSpecificFields = new Incentive({
   isMCMStaff: true,
 });
 
-const invocationContextArgsMimeTypeError = {
-  target: {},
-  methodName: 'createSubscription',
-  args: [
-    {
-      incentiveId: 'incentiveId',
-      newField1: ['newField1'],
-      newField2: 'field2',
-      consent: true,
-    },
-    {
-      files: [],
-    },
-  ],
-};
-
 const invocationContextCreatesuccessful = {
   target: {},
-  methodName: 'createSubscription',
+  methodName: 'createMaasSubscription',
   args: [
     {
       incentiveId: 'incentiveId',

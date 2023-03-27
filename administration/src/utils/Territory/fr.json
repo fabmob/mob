@@ -1,4 +1,17 @@
 {
   "territory.name.error.unique": "Attention, ce nom de territoire est déjà utilisé. Veuillez le vérifier sur votre liste.",
-  "territory.error": "Problème durant la récupération des territoires"
+  "territory.error": "Problème durant la récupération des territoires",
+  "territory.scale.insee.error.noValue": "L'échelle et le ou les code(s) INSEE sont dépendants, merci de remplir les valeurs manquantes",
+  "territory.insee.error.duplicated": "Duplication code INSEE",
+  "territory.insee.error.format": "Le code INSEE doit être composé seulement des chiffres",
+  "territory.scale.insee.error.minMaxItems": "Le nombre de codes INSEE renseignés ne correspond pas à l'échelle choisie",
+  "territory.scale.insee.error.inseeValueLength": "La longueur du(des) code(s) INSEE renseigné(s) ne correspond(ent) pas à l'échelle choisie",
+  "territory.aside.title": "Règles de configuration des territoires",
+  "territory.aside.scale.mandatory": "Le champ Échelle est obligatoire.",
+  "territory.aside.inseeValueList.mandatory": "Le champ Liste de code INSEE est à compléter en fonction de l'échelle :",
+  "territory.aside.inseeValueList.mandatory.list1": "Pour l'échelle Commune : renseigner un seul code INSEE (longueur du code : 5 chiffres).",
+  "territory.aside.inseeValueList.mandatory.list2": "Pour l'échelle Agglomération : renseigner plusieurs codes INSEE (longueur du code : 5 chiffres).",
+  "territory.aside.inseeValueList.mandatory.list3": "Pour l'échelle Département : renseigner un seul code INSEE (longueur du code : 2 chiffres en métropole ou 3 chiffres pour l'outre-mer).",
+  "territory.aside.inseeValueList.mandatory.list4": "Pour l'échelle Région : renseigner un seul code INSEE (longueur du code : 2 chiffres).",
+  "territory.aside.inseeValueList.mandatory.list5": "Pour l'échelle Nationale : ne pas renseigner de code INSEE."
 }

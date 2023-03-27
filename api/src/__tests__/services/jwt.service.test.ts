@@ -2,14 +2,7 @@ import {expect, sinon} from '@loopback/testlab';
 import {JwtService} from '../../services';
 import jwt from 'jsonwebtoken';
 
-import {ValidationError} from '../../validationError';
 import {StatusCode} from '../../utils';
-
-const expectedError = new ValidationError(
-  'jwt.error.no.affiliation',
-  '/jwtNoAffiliation',
-  StatusCode.PreconditionFailed,
-);
 
 describe('jwt service', () => {
   let jwtService: any = null;
@@ -29,7 +22,8 @@ describe('jwt service', () => {
     try {
       jwtService.generateAffiliationAccessToken(mockCitizenWithoutAffiliation);
     } catch (err: any) {
-      expect(err.message).to.equal(expectedError.message);
+      expect(err.message).to.equal('jwt.error.no.affiliation');
+      expect(err.statusCode).to.equal(StatusCode.UnprocessableEntity);
     }
   });
 
@@ -48,11 +42,8 @@ describe('jwt service', () => {
   });
 
   it('should verifyAffiliationAccessToken: KO jwt', () => {
-    try {
-      jwtService.verifyAffiliationAccessToken(mockToken);
-    } catch (err) {
-      expect(err).to.deepEqual(new Error('JsonWebTokenError: jwt malformed'));
-    }
+    const result = jwtService.verifyAffiliationAccessToken(mockToken);
+    expect(result).to.equal(false);
   });
 
   it('should decodeAffiliationAccessToken: OK', () => {
@@ -66,19 +57,13 @@ describe('jwt service', () => {
     try {
       jwtService.decodeAffiliationAccessToken(mockToken);
     } catch (err) {
-      expect(err).to.deepEqual(new Error('JsonWebTokenError: jwt malformed'));
+      expect(err.message).to.equal('Error');
+      expect(err.statusCode).to.equal(StatusCode.InternalServerError);
     }
   });
 });
 
 const mockCitizen = {
-  id: 'randomInputId',
-  affiliation: {
-    enterpriseId: 'randomInputEnterpriseId',
-  },
-};
-
-const mockCitizenKO = {
   id: 'randomInputId',
   affiliation: {
     enterpriseId: 'randomInputEnterpriseId',

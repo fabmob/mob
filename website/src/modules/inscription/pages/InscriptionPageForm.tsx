@@ -3,7 +3,6 @@ import querystring from 'query-string';
 
 import SignUpForm from '@components/Form/SignUpForm/';
 import {
-  CreationCompteMessage,
   CreationCompteSuccesMessage,
   LetterM,
   PatternCompositionMessage,
@@ -33,75 +32,72 @@ const InscriptionPageForm: FC = () => {
     };
 
     const url: string = `${config.IDP_URL}${config.IDP_PATH}`;
-    window.location.href = `${url}?${querystring.stringify(query)}`;    
+    window.location.href = `${url}?${querystring.stringify(query)}`;
   };
 
   return (
     <Layout
       pageTitle={`${Strings['creation.line1.create']} ${Strings['creation.line2.account']}`}
     >
-      {/* FRANCE CONNECT PART START */}
-      {inscriptionMode && (
+      {inscriptionMode ? (
         <>
           <h1 className="connexion-inscription__title">{`${Strings['creation.line1.create']} ${Strings['creation.line2.account']}`}</h1>
-          <div className={CSSClass}>
-            <div className="connexion-inscription__first">
-              <h2>{`${Strings['title.FC']}`}</h2>
-              <p>{Strings['description.FC']}</p>
+          <div className="registration-container">
+            <div className="connexion-inscription FC-block">
+              <div className="connexion-inscription__first">
+                <h2>{`${Strings['title.FC']}`}</h2>
+                <p>{Strings['description.FC']}</p>
+              </div>
+              <div className="connexion-inscription__second btn-FC">
+                <div className="fc_buttons_content">
+                  <button
+                    type="button"
+                    aria-label="fc_link"
+                    className="fc_link"
+                    onClick={() => {
+                      openFranceConnect();
+                    }}
+                  ></button>
+                  <a
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    href="https://franceconnect.gouv.fr"
+                  >
+                    {Strings['what.is.fc']}
+                  </a>
+                </div>
+              </div>
+              <div className="separ-sections">
+                <p className="label">{`${Strings['signin.separation.label']}`}</p>
+              </div>
             </div>
-            <div className="connexion-inscription__second btn-FC">
-              <div className="fc_buttons_content">
-                <button
-                  type="button"
-                  aria-label="fc_link"
-                  className="fc_link"
-                  onClick={() => {
-                    openFranceConnect();
-                  }}
-                ></button>
-                <a
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  href="https://franceconnect.gouv.fr"
-                >
-                  {Strings['what.is.fc']}
-                </a>
+            <div className={CSSClass}>
+              <div className="connexion-inscription__first">
+                <h2>{Strings['creation.with.mob']}</h2>
+                <p>{Strings['creation.complete.profile.message']}</p>
+              </div>
+              <div className="connexion-inscription__second">
+                <SignUpForm
+                  handleSwitchMode={() => setInscriptionMode(false)}
+                />
               </div>
             </div>
           </div>
-          <div className="separ-sections">
-            <p className="label">{`${Strings['signin.separation.label']}`}</p>
-          </div>
         </>
-      )}
-      {/* FRANCE CONNECT PART END */}
-
-      {/* moB PART START */}
-      <div className={CSSClass}>
-        <div className="connexion-inscription__first">
-          {inscriptionMode ? (
-            <>
-              <CreationCompteMessage />
-              {<PatternCompositionMessage />}
-            </>
-          ) : (
+      ) : (
+        <div className={CSSClass}>
+          <div className="connexion-inscription__first">
             <CreationCompteSuccesMessage />
-          )}
-        </div>
-        <div className="connexion-inscription__second">
-          {inscriptionMode && (
-            <SignUpForm
-              handleSwitchMode={() => setInscriptionMode(false)}
-            />
-          )}
-        </div>
-        <div className="connexion-inscription__image">
-          <div className="img-rounded-left">
-            {!inscriptionMode && <Image fixed filename="girl-smiling.jpg" />}
           </div>
-          {LetterM}
+
+          <div className="connexion-inscription__image">
+            <div className="img-rounded-left">
+              <Image fixed filename="girl-smiling.jpg" />
+            </div>
+            {LetterM}
+          </div>
         </div>
-      </div>
+      )}
     </Layout>
   );
 };

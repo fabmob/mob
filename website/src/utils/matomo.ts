@@ -1,8 +1,11 @@
-import { getEntreprisesList, EntrepriseName } from '@api/EntrepriseService';
-import { CompanyOption } from 'src/components/Form/SignUpForm';
+import { differenceInYears, parse } from 'date-fns';
+import { getFunders } from '@api/FunderService';
+import { Funder, FUNDER_TYPE } from './funders';
 
-const getEnterpriseName = (enterpriseId: string, companyOptions: object[]) => {
-  return companyOptions.find((company) => enterpriseId === company.id)?.value;
+const calculateAge = (dob: string): number => {
+  const date: Date = parse(dob, 'yyyy-MM-dd', new Date());
+  const age: number = differenceInYears(new Date(), date);
+  return age;
 };
 
 const getMatomoData = async (setMatomoUrl: any) => {
@@ -36,23 +39,24 @@ const matomoAccountCreation = (
     city: string;
     postcode: string;
     status: string;
-    birthdate: string;
+    identity: {
+      birthDate: {
+        value: string;
+      };
+    };
     affiliation: {
       enterpriseId: string;
       enterpriseEmail: string;
     };
   },
-  companyOptions: object[]
+  enterpriseName: string | undefined
 ): void => {
-  const { city, postcode, status, birthdate, affiliation } = userData,
-    companyName = getEnterpriseName(affiliation.enterpriseId, companyOptions),
-    today = new Date(),
-    birthDate = new Date(birthdate),
-    citizenAge = today.getFullYear() - birthDate.getFullYear(),
+  const { city, postcode, status, identity, affiliation } = userData,
+    citizenAge = calculateAge(identity.birthDate.value),
     affiliationStatus =
       affiliation.enterpriseId && affiliation.enterpriseEmail ? 'Oui' : 'Non',
     pageViewData = `Ville : ${city}, Code Postal : ${postcode}, Age : ${citizenAge}, Statut Professionnel : ${status}, Entreprise : ${
-      companyName || "Pas d'entreprise"
+      enterpriseName || "Pas d'entreprise"
     }, Affiliation : ${affiliationStatus}`;
   // Get tracker page view function
   trackPageView({
@@ -76,21 +80,8 @@ const matomoTrackEvent = async (
   }) => void,
   params: string
 ) => {
-  let company: CompanyOption[] = [];
-  await getEntreprisesList<EntrepriseName[]>().then(
-    (result: EntrepriseName[]) => {
-      result.forEach((item) =>
-        company.push({
-          id: item.id,
-          value: item.name,
-          label: item.name,
-          formats: item.emailFormat,
-        })
-      );
-    },
-    (error: any) => {}
-  );
-  const companyData = getEnterpriseName(params, company) ?? '';
+  const enterpriseList: Funder[] = await getFunders<Funder[]>([FUNDER_TYPE.ENTERPRISE]);
+  const companyData: string | undefined = enterpriseList.find((enterprise) => params === enterprise.id)?.name
   // Type of track available
   const trackerTypeLib: { [key: string]: { [key: string]: string } } = {
     // Event validate affiliation in Inscription.tsx

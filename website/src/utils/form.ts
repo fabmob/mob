@@ -56,23 +56,4 @@ function computeServerErrors<T>(
   });
 }
 
-const validateEmailPattern = (
-  email: string,
-  companyList: CompanyOption[],
-  selectedCompany: string
-) => {
-  const formatEmail: string = email.replace(/^.+@/, '@');
-  const isValidPattern = companyList.some((company) => {
-    if (company.value === selectedCompany && selectedCompany !== '') {
-      return company.formats.includes(formatEmail);
-    }
-
-    if (selectedCompany === '') {
-      return true;
-    }
-  });
-
-  return isValidPattern;
-};
-
-export { computeServerErrorsV2, computeServerErrors, validateEmailPattern };
+export { computeServerErrorsV2, computeServerErrors };

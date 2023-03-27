@@ -1,10 +1,9 @@
 import {expect} from '@loopback/testlab';
 import {Citizen, UserAttribute, UserEntity} from '../../models';
-import {Identity} from '../../models/citizen/identity.model';
 import {CITIZEN_STATUS, GENDER} from '../../utils';
 
 describe('User Entity model', () => {
-  it('toCitizen', () => {
+  it('toCitizen with user attributes', () => {
     const timestampMock = Date.now();
     const udpatedAtMock = new Date();
 
@@ -72,7 +71,6 @@ describe('User Entity model', () => {
           certificationDate: '2022-10-24T00:00:00.000Z',
         },
       },
-      dgfipInformation: {},
       city: 'test',
       status: CITIZEN_STATUS.STUDENT,
       terms_and_conditions: timestampMock.toString(),
@@ -122,6 +120,10 @@ describe('User Entity model', () => {
           value: JSON.stringify(inputPersonalInformation.email),
         }),
         new UserAttribute({
+          name: 'notInCMSType.email',
+          value: 'not a cms type',
+        }),
+        new UserAttribute({
           name: 'city',
           value: 'test',
         }),
@@ -155,5 +157,20 @@ describe('User Entity model', () => {
     const citizenResult: Citizen = userEntity.toCitizen();
 
     expect(citizenResult).to.deepEqual(expectedCitizen);
+  });
+
+  it('toCitizen with no user attributes', () => {
+    const userEntity: UserEntity = new UserEntity({
+      id: 'randomInputId',
+      lastName: 'lastName',
+      firstName: 'firstName',
+      email: 'email@gmail.com',
+      username: 'email@gmail.com',
+      userAttributes: undefined,
+    });
+
+    const citizenResult: Citizen = userEntity.toCitizen();
+
+    expect(citizenResult).to.deepEqual(new Citizen({id: 'randomInputId'}));
   });
 });

@@ -1,5 +1,5 @@
 import React, { FC, useEffect, useState } from 'react';
-import { Link } from 'gatsby';
+import { Link, navigate } from 'gatsby';
 
 import Layout from '@components/Layout/Layout';
 import Button from '@components/Button/Button';
@@ -22,6 +22,8 @@ import { HomeImages, HomeVideos } from '../constants';
 import { environment } from '../environment';
 
 import Strings from './locale/fr.json';
+import mobLogo from '../../static/mob-favicon.png';
+import { Helmet } from 'react-helmet';
 
 const navLinks = [
   { label: 'Citoyen.ne', path: '/', active: true },
@@ -54,6 +56,18 @@ const IndexPage: FC = () => {
         isVisibleOnMobile: false,
       }}
     >
+      <Helmet
+        title={Strings['homePage.head.title']}
+        titleTemplate={`%s ${Strings['homePage.head.title.separator']} ${Strings['homePage.head.title.siteName']}`}
+      >
+        <html lang="fr" />
+        <meta
+          name="description"
+          content={Strings['homePage.head.description']}
+        />
+        <meta property="og:image" content={mobLogo}></meta>
+        <meta property="og:image:alt" content="logo-mob"></meta>
+      </Helmet>
       <div className="mcm-home">
         <LinksNav navItems={navLinks} />
         <section className="mcm-hero">
@@ -79,11 +93,11 @@ const IndexPage: FC = () => {
               <Button
                 inverted
                 classnames="button-margin-link"
-                onClick={() =>
-                  keycloak.login({
-                    redirectUri: `${window.location.origin}/redirection/`,
-                  })
-                }
+                onClick={() => {
+                  {
+                    navigate('/inscription/formulaire');
+                  }
+                }}
               >
                 {Strings['create.account']}
               </Button>

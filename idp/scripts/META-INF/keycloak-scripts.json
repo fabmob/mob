@@ -15,11 +15,10 @@
       "fileName": "authenticator-FC-group.js",
       "description": "Custom authenticator to add citizen to citizen group"
     },
-
     {
-      "name": "FC Authenticator Required Action",
-      "fileName": "authenticator-FC-action.js",
-      "description": "Custom authenticator to add required action to citizen"
+      "name": "FC Authenticator Last Login Timestamp",
+      "fileName": "authenticator-lastLoginAt.js",
+      "description": "Custom authenticator to add citizen attribute lastLoginAt"
     }
   ]
 }

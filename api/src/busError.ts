@@ -1,18 +1,18 @@
-import {logger} from './utils';
-import {ValidationError} from './validationError';
+import {Logger} from './utils';
 
-export class BusError extends ValidationError {
-  property?: string;
+export class BusError extends Error {
+  protected property?: string;
+  protected path: string;
+  protected statusCode: number;
+  protected resourceName: string | undefined;
 
-  constructor(
-    message: string,
-    property: string,
-    path: string,
-    statusCode = 500,
-    resourceName = '',
-  ) {
-    super(message, path, statusCode, resourceName);
+  constructor(message: string, property: string, path: string, statusCode = 500, resourceName = '') {
+    super(message);
     this.property = property;
-    logger.error(message);
+    this.path = path;
+    this.statusCode = statusCode;
+    this.resourceName = resourceName !== '' ? resourceName : undefined;
+
+    Logger.error(BusError.name, 'subscription', message, property);
   }
 }

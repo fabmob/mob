@@ -8,6 +8,7 @@ export interface Incentive {
   title: string;
   description: string;
   territoryName: string; // TODO: REMOVING DEPRECATED territoryName.
+  territoryIds: string[];
   funderName: string;
   incentiveType: 'AideNationale' | 'AideTerritoire' | 'AideEmployeur';
   conditions: string;

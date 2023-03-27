@@ -171,7 +171,7 @@ export class PostalAddressValue extends Model {
     type: 'string',
     description: 'Adresse au format AFNOR NF Z 10-011 - Ligne 4',
     jsonSchema: {
-      example: '7 Rue Claude Chappe',
+      example: '1 Rue Saunière',
       maxLength: 38,
     },
   })
@@ -181,7 +181,7 @@ export class PostalAddressValue extends Model {
     type: 'string',
     description: 'Adresse au format AFNOR NF Z 10-011 - Ligne 5',
     jsonSchema: {
-      example: 'Rennes Atalante Champs Blancs CS 67746',
+      example: 'Cité universitaire CHAPOU 31001',
       maxLength: 38,
     },
   })
@@ -191,7 +191,7 @@ export class PostalAddressValue extends Model {
     type: 'string',
     description: 'Adresse au format AFNOR NF Z 10-011 - Ligne 6',
     jsonSchema: {
-      example: '35510 Cesson-Sévigné',
+      example: '31000 Toulouse',
       maxLength: 38,
     },
   })

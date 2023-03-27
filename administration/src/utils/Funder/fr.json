@@ -1,0 +1,26 @@
+{
+    "funders.error": "Problème durant la récupération des financeurs",
+    "funders.error.clients.list": "Problème durant la récupération des clients",
+    "funders.error.required": "Attention, ce champ est obligatoire",
+    "entreprises.error.name.unique": "Attention, ce nom d'entreprise est déjà utilisé",
+    "funders.error.emailFormat.type": "Attention, un format d'email est invalide (@exemple.com)" ,
+    "collectivités.error.name.unique": "Attention, ce nom de collectivité est déjà utilisé",
+    "administrations_nationales.error.name.unique": "Attention, ce nom de d'administration nationale est déjà utilisé",
+    "funder.name.error.unique": "Attention, ce nom de financeur est déjà utilisé pour ce type",
+    "funder.collectivites.aside.title":"Configuration d’une collectivité",
+    "funder.collectivites.aside.message1": "Pour les aides de type 'Aide de mon territoire', il est nécessaire de créer un financeur associé.",
+    "funder.collectivites.aside.message2": "Ces aides sont portées par des AOMs et s’appliquent à l’échelle territoriale (commune, agglomération, département, région).",
+    "funder.entreprise.aside.title":"Configuration d’une entreprise",
+    "funder.entreprise.aside.message1":"Format d’adresse email de l’entreprise : renseigner le format d’adresse email (@exemple.com). Le salarié s’affilie automatiquement à son établissement en renseignant son mail professionnel.",
+    "funder.entreprise.aside.message2":"SI RH : moB peut se mailler avec un outil SI RH d’une entreprise partenaire pour faciliter la gestion des aides par les gestionnaires (ex : connecteur Neocase).",
+    "funder.entreprise.aside.message3":"Validation affiliation par le gestionnaire : si le salarié ne dispose pas d’adresse email, il est possible d’activer la fonctionnalité d’affiliation manuelle. Le gestionnaire reçoit et traite les demandes d’affiliation depuis son interface.",
+    "funder.entreprise.aside.message4":"Attention, pour créer une aide de type 'Aide de mon employeur' il est nécessaire de créer un utilisateur financeur associé dans l’onglet utilisateur financeur.",
+    "funder.administration.nationale.aside.title":"Configuration d’une administration nationale",
+    "funder.administration.nationale.aside.message1":"Pour les aides de type ‘Aide Nationale’ il est nécessaire de créer un financeur associé.",
+    "funder.administration.nationale.aside.message2":"Ce cas s’applique par exemple à l’ensemble des aides nationales portées par l’Etat.",
+    "funder.administration.nationale.aside.message3":"Les aides de ce financeur sont uniquement des aides de type ‘Aide Nationale’.",
+    "funder.client.aside.title":"Client",
+    "funder.client.aside.message1":"Préalablement créé par un administrateur technique dans le service idp, il est utilisé par le connecteur SI RH et/ou le gestionnaire de clés de chiffrement (ex. Vault) du Financeur afin d'accéder aux services moB.",
+    "funder.client.aside.message2":" Seul ce client est autorisé à effectuer des actions pour le Financeur."
+  }
+  

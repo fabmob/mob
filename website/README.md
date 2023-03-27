@@ -32,9 +32,10 @@ Un site statique fortement optimisé est généré par le pipeline de build, à 
 
 | Variables                         | Description                            | Obligatoire |
 | --------------------------------- | -------------------------------------- | ----------- |
-| CLIENT_SECRET_KEY_KEYCLOAK_API    | Sécurisation de l'accès à l'api        | Oui         |
-| IDP_MCM_REALM                     | Nom du realm Keycloak                  | Non         |
-| IDP_MCM_SIMULATION_MAAS_CLIENT_ID | Nom du client dans Keycloak "clientId" | Non         |
+| API_KEY    | Api Key en header des requêtes pour l'api        | Oui         |
+| LANDSCAPE  | Nom de l'environnement (preview, testing ..)     | Non         |
+| IDP_FQDN | Url de l'idp  | Non         |
+| DEFAULT_LIMIT                  | Limit par défaut possible pour la pagination                                 | Oui         |
 
 ## Lancement de l'application
 
@@ -118,6 +119,41 @@ yarn install
 ```sh
 gatsby develop
 ```
+
+
+## URL / Port
+
+- URL : localhost
+- Port : 8000
+
+# Précisions pipelines
+
+L'image de l'api est basée sur celle de nginx.
+
+La variable PACKAGE_VERSION (voir commons) permet de repérer la dernière version publiée.
+
+## Preview
+
+Pas de précisions nécéssaires pour ce service
+
+
+## Testing
+
+Pas de précisions nécéssaires pour ce service
+
+# Relation avec les autres services
+
+Website communique avec l'[api](/api/README.md) pour envoyer ou récupérer des informations.
+
+Website communique avec l'[idp](/idp/README.md) pour la gestion des autorisations, connexions, rafraichissement des tokens ...
+
+Website envoie des données vers l'[analytics](/analytics/README.md) permettant de tracker certains KPI tout en respectant les règles RGPD.
+
+**Bilan des relations:**
+
+- Requête HTTP de _website_ vers _api_
+- Redirections entre de _website_ et _idp_
+- Requête HTTP de _website_ vers _analytics_
 
 # Tests Unitaires
 

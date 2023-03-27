@@ -20,8 +20,10 @@ interface IUserContext {
   citizen?: Citizen;
   userFunder?: UserFunder;
   authenticated: boolean;
+  isInsertOpen: boolean;
   refetchCitizen: () => void;
   refetchUserFunder: () => void;
+  closeInsertFC: () => void;
 }
 export const UserContext = React.createContext<IUserContext | undefined>(
   undefined
@@ -32,8 +34,13 @@ export const UserProvider: React.FC = ({ children }) => {
   const [loading, setLoading] = useState<boolean | undefined>(
     !isContentEditor() && keycloak?.authenticated
   );
+  const [isInsertOpen, setIsInsertOpen] = useState<boolean>(true);
   const isCitizen = getIsCitizen();
   const isFromFranceConnect = useFromFranceConnect();
+
+  function closeInsertFC() {
+    setIsInsertOpen(false);
+  }
 
   const {
     data: userFunder,
@@ -54,7 +61,18 @@ export const UserProvider: React.FC = ({ children }) => {
     refetch: refetchCitizen,
   } = useQuery<Citizen>(
     'getCitizen',
-    () => getCitizenById(keycloak?.tokenParsed?.sub),
+    () =>
+      getCitizenById(keycloak?.tokenParsed?.sub, {
+        fields: {
+          id: true,
+          status: true,
+          identity: true,
+          personalInformation: true,
+          affiliation: true,
+          city: true,
+          postcode: true,
+        },
+      }),
     {
       enabled:
         keycloak?.authenticated && isCitizen && !!keycloak?.tokenParsed?.sub,
@@ -90,6 +108,8 @@ export const UserProvider: React.FC = ({ children }) => {
         authenticated: keycloak?.authenticated!,
         refetchCitizen,
         refetchUserFunder,
+        isInsertOpen,
+        closeInsertFC,
       }}
     >
       {loading ? <Loader /> : children}

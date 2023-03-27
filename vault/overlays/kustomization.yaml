@@ -8,3 +8,9 @@ resources:
 
 patchesStrategicMerge:
   - web_nw_networkpolicy_namespaceselector.yml
+  - vault_configmap_cert.yml
+
+configMapGenerator:
+  - name: vault-cert-pem
+    files:
+      - vault-cert.pem

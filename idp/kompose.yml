@@ -32,14 +32,14 @@ services:
         BASE_IMAGE_KEYCLOAK: ${NEXUS_IMAGE_KEYCLOAK}
     command:
       [
-        '-b',
-        '0.0.0.0',
-        '-Djboss.modules.system.pkgs=org.jboss.logmanager',
-        '-Dkeycloak.migration.action=import',
-        '-Dkeycloak.migration.provider=singleFile',
-        '-Dkeycloak.migration.file=/tmp/all-realm.json',
-        '-Dkeycloak.migration.strategy=${MIGRATION_STRATEGY_REALM}',
-        '-Dkeycloak.profile.feature.scripts=enabled',
+        "-b",
+        "0.0.0.0",
+        "-Djboss.modules.system.pkgs=org.jboss.logmanager",
+        "-Dkeycloak.migration.action=import",
+        "-Dkeycloak.migration.provider=singleFile",
+        "-Dkeycloak.migration.file=/tmp/all-realm.json",
+        "-Dkeycloak.migration.strategy=${MIGRATION_STRATEGY_REALM}",
+        "-Dkeycloak.profile.feature.scripts=enabled",
       ]
     depends_on:
       - postgres-keycloak
@@ -63,6 +63,8 @@ services:
       - LANDSCAPE
       - BASE_DOMAIN
       - MATOMO_FQDN
+      - URL_LOGOUT_FC=${IDP_URL_LOGOUT_FC}
+      - URL_FC=${IDP_URL_FC}
     ports:
       - "8080"
     labels:

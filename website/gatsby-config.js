@@ -2,8 +2,9 @@ module.exports = {
   siteMetadata: {
     title: 'Mon Compte Mobilité',
     description:
-      "Mon Compte Mobilité (moB) est un service numérique qui encourage les citoyens et salariés à recourir aux mobilités douces en facilitant l'accès aux aides et services de mobilité via un moteur de recherche et de souscription.",
+      "Mon Compte Mobilité (moB) encourage le recours aux mobilités douces en facilitant l'accès aux aides et services de mobilité.",
     siteUrl: `https://moncomptemobilite.fr/`,
+    image: `/mob-favicon.png`,
   },
   plugins: [
     {

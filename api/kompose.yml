@@ -77,6 +77,9 @@ services:
       - TIMESTAMP_URL
       - TIMESTAMP_USERNAME
       - TIMESTAMP_PASSWORD
+      - LOG_LEVEL
+      - DEFAULT_LIMIT
+      - MAX_LIMIT
     networks:
       - web-nw
       - storage-nw

@@ -1,4 +1,5 @@
-import {Entity, model, property} from '@loopback/repository';
+import {Entity, model, property, belongsTo} from '@loopback/repository';
+import {Funder} from '../funder';
 
 @model()
 export class Community extends Entity {
@@ -23,14 +24,18 @@ export class Community extends Entity {
   })
   name: string;
 
-  @property({
-    type: 'string',
-    description: `Identifiant du financeur à laquelle la communauté est attachée`,
-    required: true,
-    jsonSchema: {
-      example: ``,
+  @belongsTo(
+    () => Funder,
+    {name: 'funder'},
+    {
+      type: 'string',
+      required: true,
+      description: `Identifiant du financeur à laquelle la communauté est attachée`,
+      jsonSchema: {
+        example: ``,
+      },
     },
-  })
+  )
   funderId: string;
 
   constructor(data?: Partial<Community>) {

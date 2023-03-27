@@ -44,6 +44,7 @@ ou
 | MAILHOG_HOST                   | Host de mailhog                                                              | Non         |
 | MAILHOG_EMAIL_FROM             | Email from 'mon compte mobilite'                                             | Non         |
 | SENDGRID_HOST                  | Host sendgrid                                                                | Non         |
+| SENDGRID_PORT                  | Port sendgrid                                                                | Non         |
 | SENDGRID_USER                  | User sendgrid                                                                | Non         |
 | SENDGRID_API_KEY               | Api key sendgrid                                                             | Non         |
 | SENDGRID_EMAIL_FROM            | Email from 'mon compte mobilite'                                             | Non         |
@@ -69,8 +70,12 @@ ou
 | MONGO_DATABASE                 | Nom de la bdd mongo                                                          | Non         |
 | MONGO_PORT                     | Port mongo                                                                   | Non         |
 | MONGO_AUTH_SOURCE              | Nom de la source d'authentification bdd mongo                                | Non         |
+| MONGO_PROTOCOL                 | Protocole pour la connexion mongoatlas                                       | Non         |
+| MONGO_OPTIONS                  | Options pour la connexion mongoatlas                                         | Non         |
 | SENDGRID_EMAIL_CONTACT         | Email contact                                                                | Non         |
 | LOG_LEVEL                      | Niveau de logs pour l'api                                                    | Non         |
+| MAX_LIMIT                      | Limit maximale possible pour la pagination                                   | Oui         |
+| DEFAULT_LIMIT                  | Limit par défaut possible pour la pagination                                 | Oui         |
 
 ## URL / Port
 
@@ -90,6 +95,8 @@ Deux scripts sont lancés au déploiement de la bdd mongo permettant de créer l
 ## Testing
 
 Sur cet environnement, la bdd mongo est hébergée sur Azure. Le paramétrage de la bdd et des collections sont donc à faire en amont.
+Attention au type de machine utilisé sur mongoatlas. Nous avons un troubleshooting sur la M0/M2/M5 qui ne support pas certaines commandes
+vor la documentation ![Unsupported Commands in Atlas](https://www.mongodb.com/docs/atlas/unsupported-commands/#unsupported-commands-in-atlas)
 
 # Relation avec les autres services
 
@@ -105,15 +112,15 @@ A son démarrage :
 - Elle lance un child process étant responsable de l'écoute et de la consommation des événements amqp sur la queue de dépôt
 - Elle se connecte aux bdd configurées (mongo & pgsql)
 
-Comme mentionné, notre api a accès à la bdd pgsql de l'[idp](idp) en lecture seule permettant de requêter des informations plus rapidement & facilement que par appel API de l'IDP.
+Comme mentionné, notre api a accès à la bdd pgsql de l'[idp](/idp/README.md) en lecture seule permettant de requêter des informations plus rapidement & facilement que par appel API de l'IDP.
 
 L'api est reliée à :
 
 - _idp_ pour renforcer la sécurité et vérifier l'accès aux endpoints.
 - _administration_ pour permettre la contribution de certains contenus.
-- website pour la récupération des données permettant le bon fonctionnement de moB.
+- _website_ pour la récupération des données permettant le bon fonctionnement de moB.
 - _s3_ pour le download/upload des justificatifs
-- simulation-maas pour la simulation de l'envoie des metadonnées. En effet, nos développements sont orientés open API et nos partenaires peuvent donc s'orienter sur une approche Full API de moB.
+- _simulation-maas_ pour la simulation de l'envoie des metadonnées. En effet, nos développements sont orientés open API et nos partenaires peuvent donc s'orienter sur une approche Full API de moB.
 - _antivirus_ pour scanner les justificatifs qui nous sont envoyés.
 - _bus_ pour l'échange de messages entre les SIRH et nous.
 

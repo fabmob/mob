@@ -1,8 +1,4 @@
-import {
-  createStubInstance,
-  expect,
-  StubbedInstanceWithSinonAccessor,
-} from '@loopback/testlab';
+import {createStubInstance, expect, StubbedInstanceWithSinonAccessor} from '@loopback/testlab';
 import {securityId} from '@loopback/security';
 
 import {
@@ -10,19 +6,20 @@ import {
   UserEntityRepository,
   UserRepository,
   KeycloakGroupRepository,
+  FunderRepository,
 } from '../../repositories';
 import {UserController} from '../../controllers';
-import {KeycloakService, FunderService} from '../../services';
-import {Community, User, KeycloakRole} from '../../models';
-import {FUNDER_TYPE, IUser, ResourceName, StatusCode} from '../../utils';
-import {ValidationError} from '../../validationError';
+import {KeycloakService} from '../../services';
+import {Community, User, KeycloakRole, EnterpriseDetails, Funder} from '../../models';
+import {FUNDER_TYPE, IUser, StatusCode} from '../../utils';
+import {response} from '@loopback/rest';
 
 describe('UserController (unit)', () => {
   let userRepository: StubbedInstanceWithSinonAccessor<UserRepository>,
     keycloakGroupRepository: StubbedInstanceWithSinonAccessor<KeycloakGroupRepository>,
     userEntityRepository: StubbedInstanceWithSinonAccessor<UserEntityRepository>,
     communityRepository: StubbedInstanceWithSinonAccessor<CommunityRepository>,
-    funderService: StubbedInstanceWithSinonAccessor<FunderService>,
+    funderRepository: StubbedInstanceWithSinonAccessor<FunderRepository>,
     kcService: StubbedInstanceWithSinonAccessor<KeycloakService>,
     controller: UserController;
 
@@ -53,21 +50,16 @@ describe('UserController (unit)', () => {
     roles: ['superviseurs'],
   });
 
-  const errorManualAffiliation = new ValidationError(
-    `users.funder.manualAffiliation.refuse`,
-    `/users`,
-    StatusCode.PreconditionFailed,
-    ResourceName.User,
-  );
-
-  const enterpriseNoManualAffiliation = {
+  const enterpriseNoManualAffiliation = new Funder({
     id: 'random',
-    emailFormat: ['@arandom.fr', '@random.com'],
-    hasManualAffiliation: false,
+    enterpriseDetails: new EnterpriseDetails({
+      emailDomainNames: ['@arandom.fr', '@random.com'],
+      hasManualAffiliation: false,
+      isHris: true,
+    }),
     name: 'enterprise',
-    isHris: true,
-    funderType: FUNDER_TYPE.enterprise,
-  };
+    type: FUNDER_TYPE.ENTERPRISE,
+  });
 
   const userWithManualAffiliation = new User({
     id: 'a0e48494-1bfb-4142-951b-16ec6d9c8e1d',
@@ -80,105 +72,39 @@ describe('UserController (unit)', () => {
     canReceiveAffiliationMail: true,
   });
 
+  const response: any = {
+    status: function () {
+      return this;
+    },
+    contentType: function () {
+      return this;
+    },
+    send: (body: any) => body,
+  };
+
   beforeEach(() => {
     givenStubbedComponent();
     controller = new UserController(
+      response,
       userRepository,
       keycloakGroupRepository,
       userEntityRepository,
       communityRepository,
+      funderRepository,
       kcService,
-      funderService,
       currentUser,
     );
   });
 
   describe('UserController', () => {
-    it('UserController create : fails because of emailformat error', async () => {
-      const errorKc = new ValidationError(
-        `email.error.emailFormat`,
-        `/users`,
-        StatusCode.UnprocessableEntity,
-        ResourceName.User,
-      );
-      try {
-        funderService.stubs.getFunders.resolves([
-          {
-            id: 'random',
-            emailFormat: ['@arandom.fr', '@random.com'],
-            funderType: FUNDER_TYPE.enterprise,
-          },
-        ]);
-
-        await controller.create(user);
-      } catch ({message}) {
-        expect(message).to.equal(errorKc.message);
-      }
-      funderService.stubs.getFunders.restore();
-    });
-
-    it('UserController create : fails because of unmismatched roles', async () => {
-      const errorKc = new ValidationError(
-        `users.error.roles.mismatch`,
-        `/users`,
-        StatusCode.UnprocessableEntity,
-        ResourceName.User,
-      );
-      try {
-        funderService.stubs.getFunders.resolves([
-          {
-            id: 'random',
-            emailFormat: ['@random.fr', '@random.com'],
-            funderType: FUNDER_TYPE.enterprise,
-          },
-        ]);
-        keycloakGroupRepository.stubs.getSubGroupFunderRoles.resolves(['superviseurs']);
-
-        await controller.create(user);
-      } catch ({message}) {
-        expect(message).to.equal(errorKc.message);
-      }
-      funderService.stubs.getFunders.restore();
-      keycloakGroupRepository.stubs.getSubGroupFunderRoles.restore();
-    });
-
-    it('UserController create : fails because of unmismatched communauties', async () => {
-      const errorKc = new ValidationError(
-        `users.error.communities.mismatch`,
-        `/users`,
-        StatusCode.UnprocessableEntity,
-        ResourceName.User,
-      );
-      try {
-        funderService.stubs.getFunders.resolves([
-          {
-            id: 'random',
-            emailFormat: ['@random.fr', '@random.com'],
-            funderType: FUNDER_TYPE.enterprise,
-          },
-        ]);
-        keycloakGroupRepository.stubs.getSubGroupFunderRoles.resolves([
-          'superviseurs',
-          'gestionnaires',
-          'newRole',
-        ]);
-        communityRepository.stubs.findByFunderId.resolves([]);
-
-        await controller.create(user);
-      } catch ({message}) {
-        expect(message).to.equal(errorKc.message);
-      }
-      funderService.stubs.getFunders.restore();
-      keycloakGroupRepository.stubs.getSubGroupFunderRoles.restore();
-      communityRepository.stubs.findByFunderId.restore();
-    });
-
     it('UserController create : fails because of create repository error', async () => {
-      const errorRepository = 'can not add data in database';
       try {
-        funderService.stubs.getFunders.resolves([
-          {id: 'random', funderType: FUNDER_TYPE.collectivity},
-        ]);
+        funderRepository.stubs.findById.resolves(
+          new Funder({
+            id: 'random',
+            type: FUNDER_TYPE.COLLECTIVITY,
+          }),
+        );
         kcService.stubs.createUserKc.resolves({id: 'randomInputId'});
         keycloakGroupRepository.stubs.getSubGroupFunderRoles.resolves([
           'superviseurs',
@@ -190,66 +116,25 @@ describe('UserController (unit)', () => {
           new Community({id: 'id2'}),
           new Community({id: 'id3'}),
         ]);
-        userRepository.stubs.create.rejects(errorRepository);
-        kcService.stubs.deleteUserKc.resolves();
-
-        await controller.create(user);
-      } catch ({name}) {
-        expect(name).to.equal(errorRepository);
-      }
-
-      kcService.stubs.createUserKc.restore();
-      userRepository.stubs.create.restore();
-      funderService.stubs.getFunders.restore();
-      keycloakGroupRepository.stubs.getSubGroupFunderRoles.restore();
-      communityRepository.stubs.findByFunderId.restore();
-      kcService.stubs.deleteUserKc.restore();
-    });
-
-    it('UserController create : fails because of can not find funder', async () => {
-      const errorFunder = new ValidationError(
-        `users.error.funders.missed`,
-        `/users`,
-        StatusCode.UnprocessableEntity,
-        ResourceName.User,
-      );
-      try {
-        kcService.stubs.createUserKc.resolves({
-          id: 'randomInputId',
-        });
-        funderService.stubs.getFunders.resolves([]);
+        userRepository.stubs.create.rejects(new Error('Error'));
         kcService.stubs.deleteUserKc.resolves();
 
         await controller.create(user);
       } catch (err) {
-        expect(err).to.deepEqual(errorFunder);
+        expect(err.message).to.equal('Error');
       }
-
-      kcService.stubs.createUserKc.restore();
-      kcService.stubs.deleteUserKc.restore();
-      userRepository.stubs.create.restore();
-      funderService.stubs.getFunders.restore();
-    });
-
-    it('UserController create : fails because of manual affiliation condition error', async () => {
-      try {
-        funderService.stubs.getFunders.resolves([enterpriseNoManualAffiliation]);
-
-        await controller.create(userWithManualAffiliation);
-      } catch ({message}) {
-        expect(message).to.equal(errorManualAffiliation.message);
-      }
-      funderService.stubs.getFunders.restore();
     });
 
     it('UserController create user funder : successful', async () => {
-      funderService.stubs.getFunders.resolves([
-        {
+      funderRepository.stubs.findById.resolves(
+        new Funder({
           id: 'random',
-          emailFormat: ['@random.fr', '@random.com'],
-          funderType: FUNDER_TYPE.enterprise,
-        },
-      ]);
+          enterpriseDetails: new EnterpriseDetails({
+            emailDomainNames: ['@random.fr', '@random.com'],
+          }),
+          type: FUNDER_TYPE.ENTERPRISE,
+        }),
+      );
       keycloakGroupRepository.stubs.getSubGroupFunderRoles.resolves([
         'superviseurs',
         'gestionnaires',
@@ -269,21 +154,18 @@ describe('UserController (unit)', () => {
       expect(result).to.deepEqual({
         id: user.id,
       });
-      funderService.stubs.getFunders.restore();
-      keycloakGroupRepository.stubs.getSubGroupFunderRoles.restore();
-      communityRepository.stubs.findByFunderId.restore();
-      kcService.stubs.createUserKc.restore();
-      userRepository.stubs.create.restore();
     });
 
     it('UserController create funder keycloakResult undefined', async () => {
-      funderService.stubs.getFunders.resolves([
-        {
+      funderRepository.stubs.findById.resolves(
+        new Funder({
           id: 'random',
-          emailFormat: ['@random.fr', '@random.com'],
-          funderType: FUNDER_TYPE.enterprise,
-        },
-      ]);
+          enterpriseDetails: new EnterpriseDetails({
+            emailDomainNames: ['@random.fr', '@random.com'],
+          }),
+          type: FUNDER_TYPE.ENTERPRISE,
+        }),
+      );
       keycloakGroupRepository.stubs.getSubGroupFunderRoles.resolves([
         'superviseurs',
         'gestionnaires',
@@ -300,25 +182,19 @@ describe('UserController (unit)', () => {
       const result = await controller.create(user);
 
       expect(result).to.deepEqual(undefined);
-
-      funderService.stubs.getFunders.restore();
-      keycloakGroupRepository.stubs.getSubGroupFunderRoles.restore();
-      communityRepository.stubs.findByFunderId.restore();
-      kcService.stubs.createUserKc.restore();
     });
 
     it('UserController create supervisor funder successful', async () => {
-      funderService.stubs.getFunders.resolves([
-        {
+      funderRepository.stubs.findById.resolves(
+        new Funder({
           id: 'random',
-          emailFormat: ['@random.fr', '@random.com'],
-          funderType: FUNDER_TYPE.enterprise,
-        },
-      ]);
-      keycloakGroupRepository.stubs.getSubGroupFunderRoles.resolves([
-        'superviseurs',
-        'gestionnaires',
-      ]);
+          enterpriseDetails: new EnterpriseDetails({
+            emailDomainNames: ['@random.fr', '@random.com'],
+          }),
+          type: FUNDER_TYPE.ENTERPRISE,
+        }),
+      );
+      keycloakGroupRepository.stubs.getSubGroupFunderRoles.resolves(['superviseurs', 'gestionnaires']);
 
       kcService.stubs.createUserKc.resolves({id: 'randomInputId'});
 
@@ -329,11 +205,6 @@ describe('UserController (unit)', () => {
       expect(result).to.deepEqual({
         id: userSupervisor.id,
       });
-      funderService.stubs.getFunders.restore();
-      keycloakGroupRepository.stubs.getSubGroupFunderRoles.restore();
-      communityRepository.stubs.findByFunderId.restore();
-      kcService.stubs.createUserKc.restore();
-      userRepository.stubs.create.restore();
     });
 
     it('UserController /count : successful', async () => {
@@ -347,8 +218,17 @@ describe('UserController (unit)', () => {
       expect(result).to.deepEqual(countRes);
     });
 
+    it('UserController /get : ERROR', async () => {
+      try {
+        funderRepository.stubs.find.rejects(new Error('Error'));
+        await controller.find();
+      } catch (err) {
+        expect(err.message).to.equal('Error');
+      }
+    });
+
     it('UserController /get : successful', async () => {
-      funderService.stubs.getFunders.resolves([newFunder]);
+      funderRepository.stubs.find.resolves([newFunder]);
       userRepository.stubs.find.resolves([users]);
       communityRepository.stubs.find.resolves([newCommunity]);
       userEntityRepository.stubs.getUserRoles.resolves([roles]);
@@ -357,11 +237,26 @@ describe('UserController (unit)', () => {
       const result = await controller.find();
 
       expect(result).to.deepEqual([mockUsersWithInfos]);
-      funderService.stubs.getFunders.restore();
-      userRepository.stubs.find.restore();
-      communityRepository.stubs.find.restore();
-      userEntityRepository.stubs.getUserRoles.restore();
-      keycloakGroupRepository.stubs.getSubGroupFunderRoles.restore();
+    });
+
+    it('UserController /get : successful no community', async () => {
+      funderRepository.stubs.find.resolves([newFunder]);
+      userRepository.stubs.find.resolves([userWithoutCom]);
+      userEntityRepository.stubs.getUserRoles.resolves([roles]);
+      keycloakGroupRepository.stubs.getSubGroupFunderRoles.resolves(['test', 'test1']);
+
+      const result = await controller.find();
+
+      expect(result).to.deepEqual([mockUsersWithInfosWithoutCommunity]);
+    });
+
+    it('UserController /v1/users/roles : ERROR', async () => {
+      try {
+        keycloakGroupRepository.stubs.getSubGroupFunderRoles.rejects(new Error('Error'));
+        await controller.getRolesForUsers();
+      } catch (err) {
+        expect(err.message).to.equal('Error');
+      }
     });
 
     it('UserController /v1/users/roles : successful', async () => {
@@ -376,9 +271,7 @@ describe('UserController (unit)', () => {
     it('UserController findUserById: Successful ', async () => {
       userRepository.stubs.findById.resolves(user);
       userEntityRepository.stubs.getUserRoles.resolves([roles]);
-      const result = await controller.findUserById(
-        'a0e48494-1bfb-4142-951b-16ec6d9c8e1d',
-      );
+      const result = await controller.findUserById('a0e48494-1bfb-4142-951b-16ec6d9c8e1d');
       const res: string[] = ['test'];
       expect(result).to.deepEqual({...result, roles: res});
       userRepository.stubs.findById.restore();
@@ -386,60 +279,53 @@ describe('UserController (unit)', () => {
     });
 
     it('UserController findUserById: Error ', async () => {
-      const userError = new ValidationError(
-        `Access Denied`,
-        `/authorization`,
-        StatusCode.Forbidden,
-      );
-
       try {
         userRepository.stubs.findById.resolves(user);
         userEntityRepository.stubs.getUserRoles.resolves([roles]);
         const communities = new Community({id: 'id1', name: 'name'});
         communityRepository.stubs.findByFunderId.resolves([communities]);
         await controller.findUserById('1234567890');
-      } catch ({message}) {
-        expect(message).to.equal(userError.message);
+      } catch (err) {
+        expect(err.message).to.equal('Access denied');
+        expect(err.statusCode).to.equal(StatusCode.Forbidden);
       }
       userRepository.stubs.findById.restore();
       userEntityRepository.stubs.getUserRoles.restore();
     });
 
-    it('UserController updateById : fails because of manual affiliation condition error', async () => {
+    it('UserController updateById : ERROR ', async () => {
       try {
-        funderService.stubs.getFunders.resolves([enterpriseNoManualAffiliation]);
-
-        await controller.updateById(
-          'a0e48494-1bfb-4142-951b-16ec6d9c8e1d',
-          userWithManualAffiliation,
-        );
-      } catch ({message}) {
-        expect(message).to.equal(errorManualAffiliation.message);
+        userRepository.stubs.findById.rejects(new Error('Error'));
+        await controller.updateById('a0e48494-1bfb-4142-951b-16ec6d9c8e1d', userWithManualAffiliation);
+      } catch (err) {
+        expect(err.message).to.equal('Error');
       }
-      funderService.stubs.getFunders.restore();
     });
 
     it('UserController updateById: successful ', async () => {
       userRepository.stubs.findById.resolves(users);
       kcService.stubs.updateUserKC.resolves();
       kcService.stubs.updateUserGroupsKc.resolves();
-      const result = await controller.updateById(
-        'a0e48494-1bfb-4142-951b-16ec6d9c8e1d',
-        usersUpdated,
-      );
+      await controller.updateById('a0e48494-1bfb-4142-951b-16ec6d9c8e1d', usersUpdated);
 
       expect(kcService.stubs.updateUserGroupsKc.called).true();
       expect(kcService.stubs.updateUserKC.called).true();
       expect(userRepository.stubs.updateById.called).true();
-      userRepository.stubs.findById.restore();
-      kcService.stubs.updateUserGroupsKc.restore();
+    });
+
+    it('UserController deleteById : ERROR ', async () => {
+      try {
+        kcService.stubs.deleteUserKc.rejects(new Error('Error'));
+        await controller.deleteById('a0e48494-1bfb-4142-951b-16ec6d9c8e1d');
+      } catch (err) {
+        expect(err.message).to.equal('Error');
+      }
     });
 
     it('UserController deleteById: successful ', async () => {
       kcService.stubs.deleteUserKc.resolves('a0e48494-1bfb-4142-951b-16ec6d9c8e1d');
       const result = await controller.deleteById('a0e48494-1bfb-4142-951b-16ec6d9c8e1d');
       expect(result).to.deepEqual({id: 'a0e48494-1bfb-4142-951b-16ec6d9c8e1d'});
-      kcService.stubs.deleteUserKc.restore();
     });
   });
 
@@ -450,7 +336,7 @@ describe('UserController (unit)', () => {
     keycloakGroupRepository = createStubInstance(KeycloakGroupRepository);
     communityRepository = createStubInstance(CommunityRepository);
     kcService = createStubInstance(KeycloakService);
-    funderService = createStubInstance(FunderService);
+    funderRepository = createStubInstance(FunderRepository);
   }
 });
 
@@ -461,6 +347,15 @@ const users = new User({
   id: 'a0e48494-1bfb-4142-951b-16ec6d9c8e1d',
   funderId: 'efec7e68-fc17-4078-82c5-65d53961f34d',
   communityIds: ['618a4dad80ea32653c7a20d7'],
+});
+
+const userWithoutCom = new User({
+  email: 'w.housni24@gmail.co',
+  firstName: 'Walid',
+  lastName: 'Walid HOUSNI',
+  id: 'a0e48494-1bfb-4142-951b-16ec6d9c8e1d',
+  funderId: 'efec7e68-fc17-4078-82c5-65d53961f34d',
+  communityIds: [],
 });
 
 const usersUpdated = new User({
@@ -481,13 +376,13 @@ const newCommunity = new Community({
   funderId: 'efec7e68-fc17-4078-82c5-65d53961f34d',
 });
 
-const newFunder = {
+const newFunder = new Funder({
   id: 'efec7e68-fc17-4078-82c5-65d53961f34d',
   name: 'Collectivity United.',
   citizensCount: undefined,
   mobilityBudget: undefined,
-  funderType: FUNDER_TYPE.collectivity,
-};
+  type: FUNDER_TYPE.COLLECTIVITY,
+});
 
 const mockUsersWithInfos = {
   email: 'w.housni24@gmail.co',
@@ -496,8 +391,21 @@ const mockUsersWithInfos = {
   id: 'a0e48494-1bfb-4142-951b-16ec6d9c8e1d',
   funderId: 'efec7e68-fc17-4078-82c5-65d53961f34d',
   communityIds: ['618a4dad80ea32653c7a20d7'],
-  funderType: 'Collectivité',
+  funderType: FUNDER_TYPE.COLLECTIVITY,
   communityName: 'Something wonderful',
+  funderName: 'Collectivity United.',
+  roles: 'Test',
+};
+
+const mockUsersWithInfosWithoutCommunity = {
+  email: 'w.housni24@gmail.co',
+  firstName: 'Walid',
+  lastName: 'Walid HOUSNI',
+  id: 'a0e48494-1bfb-4142-951b-16ec6d9c8e1d',
+  funderId: 'efec7e68-fc17-4078-82c5-65d53961f34d',
+  communityIds: [],
+  funderType: FUNDER_TYPE.COLLECTIVITY,
+  communityName: '',
   funderName: 'Collectivity United.',
   roles: 'Test',
 };

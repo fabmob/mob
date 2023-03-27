@@ -13,6 +13,18 @@ const customTheme = createTheme({
       contrastText: '#FFFFFF',
     },
   },
+  overrides: {
+    MuiTableCell: {
+      head: {
+        'font-weight': 'bold',
+      },
+    },
+    MuiFilledInput: {
+      root: {
+        'background-color': 'rgba(0, 0, 0, 0.04)',
+      },
+    },
+  },
 });
 
 export default customTheme;

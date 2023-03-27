@@ -164,20 +164,10 @@ verify-all:
       - ${MODULE_PATH:-${MODULE_NAME}}/k8s/${LANDSCAPE}
     reports:
       dotenv: ${MODULE_PATH:-${MODULE_NAME}}/deployment.env
+    expire_in: 4 week
   environment:
     name: ${CI_COMMIT_REF_SLUG}-${LANDSCAPE}/${MODULE_NAME}
     url: ${ENV_URL}
-
-kubernetes-deploy-env:
-  stage: utils
-  extends:
-    - .preview-deploy-job
-  script:
-    - |
-      echo "### Init environement to trigger kubernetes cleaner ###"
-  environment:
-    name: ${NAMESPACE}
-    on_stop: kubernetes_preview_cleanup
 
 .declare-undeployment-functions: &declare-undeployment-functions |
   function undeploy {
@@ -207,23 +197,19 @@ kubernetes-deploy-env:
     - *declare-undeployment-functions
   script:
     - |
+      if [ ${MODULE_NAME} == "idp" ]
+      then
+        delete_volume postgres-keycloak-data
+      fi
+      if [ ${MODULE_NAME} == "api" ]
+      then
+        delete_volume mongo-data
+      fi
       kubectl -n ${NAMESPACE} delete -f ${CI_PROJECT_DIR}/${MODULE_PATH}/k8s/${LANDSCAPE}/resources.yml
       undeploy
   environment:
     name: ${CI_COMMIT_REF_SLUG}-${LANDSCAPE}/${MODULE_NAME}
     action: stop
-
-kubernetes_preview_cleanup:
-  extends:
-    - .commons_preview_cleanup
-  script:
-    - |
-      delete_volume postgres-keycloak-data
-      delete_volume mongo-data
-      kubectl delete secret ${GITLAB_IMAGE_PULL_SECRET_NAME}
-      kubectl delete secret ${PROXY_IMAGE_PULL_SECRET_NAME}
-  environment:
-    name: ${NAMESPACE}
 
 # UTILS
 .cleanup_mongo: &cleanup_mongo |
@@ -260,7 +246,7 @@ kubernetes_preview_cleanup:
   fi
   echo "---------"
   echo "GET GROUPS"
-  GROUP_LIST_ID=$(kubectl exec $IDP_POD_NAME -n $IDP_NAMESPACE -c idp -- sh -c "/opt/jboss/keycloak/bin/kcadm.sh get groups -r mcm" | jq -r '.[] | select( .name == "entreprises" or .name == "collectivités") | .subGroups | .[] | .id')
+  GROUP_LIST_ID=$(kubectl exec $IDP_POD_NAME -n $IDP_NAMESPACE -c idp -- sh -c "/opt/jboss/keycloak/bin/kcadm.sh get groups -r mcm" | jq -r '.[] | select( .name == "entreprises" or .name == "collectivités" or .name == "administrations_nationales") | .subGroups | .[] | .id')
   echo $GROUP_LIST_ID
   if [ -z "$GROUP_LIST_ID" ]
   then

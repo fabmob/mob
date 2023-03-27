@@ -44,6 +44,7 @@ describe('Citizen model', () => {
         postcode: '31000',
         tos1: true,
         tos2: true,
+        lastLoginAt: timestampMock,
       });
 
       const userRepresentationResult: UserRepresentation = citizen.toUserRepresentation();
@@ -75,6 +76,8 @@ describe('Citizen model', () => {
           tos1: true,
           tos2: true,
           updatedAt: timestampMock,
+          lastLoginAt: timestampMock,
+          isInactivityNotificationSent: undefined,
         },
       };
       expect(userRepresentationResult).to.deepEqual(expectedUserRepresentation);
@@ -125,6 +128,7 @@ describe('Citizen model', () => {
         postcode: '31000',
         tos1: true,
         tos2: true,
+        lastLoginAt: timestampMock,
       });
 
       const userRepresentationResult: UserRepresentation = citizen.toUserRepresentation();
@@ -156,6 +160,8 @@ describe('Citizen model', () => {
           tos1: true,
           tos2: true,
           updatedAt: timestampMock,
+          lastLoginAt: timestampMock,
+          isInactivityNotificationSent: undefined,
         },
       };
       expect(userRepresentationResult).to.deepEqual(expectedUserRepresentation);

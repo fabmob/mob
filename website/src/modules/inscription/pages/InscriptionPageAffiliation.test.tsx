@@ -47,7 +47,7 @@ const mockError412 = {
 
 jest.mock('axios', () => {
   const mAxiosInstance = {
-    put: jest
+    post: jest
       .fn()
       .mockReturnValueOnce(Promise.resolve({}))
       .mockImplementationOnce(() => Promise.reject(mockError422))

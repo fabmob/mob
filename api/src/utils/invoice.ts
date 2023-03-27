@@ -3,9 +3,7 @@ import {generatePdfBufferFromHtml, generateTemplateAsHtml} from '../utils';
 import {formatDateInTimezone} from './date';
 import {Express} from 'express';
 
-export const generatePdfInvoices = async (
-  invoices: Invoice[],
-): Promise<Express.Multer.File[]> => {
+export const generatePdfInvoices = async (invoices: Invoice[]): Promise<Express.Multer.File[]> => {
   const invoicesPdf: Express.Multer.File[] = [];
   for (const invoice of invoices) {
     const html = await generateTemplateAsHtml('invoice', {
@@ -28,10 +26,7 @@ export const getInvoiceFilename = (invoice: Invoice): string => {
   const customerSurname = `${invoice.customer.customerSurname}`;
   const customerName = `${invoice.customer.customerName}`;
 
-  const purchaseDate = formatDateInTimezone(
-    invoice.transaction.purchaseDate,
-    'dd-MM-yyyy',
-  );
+  const purchaseDate = formatDateInTimezone(invoice.transaction.purchaseDate, 'dd-MM-yyyy');
   const fileName = `${purchaseDate}_${productName}_${customerSurname}_${customerName}.pdf`;
   return fileName.replace(/ /g, '_');
 };

@@ -23,11 +23,7 @@ export enum GROUPS {
   admins = 'admins',
   collectivities = 'collectivités',
   enterprises = 'entreprises',
-}
-
-export enum FUNDER_TYPE {
-  enterprise = 'entreprise',
-  collectivity = 'collectivit\u00E9',
+  administrations_nationales = 'administrations_nationales',
 }
 
 export enum Roles {
@@ -85,6 +81,13 @@ export enum USERTYPE {
   MOBILITY_OPERATOR = 'operateurMobilite',
 }
 
+/** FUNDERS */
+export enum FUNDER_TYPE {
+  ENTERPRISE = 'Entreprise',
+  COLLECTIVITY = 'Collectivité',
+  NATIONAL = 'Administration nationale',
+}
+
 /** CITIZENS */
 export enum AFFILIATION_STATUS {
   TO_AFFILIATE = 'A_AFFILIER',
@@ -107,7 +110,6 @@ export enum GENDER {
 }
 
 /** SUBSCRIPTIONS */
-
 export enum SUBSCRIPTION_STATUS {
   ERROR = 'ERREUR',
   TO_PROCESS = 'A_TRAITER',
@@ -184,8 +186,20 @@ export enum CONSUMER_ERROR {
   ERROR_MESSAGE = "Votre employeur n'a pas pu traiter votre demande",
 }
 
+/** TERRITORY */
+export enum SCALE {
+  MUNICIPALITY = 'Commune',
+  AGGLOMERATION = 'Agglomération',
+  COUNTY = 'Département',
+  REGION = 'Région',
+  NATIONAL = 'Nationale',
+}
+
 export enum CRON_TYPES {
   DELETE_SUBSCRIPTION = 'Delete_subscription',
+  DELETE_NON_ACTIVATED_ACCOUNT = 'Delete_non_activated_account',
+  DELETE_INACTIVE_ACCOUNT = 'Delete_inactive_account',
+  NOTIFY_INACTIVE_ACCOUNT = 'Notify_inactive_account',
 }
 
 export enum GENDER_TYPE {

@@ -1,5 +1,5 @@
 const INSCRIPTION_ROUTE = '/inscription/formulaire';
-const INSCRIPTION_ERROR_ROUTE = '/inscription/error';
+const INSCRIPTION_ERROR_ROUTE = '/inscription/erreur';
 const INSCRIPTION_INDISPONIBLE_ROUTE = '/inscription/indisponible';
 const INSCRIPTION_AFFILIATION_ROUTE = '/inscription/association';
 

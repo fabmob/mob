@@ -11,6 +11,8 @@ import {
 import TerritoryCreateForm from './TerritoryCreateForm';
 import TerritoryMessages from '../../utils/Territory/fr.json';
 import { errorFetching } from '../../utils/constant';
+import { validateTerritoryForm } from '../../utils/helpers';
+import { Aside } from './TerritoryAside';
 
 const TerritoryForm = (props) => {
   const { save, record } = useCreateContext();
@@ -39,11 +41,13 @@ const TerritoryForm = (props) => {
       {...props}
       onSuccess={onSuccess}
       onFailure={onFailure}
+      aside={<Aside />}
     >
-      <SimpleForm>
+      <SimpleForm validate={validateTerritoryForm}>
         <TerritoryCreateForm save={save} record={record} />
       </SimpleForm>
     </Create>
   );
 };
+
 export default TerritoryForm;

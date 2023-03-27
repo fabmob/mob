@@ -1,14 +1,14 @@
 import {expect} from '@loopback/testlab';
 
-import {AffiliationRepository} from '../../repositories';
+import {AffiliationRepository, UserEntityRepository} from '../../repositories';
 import {AFFILIATION_STATUS} from '../../utils';
 import {testdbMongo} from './testdb.datasource';
 
 describe('Affiliation repository (unit)', () => {
-  let repository: AffiliationRepository;
+  let repository: AffiliationRepository, userEntityRepository: UserEntityRepository;
 
   beforeEach(() => {
-    repository = new AffiliationRepository(testdbMongo);
+    repository = new AffiliationRepository(testdbMongo, async () => userEntityRepository);
   });
 
   describe('Affiliation Repository', async () => {

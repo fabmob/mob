@@ -48,5 +48,4 @@ export interface UserGroupMembershipRelations {
   // describe navigational properties here
 }
 
-export type UserGroupMembershipWithRelations = UserGroupMembership &
-  UserGroupMembershipRelations;
+export type UserGroupMembershipWithRelations = UserGroupMembership & UserGroupMembershipRelations;

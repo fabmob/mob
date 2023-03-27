@@ -32,6 +32,8 @@ vault_preview_deploy:
   script:
     - |
       delete_pod vault-init
+      FILE_CERT=overlays/vault-cert.pem
+      echo -e $MCM_CERT_DEV | base64 -d  > $FILE_CERT
       deploy
       config_volume vault-data
       config_volume vault-init-data

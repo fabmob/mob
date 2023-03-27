@@ -9,6 +9,7 @@ import {
   EditButton,
   DeleteButton,
   BooleanField,
+  ReferenceField,
 } from 'react-admin';
 
 const UsersFilter = (props) => (
@@ -28,14 +29,22 @@ const UtilisateurList: FC = (props) => {
       {...props}
       filters={<UsersFilter />}
       sort={{ field: 'lastName', order: 'ASC' }}
+      perPage={100}
       exporter={false}
     >
       <Datagrid optimized>
-        <TextField source="funderName" label="Nom du financeur" />
-        <TextField source="funderType" label="Type de financeur" />
+        <TextField source="email" label="Identifiant (mail)" />
         <TextField source="lastName" label="Nom" />
         <TextField source="firstName" label="Prénom" />
-        <TextField source="email" label="Identifiant (mail)" />
+        <ReferenceField
+          source="funderId"
+          reference="financeurs"
+          label="Nom du financeur"
+          link="show"
+        >
+          <TextField source="name" />
+        </ReferenceField>
+        <TextField source="funderType" label="Type de financeur" />
         <TextField source="roles" label="Rôle" />
         <TextField
           source="communityName"

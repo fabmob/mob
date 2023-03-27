@@ -3,22 +3,13 @@ import {
   AnyObject,
   Count,
   CountSchema,
+  Fields,
   Filter,
-  PredicateComparison,
+  PositionalParameters,
   repository,
   Where,
 } from '@loopback/repository';
-import {
-  post,
-  param,
-  get,
-  getModelSchemaRef,
-  patch,
-  del,
-  requestBody,
-  Response,
-  RestBindings,
-} from '@loopback/rest';
+import {post, param, get, getModelSchemaRef, patch, del, requestBody, RestBindings} from '@loopback/rest';
 import {authenticate} from '@loopback/authentication';
 import {authorize} from '@loopback/authorization';
 import {SecurityBindings} from '@loopback/security';
@@ -27,31 +18,23 @@ import {
   Incentive,
   Link,
   SpecificField,
-  Error,
   Citizen,
   Territory,
   EligibilityCheck,
   IncentiveEligibilityChecks,
+  Funder,
+  Collectivity,
+  Enterprise,
 } from '../models';
 import {
   IncentiveRepository,
-  CollectivityRepository,
-  EnterpriseRepository,
   TerritoryRepository,
   IncentiveEligibilityChecksRepository,
+  FunderRepository,
+  AffiliationRepository,
 } from '../repositories';
-import {
-  IncentiveInterceptor,
-  AffiliationInterceptor,
-  AffiliationPublicInterceptor,
-} from '../interceptors';
-import {
-  CitizenService,
-  FunderService,
-  IncentiveService,
-  TerritoryService,
-} from '../services';
-import {ValidationError} from '../validationError';
+import {IncentiveInterceptor, AffiliationInterceptor, AffiliationPublicInterceptor} from '../interceptors';
+import {CitizenService, GeoApiGouvService, IncentiveService, TerritoryService} from '../services';
 import {
   INCENTIVE_TYPE,
   ResourceName,
@@ -62,41 +45,46 @@ import {
   SECURITY_SPEC_ALL,
   HTTP_METHOD,
   SECURITY_SPEC_JWT_KC_PASSWORD_KC_CREDENTIALS,
-  SECURITY_SPEC_API_KEY,
-  GET_INCENTIVES_INFORMATION_MESSAGES,
   AUTH_STRATEGY,
-  IScore,
-  IUpdateAt,
   IUser,
   ELIGIBILITY_CHECKS_LABEL,
+  IGeoApiGouvResponseResult,
+  SCALE,
+  FilterSearchIncentive,
+  convertOrderFilter,
+  handleWhereFilter,
+  SECURITY_SPEC_API_KEY_KC_PASSWORD,
+  Logger,
+  MAAS_PURGED_FIELDS,
 } from '../utils';
-import {TAG_MAAS, WEBSITE_FQDN} from '../constants';
-import {
-  incentiveExample,
-  incentiveContentDifferentExample,
-} from './utils/incentiveExample';
+import {incentiveExample} from './utils/incentiveExample';
+import {LIMIT_DEFAULT, TAG_MAAS, WEBSITE_FQDN} from '../constants';
+import {BadRequestError} from '../validationError';
+import {defaultSwaggerError} from './utils/swagger-errors';
+import express, {Request, Response} from 'express';
 
 @intercept(IncentiveInterceptor.BINDING_KEY)
 export class IncentiveController {
   constructor(
+    @inject(RestBindings.Http.RESPONSE) private response: Response,
     @repository(IncentiveRepository)
     public incentiveRepository: IncentiveRepository,
-    @repository(CollectivityRepository)
-    public collectivityRepository: CollectivityRepository,
-    @repository(EnterpriseRepository)
-    public enterpriseRepository: EnterpriseRepository,
+    @repository(FunderRepository)
+    public funderRepository: FunderRepository,
     @repository(TerritoryRepository)
     public territoryRepository: TerritoryRepository,
     @repository(IncentiveEligibilityChecksRepository)
     public incentiveEligibilityChecksRepository: IncentiveEligibilityChecksRepository,
+    @repository(AffiliationRepository)
+    public affiliationRepository: AffiliationRepository,
     @inject('services.IncentiveService')
     public incentiveService: IncentiveService,
-    @service(FunderService)
-    public funderService: FunderService,
     @service(TerritoryService)
     public territoryService: TerritoryService,
     @service(CitizenService)
     public citizenService: CitizenService,
+    @service(GeoApiGouvService)
+    public geoApiGouvService: GeoApiGouvService,
     @inject(SecurityBindings.USER, {optional: true})
     private currentUser?: IUser,
   ) {}
@@ -108,84 +96,77 @@ export class IncentiveController {
     summary: 'Crée une aide',
     security: SECURITY_SPEC_KC_PASSWORD,
     responses: {
-      [StatusCode.Success]: {
-        description: 'Incentives model instance',
+      [StatusCode.Created]: {
+        description: "L'aide est créée",
         content: {
           'application/json': {
             schema: getModelSchemaRef(Incentive),
           },
         },
       },
+      ...defaultSwaggerError,
     },
   })
   async create(
     @requestBody({
       content: {
         'application/json': {
-          schema: getModelSchemaRef(Incentive),
+          schema: getModelSchemaRef(Incentive, {
+            exclude: ['id'],
+            title: 'CreateIncentive',
+          }),
         },
       },
     })
     incentive: Incentive,
   ): Promise<Incentive> {
-    let createdTerritory: Territory, createdIncentive: Incentive;
+    this.response.status(201);
+    let createdIncentive: Incentive;
     try {
       /**
-       * Check if the territory ID is provided.
+       * Check if the provided ID exists in the territory collection.
+       * For now, only one Territory is linked to an incentive
        */
-      if (incentive.territory.id) {
-        /**
-         * Check if the provided ID exists in the territoy collection.
-         */
-        const territoryResult: Territory = await this.territoryRepository.findById(
-          incentive.territory.id,
+      Logger.debug(IncentiveController.name, this.create.name, 'Incentive create data', incentive);
+
+      const territoryListResult: Territory[] = await this.territoryRepository.find({
+        where: {id: {inq: incentive.territoryIds}},
+      });
+      Logger.debug(IncentiveController.name, this.create.name, 'Territory data', territoryListResult);
+
+      /**
+       * Check if the name provided matches the territory name.
+       */
+      if (!territoryListResult.length) {
+        throw new BadRequestError(
+          IncentiveController.name,
+          this.create.name,
+          'territory.not.found',
+          '/territory',
+          ResourceName.Territory,
+          incentive.territoryIds,
         );
-
-        /**
-         * Check if the name provided matches the territory name.
-         */
-        if (
-          territoryResult.name !== incentive.territory.name ||
-          (incentive.territoryName && incentive?.territoryName !== territoryResult.name) // TODO: REMOVING DEPRECATED territoryName.
-        ) {
-          throw new ValidationError(
-            'territory.name.mismatch',
-            '/territory',
-            StatusCode.UnprocessableEntity,
-            ResourceName.Territory,
-          );
-        }
-      } else {
-        /**
-         * Create Territory
-         */
-        createdTerritory = await this.territoryService.createTerritory({
-          name: incentive.territory.name,
-        } as Territory);
-
-        incentive.territory = createdTerritory;
       }
 
+      // TODO: REMOVING DEPRECATED territoryName.
+      incentive.territoryName = territoryListResult[0].name;
+
       if (incentive.incentiveType === INCENTIVE_TYPE.TERRITORY_INCENTIVE) {
-        const collectivity = await this.collectivityRepository.find({
-          where: {name: incentive.funderName},
-        });
-        if (collectivity.length > 0) {
-          incentive.funderId = collectivity[0].id;
+        const funder: Collectivity | null = await this.funderRepository.getCollectivityById(
+          incentive.funderId,
+        );
+        if (funder) {
+          incentive.funderName = funder.name;
         }
       } else if (incentive.incentiveType === INCENTIVE_TYPE.EMPLOYER_INCENTIVE) {
-        const enterprise = await this.enterpriseRepository.find({
-          where: {name: incentive.funderName},
-        });
-        if (enterprise.length > 0) {
-          incentive.funderId = enterprise[0].id;
-        } else {
-          throw new ValidationError(
-            `incentives.error.fundername.enterprise.notExist`,
-            '/enterpriseNotExist',
-            StatusCode.NotFound,
-            ResourceName.Enterprise,
-          );
+        const funder: Enterprise | null = await this.funderRepository.getEnterpriseById(incentive.funderId);
+        if (funder) {
+          incentive.funderName = funder.name;
+        }
+      } else {
+        const funder: Funder | null = await this.funderRepository.findById(incentive.funderId);
+        if (funder) {
+          incentive.funderName = funder.name;
         }
       }
       if (incentive.specificFields) {
@@ -194,16 +175,27 @@ export class IncentiveController {
           incentive.specificFields,
         );
       }
+      Logger.debug(IncentiveController.name, this.create.name, 'Json schema data', incentive.jsonSchema);
+
       createdIncentive = await this.incentiveRepository.create(incentive);
+      Logger.info(IncentiveController.name, this.create.name, 'Incentive created', createdIncentive.id);
 
       const exclusionControl: IncentiveEligibilityChecks | null =
         await this.incentiveEligibilityChecksRepository.findOne({
           where: {label: ELIGIBILITY_CHECKS_LABEL.EXCLUSION},
         });
+      Logger.debug(IncentiveController.name, this.create.name, 'Exclusion control data', exclusionControl);
+
       const currentIncentiveExclusionControl: EligibilityCheck | undefined =
         incentive.eligibilityChecks?.find(check => {
           return check.id === exclusionControl!.id;
         });
+      Logger.debug(
+        IncentiveController.name,
+        this.create.name,
+        'Current Exclusion control data',
+        currentIncentiveExclusionControl,
+      );
 
       const exclusionsToAdd: string[] = currentIncentiveExclusionControl?.value || [];
       if (exclusionsToAdd.length > 0) {
@@ -226,13 +218,17 @@ export class IncentiveController {
             });
           }),
         ]);
+        Logger.info(
+          IncentiveController.name,
+          this.create.name,
+          'Incentives updated with exclusion',
+          exclusionsToAdd,
+        );
       }
 
       return createdIncentive;
     } catch (error) {
-      if (createdTerritory!) {
-        await this.territoryRepository.deleteById(createdTerritory.id);
-      }
+      Logger.error(IncentiveController.name, this.create.name, 'Error', error);
       if (createdIncentive!) {
         await this.incentiveRepository.deleteById(createdIncentive.id);
       }
@@ -247,6 +243,23 @@ export class IncentiveController {
   @get('/v1/incentives', {
     'x-controller-name': 'Incentives',
     summary: 'Retourne les aides',
+    description: `Ce service permet de récupérer la liste des aides accessibles pour l'authentifié.<br>
+    Si l'authentifié est un compte de service, seules les aides publiques \
+    (types AideNationale|AideTerritoire) sont retournées.<br>
+    Si l'authentifié est un citoyen, les aides de type AideEmployeur sont \
+    retournées si les 2 conditions suivantes sont réunies : 
+    <ul>
+    <li>le citoyen connecté est affilié</li>\
+    <li>le type d'aide AideEmployeur est spécifié dans la clause \
+    where du filtre OU aucun type n'est spécifié (par défaut)</li>\
+    </ul>
+    <p>
+    Pour récupérer des aides pour un ou plusieurs territoires, il convient préalablement \
+    d'acquérir les identifiants des territoires correspondants via la requête GET /v1/territories. \
+    Ensuite, ces identifiants doivent être intégrés dans la clause "where" du filtre de la requête \
+    comme ceci :
+    </p> 
+    <code>{"where": {"territoryIds": {"inq" : ["TerritoireID1","TerritoireID2"]}}}</code><br>`,
     security: SECURITY_SPEC_JWT_KC_PASSWORD_KC_CREDENTIALS,
     tags: ['Incentives', TAG_MAAS],
     responses: {
@@ -260,9 +273,7 @@ export class IncentiveController {
               items: {
                 title: 'Incentive',
                 allOf: [
-                  getModelSchemaRef(Incentive, {
-                    exclude: ['specificFields', 'links'],
-                  }),
+                  getModelSchemaRef(Incentive),
                   {
                     type: 'object',
                     properties: {
@@ -279,201 +290,119 @@ export class IncentiveController {
           },
         },
       },
-      [StatusCode.ContentDifferent]: {
-        description: 'La liste des aides nationales et du territoire concerné',
-        content: {
-          'application/json': {
-            schema: {
-              type: 'object',
-              properties: {
-                response: {
-                  type: 'array',
-                  items: {
-                    title: 'Incentive',
-                    allOf: [
-                      getModelSchemaRef(Incentive, {
-                        exclude: [
-                          'attachments',
-                          'additionalInfos',
-                          'contact',
-                          'jsonSchema',
-                          'subscriptionLink',
-                          'specificFields',
-                          'links',
-                        ],
-                      }),
-                      {
-                        type: 'object',
-                        properties: {
-                          specificFields: {
-                            type: 'array',
-                            items: getModelSchemaRef(SpecificField),
-                          },
-                        },
-                      },
-                    ],
-                  },
-                },
-                message: {
-                  type: 'string',
-                  enum: Object.values(GET_INCENTIVES_INFORMATION_MESSAGES),
-                  example:
-                    GET_INCENTIVES_INFORMATION_MESSAGES.CITIZEN_AFFILIATED_WITHOUT_INCENTIVES,
-                },
-              },
-              example: incentiveContentDifferentExample,
-            },
-          },
-        },
-      },
-      [StatusCode.Unauthorized]: {
-        description: "L'utilisateur est non connecté",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 401,
-                name: 'Error',
-                message: 'Authorization header not found',
-                path: '/authorization',
-              },
-            },
-          },
-        },
-      },
-      [StatusCode.Forbidden]: {
-        description:
-          "L'utilisateur n'a pas les droits pour accéder au catalogue des aides",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 403,
-                name: 'Error',
-                message: 'Access denied',
-                path: '/authorization',
-              },
-            },
-          },
-        },
-      },
+      ...defaultSwaggerError,
     },
   })
   async find(
-    @inject(RestBindings.Http.RESPONSE) resp: Response,
-  ): Promise<Incentive[] | Response<{response: Incentive[]; message?: string}>> {
-    const {id, roles} = this.currentUser!;
-    if (roles && roles.includes(Roles.CONTENT_EDITOR)) {
-      return this.incentiveRepository.find({
-        order: ['updatedAt DESC'],
-      });
-    }
+    @param.filter(Incentive)
+    filter?: Filter<Incentive>,
+  ): Promise<Incentive[]> {
+    try {
+      const {id, roles} = this.currentUser!;
+      Logger.debug(IncentiveController.name, this.find.name, 'Roles', roles);
 
-    if (roles && roles.includes(Roles.MANAGERS)) {
-      const withParams: AnyObject[] = [
-        {funderName: this.currentUser!.funderName},
-        {incentiveType: this.currentUser!.incentiveType},
-      ];
-      return this.incentiveRepository.find({
-        where: {
-          and: withParams,
-        },
-        fields: {
-          id: true,
-          title: true,
-        },
-      });
-    }
+      const isMaasRole: boolean | undefined = roles?.includes(Roles.MAAS);
+      const isMaasBackendRole: boolean | undefined = roles?.includes(Roles.MAAS_BACKEND);
+      const isCitizen: boolean | undefined = roles?.includes(Roles.CITIZENS);
 
-    const commonFilter: Filter<Incentive> = {
-      order: ['updatedAt DESC'],
-      fields: {
-        id: true,
-        funderId: true,
-        title: true,
-        incentiveType: true,
-        conditions: true,
-        paymentMethod: true,
-        allocatedAmount: true,
-        funderName: true,
-        minAmount: true,
-        transportList: true,
-        validityDate: true,
-        createdAt: true,
-        updatedAt: true,
-        description: true,
-        isMCMStaff: true,
-        isCertifiedTimestampRequired: true,
-        territory: true,
-        territoryName: true,
-      },
-    };
-    const incentiveList: Incentive[] = await this.incentiveRepository.find({
-      where: {
-        or: [
-          {
-            incentiveType:
-              INCENTIVE_TYPE.TERRITORY_INCENTIVE as PredicateComparison<string>,
-          },
-          {
-            incentiveType:
-              INCENTIVE_TYPE.NATIONAL_INCENTIVE as PredicateComparison<string>,
-          },
-        ],
-      },
-      ...commonFilter,
-    });
+      // Check if filter contains limit
+      const limit: number = filter?.limit ?? LIMIT_DEFAULT;
+      Logger.debug(IncentiveController.name, this.find.name, 'Applied limit', limit);
 
-    if (roles && roles.includes(Roles.MAAS_BACKEND)) {
-      return incentiveList;
-    }
+      // Initialize filter variable and Add limit to commonFilter
+      let commonFilter: Filter<Incentive> = {...filter, limit};
 
-    if (roles && roles.includes(Roles.MAAS)) {
-      const citizen: Citizen | null =
-        await this.citizenService.getCitizenWithAffiliationById(id);
-      const citizenFunderId: string | null | undefined =
-        citizen?.affiliation?.enterpriseId;
-      const citizenStatus: string | null | undefined = citizen?.affiliation?.status;
+      /**
+       * If user role is Maas or Maas_backend
+       * Restrict access to some fields
+       * Restrict Access to Employee incentive's if not affiliated
+       */
+      if (isMaasRole || isMaasBackendRole) {
+        // Exclude Employer incentive from being fetched.
+        let whereCondition: Where<Incentive> = {
+          and: [
+            filter?.where as Where<Incentive>,
+            {
+              incentiveType: {
+                neq: INCENTIVE_TYPE.EMPLOYER_INCENTIVE,
+              },
+            },
+          ],
+        };
 
-      if (citizenFunderId && citizenStatus === AFFILIATION_STATUS.AFFILIATED) {
-        const incentiveEnterpriseList: Incentive[] = await this.incentiveRepository.find({
-          where: {funderId: citizenFunderId},
+        // Get the current user's affiliation if belongs to citizen group
+        if (isCitizen) {
+          const {enterpriseId, status} = await this.affiliationRepository.findById(id);
+
+          Logger.debug(IncentiveController.name, this.find.name, 'Enterprise ID', enterpriseId);
+          Logger.debug(IncentiveController.name, this.find.name, 'Affiliation Status', status);
+
+          const isAffiliated = enterpriseId && status === AFFILIATION_STATUS.AFFILIATED;
+
+          // If current citizen is not affiliated, cannot retrieve Employees Collections
+          // If current citizen is affiliated, get the incentives corresponding to the funderId
+          whereCondition = {
+            and: [
+              filter?.where as Where<Incentive>,
+              isAffiliated
+                ? {
+                    or: [
+                      {
+                        incentiveType: {
+                          inq: [INCENTIVE_TYPE.NATIONAL_INCENTIVE, INCENTIVE_TYPE.TERRITORY_INCENTIVE],
+                        },
+                      },
+                      {
+                        incentiveType: INCENTIVE_TYPE.EMPLOYER_INCENTIVE,
+                        funderId: enterpriseId!,
+                      },
+                    ],
+                  }
+                : {
+                    incentiveType: {
+                      neq: INCENTIVE_TYPE.EMPLOYER_INCENTIVE,
+                    },
+                  },
+            ],
+          };
+        }
+
+        commonFilter = {
           ...commonFilter,
-        });
-
-        if (incentiveEnterpriseList.length === 0)
-          return resp.status(210).send({
-            response: incentiveList,
-            message:
-              GET_INCENTIVES_INFORMATION_MESSAGES.CITIZEN_AFFILIATED_WITHOUT_INCENTIVES,
-          });
-        return [...incentiveList, ...incentiveEnterpriseList];
+          fields: {...commonFilter?.fields, ...MAAS_PURGED_FIELDS},
+          where: whereCondition,
+        };
       }
 
-      if (
-        citizenStatus ===
-        (AFFILIATION_STATUS.TO_AFFILIATE || AFFILIATION_STATUS.DISAFFILIATED)
-      ) {
-        return resp.status(210).send({
-          response: incentiveList,
-          message: GET_INCENTIVES_INFORMATION_MESSAGES.CITIZEN_NOT_AFFILIATED,
-        });
-      }
-      return incentiveList;
+      Logger.debug(IncentiveController.name, this.find.name, 'Applied filter', commonFilter);
+
+      return await this.incentiveRepository.find(commonFilter);
+    } catch (error) {
+      Logger.error(IncentiveController.name, this.find.name, 'Error', error);
+      throw error;
     }
-    return [];
   }
-  @authenticate(AUTH_STRATEGY.API_KEY)
-  @authorize({allowedRoles: [Roles.API_KEY]})
+
+  @authenticate(AUTH_STRATEGY.API_KEY, AUTH_STRATEGY.KEYCLOAK)
+  @authorize({allowedRoles: [Roles.API_KEY, Roles.CITIZENS]})
   @get('/v1/incentives/search', {
     'x-controller-name': 'Incentives',
-    summary: 'Recherche les aides correspondantes',
-    security: SECURITY_SPEC_API_KEY,
+    summary: 'Recherche les aides',
+    description:
+      "Recherche les aides et les trie sur l'échelle du territoire associé.\
+    Ce tri est adapté à la localisation du citoyen (si connue).<br> \
+    Un tri par défaut (alphabétique sur le nom du financeur) est aussi\
+    appliqué si aucun filtre 'order' n'est fourni.<br>\
+    Les aides de type AideEmployeur sont retournées si les 2 conditions suivantes sont réunies : <br>\
+    <ul>\
+    <li>le citoyen connecté est affilié</li>\
+    <li>le type d'aide AideEmployeur est spécifié dans la clause \
+    where du filtre OU aucun type n'est spécifié   (par défaut)</li>\
+    </ul>",
+    security: SECURITY_SPEC_API_KEY_KC_PASSWORD,
     responses: {
       [StatusCode.Success]: {
-        description: 'Array of Incentive model instances',
+        description: 'La liste des aides issues de la recherche',
         content: {
           'application/json': {
             schema: {
@@ -483,59 +412,220 @@ export class IncentiveController {
           },
         },
       },
+      ...defaultSwaggerError,
     },
   })
   async search(
     @param.query.string('_q') textSearch?: string,
-    @param.query.string('incentiveType') incentiveType?: string,
-    @param.query.string('enterpriseId') enterpriseId?: string,
+    @param.filter(Incentive, {exclude: ['include', 'offset', 'skip']})
+    filter?: FilterSearchIncentive,
   ): Promise<Incentive[]> {
-    const sort: IScore | IUpdateAt = textSearch
-      ? {score: {$meta: 'textScore'}}
-      : {updatedAt: -1};
-    const match: any = textSearch ? {$text: {$search: textSearch, $language: 'fr'}} : {};
+    try {
+      const whereFilter: AnyObject | undefined = filter?.where;
+      let territoryIdsFilter: string[] | undefined;
 
-    if (incentiveType) {
-      match['$or'] = [];
-      const incentiveTypeList = incentiveType.split(',');
-      for (const row of incentiveTypeList) {
-        match['$or'].push({incentiveType: row});
+      if (whereFilter && 'territoryIds' in whereFilter && 'inq' in whereFilter['territoryIds']) {
+        territoryIdsFilter = whereFilter['territoryIds']['inq'];
       }
-    }
 
-    if (enterpriseId) {
-      match['$or'].push({
-        incentiveType: INCENTIVE_TYPE.EMPLOYER_INCENTIVE,
-        funderId: enterpriseId,
+      // Check if filter contains limit
+      const limit: number = filter?.limit ?? LIMIT_DEFAULT;
+      Logger.debug(IncentiveController.name, this.find.name, 'Applied limit', limit);
+
+      const commonTerritoryLookup = {
+        from: 'Territory',
+        localField: 'territoryIds',
+        foreignField: '_id',
+        as: 'territoryLookup',
+      };
+
+      const commonAddFieldsScaleWeightAndId = {
+        'territoryLookup.scaleWeight': {
+          $function: {
+            body: `function (scale) {
+            const SCALE_WEIGHT = {
+              "Commune": 0,
+              "Agglomération": 1,
+              "Département": 2,
+              "Région": 3,
+              "Nationale": 4
+            }
+            return SCALE_WEIGHT[scale];
+          }`,
+            args: ['$territoryLookup.scale'],
+            lang: 'js',
+          },
+        },
+        id: '$_id',
+        territoryIds: {
+          $map: {
+            input: '$territoryIds',
+            in: {$toString: '$$this'},
+          },
+        },
+      };
+
+      let citizen: Citizen | undefined = undefined;
+
+      let geoApiGouvResult: IGeoApiGouvResponseResult[] | undefined = [];
+
+      let isPersonalizedSearch: Boolean = false;
+
+      let aggregate: {
+        [key: string]:
+          | Where<Incentive>
+          | Fields<Incentive>
+          | AnyObject
+          | string[]
+          | string
+          | undefined
+          | number;
+      } = {};
+
+      if (this.currentUser?.roles?.includes(Roles.CITIZENS)) {
+        citizen = await this.citizenService.getCitizenWithAffiliationById(this.currentUser.id);
+        Logger.debug(IncentiveController.name, this.search.name, 'Citizen data', citizen);
+
+        if (citizen.postcode && citizen.city) {
+          geoApiGouvResult = await this.geoApiGouvService.getCommunesByPostalCodeAndCity(
+            citizen!.postcode,
+            citizen!.city,
+          );
+          Logger.debug(IncentiveController.name, this.search.name, 'Geogouv result', geoApiGouvResult);
+        }
+
+        // Personalized Search is a connected citizen with postcode and city and geoApiGouv result
+        isPersonalizedSearch = Boolean(citizen.postcode && citizen.city && geoApiGouvResult?.length);
+        Logger.debug(IncentiveController.name, this.search.name, 'Personalized search', isPersonalizedSearch);
+      }
+
+      // Determine aggregate based on personalized search
+      if (!isPersonalizedSearch) {
+        aggregate = {
+          $match: handleWhereFilter(textSearch, filter?.where, citizen),
+          $lookup: commonTerritoryLookup,
+          $addFields: commonAddFieldsScaleWeightAndId,
+          $limit: limit,
+          $sort: {
+            'territoryLookup.scaleWeight': -1,
+            ...convertOrderFilter(filter?.order),
+          },
+          $unset: ['_id', 'territoryLookup'],
+        };
+      } else {
+        aggregate = {
+          $match: handleWhereFilter(textSearch, filter?.where, citizen),
+          $lookup: commonTerritoryLookup,
+          $addFields: commonAddFieldsScaleWeightAndId,
+          $limit: limit,
+          $facet: {
+            filterIncentiveByMatch: [
+              {
+                $match: {
+                  $or: [
+                    {
+                      'territoryLookup.inseeValueList': {
+                        $in: [
+                          geoApiGouvResult![0].code,
+                          geoApiGouvResult![0].codeDepartement,
+                          geoApiGouvResult![0].codeRegion,
+                        ],
+                      },
+                    },
+                    {
+                      'territoryLookup.scale': {$eq: SCALE.NATIONAL},
+                    },
+                  ],
+                },
+              },
+              {
+                $sort: {
+                  'territoryLookup.scaleWeight': 1,
+                  ...convertOrderFilter(filter?.order),
+                },
+              },
+            ],
+            filterIncentiveByNotMatch: [
+              {
+                $match: {
+                  $and: [
+                    {
+                      'territoryLookup.inseeValueList': {
+                        $nin: [
+                          geoApiGouvResult![0].code,
+                          geoApiGouvResult![0].codeDepartement,
+                          geoApiGouvResult![0].codeRegion,
+                        ],
+                      },
+                    },
+                    {
+                      'territoryLookup.scale': {
+                        $ne: SCALE.NATIONAL,
+                      },
+                    },
+                  ],
+                },
+              },
+              {$sort: {...convertOrderFilter(filter?.order)}},
+            ],
+          },
+          $project: {
+            result: {
+              $concatArrays: ['$filterIncentiveByMatch', '$filterIncentiveByNotMatch'],
+            },
+          },
+          $unwind: '$result',
+          $replaceRoot: {newRoot: '$result'},
+          $unset: ['_id', 'territoryLookup'],
+        };
+      }
+
+      const formattedAggregate: PositionalParameters = Object.keys(aggregate).map((key: string) => {
+        return {[key]: aggregate[key]};
       });
-    }
 
-    return this.incentiveRepository
-      .execute('Incentive', 'aggregate', [
-        {$match: match},
-        {$sort: sort},
-        {$addFields: {id: '$_id'}},
-        {$project: {_id: 0}},
-      ])
-      .then(res => res.get())
-      .catch(err => err);
+      if (territoryIdsFilter) {
+        const matchTerritoryIds = {
+          $match: {territoryIds: {$in: territoryIdsFilter}},
+        };
+        formattedAggregate.splice(3, 0, matchTerritoryIds);
+      }
+
+      if (filter?.fields) {
+        formattedAggregate.push({$project: filter?.fields});
+      }
+
+      Logger.debug(IncentiveController.name, this.search.name, 'Formatted aggregate', formattedAggregate);
+
+      return await this.incentiveRepository
+        .execute('Incentive', 'aggregate', formattedAggregate)
+        .then(res => res.get())
+        .catch(err => {
+          Logger.error(IncentiveController.name, this.search.name, 'Error', err);
+          err;
+        });
+    } catch (error) {
+      Logger.error(IncentiveController.name, this.search.name, 'Error', error);
+      throw error;
+    }
   }
 
-  @authenticate(AUTH_STRATEGY.KEYCLOAK)
-  @authorize({allowedRoles: [Roles.CONTENT_EDITOR]})
+  @authenticate(AUTH_STRATEGY.KEYCLOAK, AUTH_STRATEGY.API_KEY)
+  @authorize({allowedRoles: [Roles.CONTENT_EDITOR, Roles.API_KEY, Roles.CITIZENS]})
   @get('/v1/incentives/count', {
     'x-controller-name': 'Incentives',
     summary: "Retourne le nombre d'aides",
-    security: SECURITY_SPEC_KC_PASSWORD,
+    security: SECURITY_SPEC_API_KEY_KC_PASSWORD,
     responses: {
       [StatusCode.Success]: {
-        description: 'Incentives model count',
+        description: "Le nombre d'aides",
         content: {
           'application/json': {
             schema: {...CountSchema, ...{title: 'Count'}},
           },
         },
       },
+      ...defaultSwaggerError,
     },
   })
   async count(@param.where(Incentive) where?: Where<Incentive>): Promise<Count> {
@@ -549,13 +639,7 @@ export class IncentiveController {
    */
   @authenticate(AUTH_STRATEGY.KEYCLOAK, AUTH_STRATEGY.API_KEY)
   @authorize({
-    allowedRoles: [
-      Roles.API_KEY,
-      Roles.CONTENT_EDITOR,
-      Roles.MAAS,
-      Roles.MAAS_BACKEND,
-      Roles.PLATFORM,
-    ],
+    allowedRoles: [Roles.API_KEY, Roles.CONTENT_EDITOR, Roles.MAAS, Roles.MAAS_BACKEND, Roles.PLATFORM],
   })
   @intercept(AffiliationPublicInterceptor.BINDING_KEY)
   @intercept(AffiliationInterceptor.BINDING_KEY)
@@ -573,76 +657,32 @@ export class IncentiveController {
           },
         },
       },
-      [StatusCode.Unauthorized]: {
-        description: "L'utilisateur est non connecté",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 401,
-                name: 'Error',
-                message: 'Authorization header not found',
-                path: '/authorization',
-              },
-            },
-          },
-        },
-      },
-      [StatusCode.Forbidden]: {
-        description:
-          "L'utilisateur n'a pas les droits pour accéder au détail de cette aide",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 403,
-                name: 'Error',
-                message: 'Access denied',
-                path: '/authorization',
-              },
-            },
-          },
-        },
-      },
-      [StatusCode.NotFound]: {
-        description: "Cette aide n'existe pas",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 404,
-                name: 'Error',
-                message: 'Incentive not found',
-                path: '/incentiveNotFound',
-                resourceName: 'Incentive',
-              },
-            },
-          },
-        },
-      },
+      ...defaultSwaggerError,
     },
   })
   async findIncentiveById(
     @param.path.string('incentiveId', {description: `L'identifiant de l'aide`})
     incentiveId: string,
   ): Promise<Incentive> {
-    const incentive: Incentive = await this.incentiveRepository.findById(incentiveId);
+    try {
+      const incentive: Incentive = await this.incentiveRepository.findById(incentiveId);
+      Logger.debug(IncentiveController.name, this.findIncentiveById.name, 'Incentive data', incentive);
+      if (incentive?.isMCMStaff) {
+        const links: Link[] = [
+          new Link({
+            href: `${WEBSITE_FQDN}/subscriptions/new?incentiveId=${incentive.id}`,
+            rel: 'subscribe',
+            method: HTTP_METHOD.GET,
+          }),
+        ];
+        incentive.links = links;
+      }
 
-    if (incentive?.isMCMStaff) {
-      const links: Link[] = [
-        new Link({
-          href: `${WEBSITE_FQDN}/subscriptions/new?incentiveId=${incentive.id}`,
-          rel: 'subscribe',
-          method: HTTP_METHOD.GET,
-        }),
-      ];
-      incentive.links = links;
+      return incentive;
+    } catch (error) {
+      Logger.error(IncentiveController.name, this.findIncentiveById.name, 'Error', error);
+      throw error;
     }
-
-    return incentive;
   }
 
   @authenticate(AUTH_STRATEGY.KEYCLOAK)
@@ -655,105 +695,7 @@ export class IncentiveController {
       [StatusCode.NoContent]: {
         description: "Modification de l'aide réussie",
       },
-      [StatusCode.Unauthorized]: {
-        description: "L'utilisateur est non connecté",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: StatusCode.Unauthorized,
-                name: 'Error',
-                message: 'Authorization header not found',
-                path: '/authorization',
-              },
-            },
-          },
-        },
-      },
-      [StatusCode.Forbidden]: {
-        description: "L'utilisateur n'a pas les droits pour modifier cette aide",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: StatusCode.Forbidden,
-                name: 'Error',
-                message: 'Access denied',
-              },
-            },
-          },
-        },
-      },
-      [StatusCode.NotFound]: {
-        description: "Cette aide n'existe pas",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: StatusCode.NotFound,
-                name: 'Error',
-                message: 'Incentive not found',
-                path: '/incentiveNotFound',
-                resourceName: 'Incentive',
-              },
-            },
-          },
-        },
-      },
-      [StatusCode.Conflict]: {
-        description: 'Une aide existe déjà avec ce nom',
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: StatusCode.Conflict,
-                name: 'Error',
-                message: 'incentives.error.title.alreadyUsedForFunder',
-                path: '/incentiveTitleAlreadyUsed',
-                resourceName: 'Incentive',
-              },
-            },
-          },
-        },
-      },
-      [StatusCode.PreconditionFailed]: {
-        description: "Le territoire n'est pas connu",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: StatusCode.PreconditionFailed,
-                name: 'Error',
-                message: 'territory.id.undefined',
-                path: '/territory',
-                resourceName: 'Territory',
-              },
-            },
-          },
-        },
-      },
-      [StatusCode.UnprocessableEntity]: {
-        description: "Une erreur est survenue sur la modification de l'aide",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: StatusCode.UnprocessableEntity,
-                name: 'Error',
-                message: 'territory.name.mismatch',
-                path: '/territory',
-                resourceName: 'Territory',
-              },
-            },
-          },
-        },
-      },
+      ...defaultSwaggerError,
     },
   })
   async updateById(
@@ -763,6 +705,7 @@ export class IncentiveController {
       content: {
         'application/json': {
           schema: getModelSchemaRef(Incentive, {
+            exclude: ['id'],
             title: 'IncentiveUpdate',
             partial: true,
           }),
@@ -771,187 +714,201 @@ export class IncentiveController {
     })
     incentive: Incentive,
   ): Promise<void> {
-    // Remove contact from incentive object
-    if (!incentive.contact) {
-      delete incentive.contact;
-      await this.incentiveRepository.updateById(incentiveId, {
-        $unset: {contact: ''},
-      } as any);
-    }
-    // Remove validityDuration from incentive object
-    if (!incentive.validityDuration) {
-      delete incentive.validityDuration;
-      await this.incentiveRepository.updateById(incentiveId, {
-        $unset: {validityDuration: ''},
-      } as any);
-    }
-    // Remove funderId from incentive object
-    if (incentive.funderId === '@@ra-create') {
-      delete incentive.funderId;
-      await this.incentiveRepository.updateById(incentiveId, {
-        $unset: {funderId: ''},
-      } as any);
-    }
-    // Remove additionalInfos from incentive object
-    if (!incentive.additionalInfos) {
-      delete incentive.additionalInfos;
-      await this.incentiveRepository.updateById(incentiveId, {
-        $unset: {additionalInfos: ''},
-      } as any);
-    }
-    // Remove validityDate from incentive object
-    if (!incentive.validityDate) {
-      delete incentive.validityDate;
-      await this.incentiveRepository.updateById(incentiveId, {
-        $unset: {validityDate: ''},
-      } as any);
-    }
-    // Remove subscriptionLink from incentive object
-    if (!incentive.subscriptionLink) {
-      delete incentive.subscriptionLink;
-      await this.incentiveRepository.updateById(incentiveId, {
-        $unset: {subscriptionLink: ''},
-      } as any);
-    }
-
-    if (incentive.territory) {
-      if (!incentive.territory.id) {
-        throw new ValidationError(
-          'territory.id.undefined',
-          '/territory',
-          StatusCode.PreconditionFailed,
-          ResourceName.Territory,
-        );
+    try {
+      Logger.debug(IncentiveController.name, this.updateById.name, 'Incentive to update data', incentive);
+      // Remove contact from incentive object
+      if (!incentive.contact) {
+        delete incentive.contact;
+        await this.incentiveRepository.updateById(incentiveId, {
+          $unset: {contact: ''},
+        } as any);
       }
+      // Remove validityDuration from incentive object
+      if (!incentive.validityDuration) {
+        delete incentive.validityDuration;
+        await this.incentiveRepository.updateById(incentiveId, {
+          $unset: {validityDuration: ''},
+        } as any);
+      }
+      // Remove additionalInfos from incentive object
+      if (!incentive.additionalInfos) {
+        delete incentive.additionalInfos;
+        await this.incentiveRepository.updateById(incentiveId, {
+          $unset: {additionalInfos: ''},
+        } as any);
+      }
+      // Remove validityDate from incentive object
+      if (!incentive.validityDate) {
+        delete incentive.validityDate;
+        await this.incentiveRepository.updateById(incentiveId, {
+          $unset: {validityDate: ''},
+        } as any);
+      }
+      // Remove subscriptionLink from incentive object
+      if (!incentive.subscriptionLink) {
+        delete incentive.subscriptionLink;
+        await this.incentiveRepository.updateById(incentiveId, {
+          $unset: {subscriptionLink: ''},
+        } as any);
+      }
+
       /**
-       * Check if the provided ID exists in the territoy collection.
+       * Check if the provided ID exists in the territory collection.
+       * For now, only one Territory is linked to an incentive
        */
-      const territoryResult: Territory = await this.territoryRepository.findById(
-        incentive.territory.id,
-      );
+      const territoryListResult: Territory[] = await this.territoryRepository.find({
+        where: {id: {inq: incentive.territoryIds}},
+      });
+      Logger.debug(IncentiveController.name, this.updateById.name, 'Territory data', territoryListResult);
 
       /**
        * Check if the name provided matches the territory name.
        */
-      if (
-        territoryResult.name !== incentive.territory.name ||
-        (incentive.territoryName && incentive?.territoryName !== territoryResult.name) // TODO: REMOVING DEPRECATED territoryName.
-      ) {
-        throw new ValidationError(
-          'territory.name.mismatch',
+      if (!territoryListResult.length) {
+        throw new BadRequestError(
+          IncentiveController.name,
+          this.updateById.name,
+          'territory.not.found',
           '/territory',
-          StatusCode.UnprocessableEntity,
           ResourceName.Territory,
+          incentive.territoryIds,
         );
       }
-    }
 
-    // Add new specificFields and unset subscription link
-    if (
-      incentive.isMCMStaff &&
-      incentive.specificFields &&
-      incentive.specificFields.length
-    ) {
-      // Add json schema from specific fields
-      incentive.jsonSchema = this.incentiveService.convertSpecificFields(
-        incentive.title,
-        incentive.specificFields,
+      // TODO: REMOVING DEPRECATED territoryName.
+      incentive.territoryName = territoryListResult[0].name;
+
+      // Add new specificFields and unset subscription link
+      if (incentive.isMCMStaff && incentive.specificFields && incentive.specificFields.length) {
+        // Add json schema from specific fields
+        incentive.jsonSchema = this.incentiveService.convertSpecificFields(
+          incentive.title,
+          incentive.specificFields,
+        );
+        Logger.debug(IncentiveController.name, this.updateById.name, 'Jsonschema data', incentive.jsonSchema);
+      }
+
+      // Add subscription link and unset specificFields and jsonSchema
+      if (
+        (!incentive.isMCMStaff && incentive.subscriptionLink) ||
+        (incentive?.specificFields && !incentive.specificFields.length)
+      ) {
+        // Remove specific field && jsonSchema from incentive object
+        delete incentive.specificFields;
+        delete incentive.jsonSchema;
+        // Unset specificFields && jsonSchema
+        await this.incentiveRepository.updateById(incentiveId, {
+          $unset: {specificFields: '', jsonSchema: ''},
+        } as any);
+        Logger.info(IncentiveController.name, this.updateById.name, 'Incentive updated', incentiveId);
+      }
+
+      // Get Exclusion EligibilityCheck
+      const exclusionControl: IncentiveEligibilityChecks | null =
+        await this.incentiveEligibilityChecksRepository.findOne({
+          where: {label: ELIGIBILITY_CHECKS_LABEL.EXCLUSION},
+        });
+
+      Logger.debug(
+        IncentiveController.name,
+        this.updateById.name,
+        'Exclusion control data',
+        exclusionControl,
       );
-    }
 
-    // Add subscription link and unset specificFields and jsonSchema
-    if (
-      (!incentive.isMCMStaff && incentive.subscriptionLink) ||
-      (incentive?.specificFields && !incentive.specificFields.length)
-    ) {
-      // Remove specific field && jsonSchema from incentive object
-      delete incentive.specificFields;
-      delete incentive.jsonSchema;
-      // Unset specificFields && jsonSchema
-      await this.incentiveRepository.updateById(incentiveId, {
-        $unset: {specificFields: '', jsonSchema: ''},
-      } as any);
-    }
+      // Get current and updated exclusion list
+      const currentIncentive: Incentive = await this.incentiveRepository.findById(incentiveId);
 
-    // Get Exclusion EligibilityCheck
-    const exclusionControl: IncentiveEligibilityChecks | null =
-      await this.incentiveEligibilityChecksRepository.findOne({
-        where: {label: ELIGIBILITY_CHECKS_LABEL.EXCLUSION},
-      });
+      const currentIncentiveExclusionControl: EligibilityCheck | undefined =
+        currentIncentive.eligibilityChecks?.find(check => {
+          return check.id === exclusionControl!.id;
+        });
+      Logger.debug(
+        IncentiveController.name,
+        this.updateById.name,
+        'Current exclusion control data',
+        currentIncentiveExclusionControl,
+      );
 
-    // Get current and updated exclusion list
-    const currentIncentive: Incentive = await this.incentiveRepository.findById(
-      incentiveId,
-    );
+      const updatedExclusionControl: EligibilityCheck | undefined = incentive.eligibilityChecks?.find(
+        check => {
+          return check.id === exclusionControl!.id;
+        },
+      );
 
-    const currentIncentiveExclusionControl: EligibilityCheck | undefined =
-      currentIncentive.eligibilityChecks?.find(check => {
-        return check.id === exclusionControl!.id;
-      });
-    const updatedExclusionControl: EligibilityCheck | undefined =
-      incentive.eligibilityChecks?.find(check => {
-        return check.id === exclusionControl!.id;
-      });
+      const exclusionsToDelete: string[] = this.incentiveService.getIncentiveIdsToDelete(
+        currentIncentiveExclusionControl?.value || [],
+        updatedExclusionControl?.value || [],
+      );
+      Logger.debug(IncentiveController.name, this.updateById.name, 'Exclusion to delete', exclusionsToDelete);
 
-    const exclusionsToDelete: string[] = this.incentiveService.getIncentiveIdsToDelete(
-      currentIncentiveExclusionControl?.value || [],
-      updatedExclusionControl?.value || [],
-    );
-    const exclusionsToAdd: string[] = this.incentiveService.getIncentiveIdsToAdd(
-      currentIncentiveExclusionControl?.value || [],
-      updatedExclusionControl?.value || [],
-    );
+      const exclusionsToAdd: string[] = this.incentiveService.getIncentiveIdsToAdd(
+        currentIncentiveExclusionControl?.value || [],
+        updatedExclusionControl?.value || [],
+      );
+      Logger.debug(IncentiveController.name, this.updateById.name, 'Exclusion to add', exclusionsToAdd);
 
-    if (exclusionsToAdd && exclusionsToAdd.length > 0) {
-      const incentivesToAdd: Incentive[] = await this.incentiveRepository.find({
-        where: {id: {inq: exclusionsToAdd}},
-      });
+      if (exclusionsToAdd && exclusionsToAdd.length > 0) {
+        const incentivesToAdd: Incentive[] = await this.incentiveRepository.find({
+          where: {id: {inq: exclusionsToAdd}},
+        });
 
-      // Add Current Incentive to All Incentives added in Exclusion List
-      await Promise.all([
-        incentivesToAdd.map(async incentiveToAdd => {
-          const updatedEligibilityChecks: EligibilityCheck[] =
-            this.incentiveService.addIncentiveToExclusions(
-              incentiveToAdd.eligibilityChecks,
+        // Add Current Incentive to All Incentives added in Exclusion List
+        await Promise.all([
+          incentivesToAdd.map(async incentiveToAdd => {
+            const updatedEligibilityChecks: EligibilityCheck[] =
+              this.incentiveService.addIncentiveToExclusions(
+                incentiveToAdd.eligibilityChecks,
+                currentIncentive,
+                exclusionControl!.id,
+                updatedExclusionControl!.active,
+              );
+
+            await this.incentiveRepository.updateById(incentiveToAdd.id, {
+              eligibilityChecks: updatedEligibilityChecks,
+            });
+          }),
+        ]);
+        Logger.info(IncentiveController.name, this.updateById.name, 'Incentives updated added exclusions');
+      }
+
+      if (exclusionsToDelete && exclusionsToDelete.length > 0) {
+        const incentivesToDelete: Incentive[] = await this.incentiveRepository.find({
+          where: {id: {inq: exclusionsToDelete}},
+        });
+
+        // Delete Current Incentive from All Incentives deleted from Exclusion List
+        await Promise.all([
+          incentivesToDelete.map(async incentiveToDelete => {
+            incentiveToDelete = this.incentiveService.removeIncentiveFromExclusions(
+              incentiveToDelete,
               currentIncentive,
               exclusionControl!.id,
-              updatedExclusionControl!.active,
             );
+            if (incentiveToDelete.eligibilityChecks) {
+              await this.incentiveRepository.updateById(incentiveToDelete.id, {
+                eligibilityChecks: incentiveToDelete.eligibilityChecks,
+              });
+            } else {
+              await this.incentiveRepository.updateById(incentiveToDelete.id, {
+                $unset: {eligibilityChecks: []},
+              } as any);
+            }
+          }),
+        ]);
+        Logger.info(
+          IncentiveController.name,
+          this.updateById.name,
+          'Incentives updated deleted exclusions',
+          incentivesToDelete,
+        );
+      }
 
-          await this.incentiveRepository.updateById(incentiveToAdd.id, {
-            eligibilityChecks: updatedEligibilityChecks,
-          });
-        }),
-      ]);
+      await this.incentiveRepository.updateById(incentiveId, incentive);
+    } catch (error) {
+      Logger.error(IncentiveController.name, this.updateById.name, 'Error', error);
+      throw error;
     }
-
-    if (exclusionsToDelete && exclusionsToDelete.length > 0) {
-      const incentivesToDelete: Incentive[] = await this.incentiveRepository.find({
-        where: {id: {inq: exclusionsToDelete}},
-      });
-
-      // Delete Current Incentive from All Incentives deleted from Exclusion List
-      await Promise.all([
-        incentivesToDelete.map(async incentiveToDelete => {
-          incentiveToDelete = this.incentiveService.removeIncentiveFromExclusions(
-            incentiveToDelete,
-            currentIncentive,
-            exclusionControl!.id,
-          );
-          if (incentiveToDelete.eligibilityChecks) {
-            await this.incentiveRepository.updateById(incentiveToDelete.id, {
-              eligibilityChecks: incentiveToDelete.eligibilityChecks,
-            });
-          } else {
-            await this.incentiveRepository.updateById(incentiveToDelete.id, {
-              $unset: {eligibilityChecks: []},
-            } as any);
-          }
-        }),
-      ]);
-    }
-
-    await this.incentiveRepository.updateById(incentiveId, incentive);
   }
 
   @authenticate(AUTH_STRATEGY.KEYCLOAK)
@@ -962,25 +919,9 @@ export class IncentiveController {
     security: SECURITY_SPEC_KC_PASSWORD,
     responses: {
       [StatusCode.NoContent]: {
-        description: 'Incentives DELETE success',
+        description: "Supprimer le détail de l'aide",
       },
-      [StatusCode.NotFound]: {
-        description: "Cette aide n'existe pas",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 404,
-                name: 'Error',
-                message: 'Incentive not found',
-                path: '/incentiveNotFound',
-                resourceName: 'Incentive',
-              },
-            },
-          },
-        },
-      },
+      ...defaultSwaggerError,
     },
   })
   async deleteById(

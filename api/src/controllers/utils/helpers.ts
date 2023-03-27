@@ -1,5 +1,5 @@
 import {Subscription} from '../../models';
-import {FUNDER_TYPE, IDashboardCitizenIncentiveList, INCENTIVE_TYPE} from '../../utils';
+import {IDashboardCitizenIncentiveList, INCENTIVE_TYPE} from '../../utils';
 
 /**
  * INTERFACES
@@ -101,10 +101,7 @@ export const getListEmails = (subscription: Subscription) => {
   const listEmails: string[] = [subscription.email];
 
   if (subscription.incentiveType === INCENTIVE_TYPE.EMPLOYER_INCENTIVE) {
-    if (
-      subscription.enterpriseEmail &&
-      subscription.email !== subscription.enterpriseEmail
-    ) {
+    if (subscription.enterpriseEmail && subscription.email !== subscription.enterpriseEmail) {
       listEmails.push(subscription.enterpriseEmail);
     }
   }

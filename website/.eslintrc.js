@@ -60,6 +60,7 @@ module.exports = {
         ["@assets", "./src/assets"],
         ["@constants", "./src/constants"],
         ["@environment", "./src/environment"],
+        ["@context", "./src/context"],
       ],
       node: {
         extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],

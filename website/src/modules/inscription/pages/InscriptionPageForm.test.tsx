@@ -43,11 +43,6 @@ describe('<InscriptionPageForm />', () => {
     expect(
       container.querySelector('.connexion-inscription--form')
     ).toBeInTheDocument();
-
-    // <PatternCompositionMessage />
-    expect(
-      getByText('Votre mot de passe doit contenir au moins:')
-    ).toBeInTheDocument();
   });
 
   test('Display correct className when inscriptionMode = false', async () => {

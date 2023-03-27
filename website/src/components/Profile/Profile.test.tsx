@@ -6,8 +6,8 @@ import selectEvent from 'react-select-event';
 import { QueryClient, QueryClientProvider } from 'react-query';
 
 import * as citizenService from '@api/CitizenService';
-import * as enterpriseService from '@api/EntrepriseService';
 import * as userFunderService from '@api/UserFunderService';
+import * as funderService from '@api/FunderService';
 import { deleteConsent } from '@api/CitizenService';
 
 import { mockUseKeycloak } from '@utils/mockKeycloak';
@@ -62,6 +62,72 @@ const userMock = {
   },
 };
 
+const userDisaffiliatedMock = {
+  identity: {
+    gender: {
+      value: 1,
+    },
+    firstName: {
+      value: 'Roger',
+    },
+    lastName: {
+      value: 'Dupond',
+    },
+    birthDate: {
+      value: '1991-11-17',
+    },
+  },
+  birthdate: '1991-11-17',
+  personalInformation: {
+    email: {
+      value: 'kennyg@gmail.com',
+      certificationDate: new Date('2022-11-03'),
+      source: 'moncomptemobilite.fr',
+    },
+  },
+  mdp: 'Nicolas32!',
+  city: 'Paris',
+  postcode: '75001',
+  status: 'salarie',
+  statusPhrase: 'Salarié',
+  consents: [
+  ],
+  affiliation: {
+    enterpriseId: '12345',
+    enterpriseEmail: 'roger@capgemini.com',
+    status: 'DESAFFILIE',
+  },
+};
+
+const userFCNoAffiliationMock = {
+  identity: {
+    gender: {
+      value: 1,
+    },
+    firstName: {
+      value: 'Roger',
+    },
+    lastName: {
+      value: 'Dupond',
+    },
+    birthDate: {
+      value: '1991-11-17',
+      source: 'franceconnect.gouv.fr'
+    },
+  },
+  birthdate: '1991-11-17',
+  personalInformation: {
+    email: {
+      value: 'kennyg@gmail.com',
+      certificationDate: new Date('2022-11-03'),
+      source: 'franceconnect.gouv.fr'
+    },
+  },
+  consents: [
+  ],
+  affiliation: null
+};
+
 const userMockAffiliation = {
   identity: {
     gender: {
@@ -91,12 +157,12 @@ const userMockAffiliation = {
   statusPhrase: 'Salarié',
   consents: [
     {
-      clientId: 'simulation-maas-client',
       name: 'simulation maas client',
+      clientId: 'simulation-maas-client',
     },
     {
-      clientId: 'mulhouse-maas-client',
       name: 'mulhouse maas client',
+      clientId: 'mulhouse-maas-client',
     },
   ],
   affiliation: {
@@ -177,22 +243,18 @@ const enterpriseListMock = [
   {
     id: '12345',
     name: 'Capgemini',
-    emailFormat: ['@capgemini.com'],
   },
   {
     id: '54321',
     name: 'Atos',
-    emailFormat: ['@atos.com'],
   },
   {
     id: '67890',
     name: 'Total',
-    emailFormat: ['@total.com'],
   },
   {
     id: '12345',
     name: 'Capgemini',
-    emailFormat: ['@capgemini.com'],
   },
 ];
 
@@ -225,6 +287,16 @@ const citizenNoAffilliationContext = {
 
 const citizenAffilliationContext = {
   citizen: userMockAffiliation,
+  refetchCitizen: () => {},
+};
+
+const citizenDisaffiliatedContext = {
+  citizen: userDisaffiliatedMock,
+  refetchCitizen: () => {},
+};
+
+const citizenFCNoAffiliationContext = {
+  citizen: userFCNoAffiliationMock,
   refetchCitizen: () => {},
 };
 
@@ -326,7 +398,7 @@ describe('<Profile />', () => {
       .mockReturnValue(userMock.consents);
     jest.spyOn(citizenService, 'getCitizenById').mockReturnValue(userMock);
     jest
-      .spyOn(enterpriseService, 'getEntreprisesList')
+      .spyOn(funderService, 'getFunders')
       .mockReturnValue(enterpriseListMock);
     jest
       .spyOn(citizenService, 'updateCitizenById')
@@ -389,7 +461,7 @@ describe('<Profile />', () => {
       .mockReturnValue(userMock.consents);
     jest.spyOn(citizenService, 'getCitizenById').mockReturnValue(userMock);
     jest
-      .spyOn(enterpriseService, 'getEntreprisesList')
+      .spyOn(funderService, 'getFunders')
       .mockReturnValue(enterpriseListMock);
     jest.spyOn(citizenService, 'updateCitizenById').mockReturnValue(null);
 
@@ -466,7 +538,7 @@ describe('<Profile />', () => {
       .mockReturnValue(userMock.consents);
     jest.spyOn(citizenService, 'getCitizenById').mockReturnValue(userMock);
     jest
-      .spyOn(enterpriseService, 'getEntreprisesList')
+      .spyOn(funderService, 'getFunders')
       .mockReturnValue(enterpriseListMock);
     jest
       .spyOn(citizenService, 'deleteCitizenAccount')
@@ -591,6 +663,54 @@ describe('<Profile />', () => {
     expect(confirmDelete).not.toBeInTheDocument();
   });
 
+  test('It should render  the profile with disaffiliated user informations in read mode', async () => {
+    useUser.mockImplementation(() => citizenDisaffiliatedContext);
+
+    jest
+      .spyOn(citizenService, 'getConsentsById')
+      .mockReturnValue(userDisaffiliatedMock.consents);
+    jest.spyOn(citizenService, 'getCitizenById').mockReturnValue(userDisaffiliatedMock);
+    jest
+      .spyOn(funderService, 'getFunders')
+      .mockReturnValue(enterpriseListMock);
+
+    renderComponent();
+
+    const modifyButtons = await screen.findAllByText('Modifier');
+    expect(screen.queryByTestId('profile-title')).toBeInTheDocument();
+    expect(screen.getByText('Mon identité')).toBeInTheDocument();
+    expect(screen.getByText('Mon adresse')).toBeInTheDocument();
+    expect(
+      screen.getByText('Mon activité professionnelle')
+    ).toBeInTheDocument();
+    expect(modifyButtons).toHaveLength(5);
+    expect(
+      screen.getByText(Strings['profile.label.gender.male'])
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(userDisaffiliatedMock.identity.lastName.value)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(userDisaffiliatedMock.identity.firstName.value)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(format(new Date(userDisaffiliatedMock.birthdate), 'dd/MM/yyyy'))
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(userDisaffiliatedMock.personalInformation.email.value)
+    ).toBeInTheDocument();
+    expect(screen.getByText(userDisaffiliatedMock.city)).toBeInTheDocument();
+    expect(screen.getByText(userDisaffiliatedMock.postcode)).toBeInTheDocument();
+    expect(screen.getByText(userDisaffiliatedMock.statusPhrase)).toBeInTheDocument();
+    expect(screen.getByText('Email professionnel')).toBeInTheDocument();
+    expect(screen.getByText("Statut d'affiliation")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Affiliation supprimée"
+      )
+    ).toBeInTheDocument();
+  });
+
   test('It should edit the profile and save the updated user informations for affiliated user', async () => {
     useUser.mockImplementation(() => citizenAffilliationContext);
     jest
@@ -598,7 +718,7 @@ describe('<Profile />', () => {
       .mockReturnValue(userMock.consents);
     jest.spyOn(citizenService, 'getCitizenById').mockReturnValue(userMock);
     jest
-      .spyOn(enterpriseService, 'getEntreprisesList')
+      .spyOn(funderService, 'getFunders')
       .mockReturnValue(enterpriseListMock);
     jest.spyOn(citizenService, 'updateCitizenById').mockReturnValue(null);
 
@@ -646,6 +766,74 @@ describe('<Profile />', () => {
     expect(successToast).toBeInTheDocument();
   });
 
+  test('It should edit the profile and save the updated user informations for FC non affiliated user', async () => {
+    useUser.mockImplementation(() => citizenFCNoAffiliationContext);
+    jest
+      .spyOn(citizenService, 'getConsentsById')
+      .mockReturnValue(userMock.consents);
+    jest.spyOn(citizenService, 'getCitizenById').mockReturnValue(userFCNoAffiliationMock);
+    jest
+      .spyOn(funderService, 'getFunders')
+      .mockReturnValue(enterpriseListMock);
+    jest.spyOn(citizenService, 'updateCitizenById').mockReturnValue(null);
+
+    renderComponent();
+
+    const modifyBtns = await screen.findAllByRole('button', {
+      name: /modifier/i,
+    });
+    expect(modifyBtns).toHaveLength(5);
+    fireEvent.click(modifyBtns[0]);
+
+    const saveButton = screen.queryByText(/enregistrer/i);
+    expect(saveButton).toBeDisabled();
+
+    expect(
+      screen.queryByRole('button', {
+        name: /modifier/i,
+      })
+    ).not.toBeInTheDocument();
+
+    const cityInput = screen.getByLabelText(/ville/i) as HTMLInputElement;
+    const postcodeInput = screen.getByLabelText(
+      /code postal/i
+    ) as HTMLInputElement;
+    const statusInput = screen.getByLabelText(/statut/i) as HTMLSelectElement;
+    const companyNotFoundInput = screen.getByTestId('companyNotFound') as HTMLInputElement;
+    const hasNoEnterpriseEmailInput = screen.getByTestId('hasNoEnterpriseEmail') as HTMLInputElement;
+
+    expect(cityInput.value).toBe("");
+    expect(postcodeInput.value).toBe("");
+
+    fireEvent.input(cityInput, {
+      target: { value: 'Orleans' },
+    });
+    expect(cityInput.value).toBe('Orleans');
+
+    fireEvent.input(postcodeInput, {
+      target: { value: '45000' },
+    });
+    expect(postcodeInput.value).toBe('45000');
+
+    fireEvent.input(postcodeInput, {
+      target: { value: '45000' },
+    });
+
+    fireEvent.select(statusInput, {
+      target: { value: 'Salarié' },
+    });
+    expect(statusInput.value).toBe('Salarié');
+
+    expect(companyNotFoundInput).toBeChecked();
+    expect(hasNoEnterpriseEmailInput).toBeChecked();
+
+
+    expect(saveButton).toBeInTheDocument();
+    expect(saveButton).toBeEnabled();
+    fireEvent.click(saveButton!);
+    expect(modifyBtns).toHaveLength(5);
+  });
+
   test('It should edit the profile and save the updated user informations', async () => {
     useUser.mockImplementation(() => citizenNoAffilliationContext);
     jest
@@ -653,7 +841,7 @@ describe('<Profile />', () => {
       .mockReturnValue(userMock.consents);
     jest.spyOn(citizenService, 'getCitizenById').mockReturnValue(userMock);
     jest
-      .spyOn(enterpriseService, 'getEntreprisesList')
+      .spyOn(funderService, 'getFunders')
       .mockReturnValue(enterpriseListMock);
     jest.spyOn(citizenService, 'updateCitizenById').mockReturnValue(null);
 
@@ -709,7 +897,7 @@ describe('<Profile />', () => {
       .mockReturnValue(userMock.consents);
     jest.spyOn(citizenService, 'getCitizenById').mockReturnValue(userMock);
     jest
-      .spyOn(enterpriseService, 'getEntreprisesList')
+      .spyOn(funderService, 'getFunders')
       .mockReturnValue(enterpriseListMock);
     jest
       .spyOn(citizenService, 'updateCitizenById')
@@ -773,7 +961,7 @@ describe('<Profile />', () => {
       .mockReturnValue(userMock.consents);
     jest.spyOn(citizenService, 'getCitizenById').mockReturnValue(userMock);
     jest
-      .spyOn(enterpriseService, 'getEntreprisesList')
+      .spyOn(funderService, 'getFunders')
       .mockReturnValue(enterpriseListMock);
 
     renderComponent();
@@ -797,7 +985,7 @@ describe('<Profile />', () => {
       .mockReturnValue(userMock.consents);
     jest.spyOn(citizenService, 'getCitizenById').mockReturnValue(userMock);
     jest
-      .spyOn(enterpriseService, 'getEntreprisesList')
+      .spyOn(funderService, 'getFunders')
       .mockReturnValue(enterpriseListMock);
     jest.spyOn(citizenService, 'updateCitizenById').mockReturnValue(null);
 
@@ -824,7 +1012,7 @@ describe('<Profile />', () => {
       .mockReturnValue(userMock.consents);
     jest.spyOn(citizenService, 'getCitizenById').mockReturnValue(userMock);
     jest
-      .spyOn(enterpriseService, 'getEntreprisesList')
+      .spyOn(funderService, 'getFunders')
       .mockReturnValue(enterpriseListMock);
     jest
       .spyOn(citizenService, 'updateCitizenById')
@@ -851,7 +1039,7 @@ describe('<Profile />', () => {
       .spyOn(citizenService, 'getCitizenById')
       .mockReturnValue(userMockNoAffiliation);
     jest
-      .spyOn(enterpriseService, 'getEntreprisesList')
+      .spyOn(funderService, 'getFunders')
       .mockReturnValue(enterpriseListMock);
     jest.spyOn(citizenService, 'updateCitizenById').mockReturnValue(null);
 
@@ -911,7 +1099,7 @@ describe('<Profile />', () => {
       .mockReturnValue(userMock.consents);
     jest.spyOn(citizenService, 'getCitizenById').mockReturnValue(userMock);
     jest
-      .spyOn(enterpriseService, 'getEntreprisesList')
+      .spyOn(funderService, 'getFunders')
       .mockReturnValue(enterpriseListMock);
     jest.spyOn(citizenService, 'downloadRgpdFileXlsx').mockRejectedValue(null);
 

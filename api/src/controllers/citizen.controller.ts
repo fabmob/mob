@@ -1,12 +1,11 @@
 import * as Excel from 'exceljs';
 import {inject, intercept, service} from '@loopback/core';
-import {repository, AnyObject} from '@loopback/repository';
+import {repository} from '@loopback/repository';
 import {
   post,
   param,
   get,
   getModelSchemaRef,
-  put,
   patch,
   requestBody,
   Response,
@@ -18,19 +17,17 @@ import {authenticate} from '@loopback/authentication';
 import {authorize} from '@loopback/authorization';
 
 import {
-  EnterpriseRepository,
   CommunityRepository,
-  UserRepository,
   SubscriptionRepository,
   IncentiveRepository,
   AffiliationRepository,
+  FunderRepository,
 } from '../repositories';
 import {
   CitizenService,
   KeycloakService,
   MailService,
   JwtService,
-  FunderService,
   SubscriptionService,
   AffiliationService,
 } from '../services';
@@ -42,49 +39,48 @@ import {
   Citizen,
   Subscription,
   Enterprise,
-  Error,
   CitizenCreate,
-  User,
+  Funder,
+  CitizenFilter,
 } from '../models';
-import {ValidationError} from '../validationError';
+import {InternalServerError} from '../validationError';
 import {
-  ResourceName,
   StatusCode,
   AFFILIATION_STATUS,
   Roles,
   SUBSCRIPTION_STATUS,
   SECURITY_SPEC_API_KEY,
   SECURITY_SPEC_KC_PASSWORD,
-  SECURITY_SPEC_JWT_KC_PASSWORD,
   AUTH_STRATEGY,
   Consent,
   ClientOfConsent,
   IUser,
+  Logger,
+  SECURITY_SPEC_API_KEY_KC_PASSWORD,
+  FilterCitizen,
 } from '../utils';
-import {canAccessHisOwnData} from '../services/user.authorizor';
+import {canAccessCitizenData, canAccessHisOwnData} from '../services/user.authorizor';
 import {formatDateInTimezone} from '../utils/date';
+import {defaultSwaggerError} from './utils/swagger-errors';
 
 @intercept(CitizenInterceptor.BINDING_KEY)
 export class CitizenController {
   constructor(
+    @inject(RestBindings.Http.RESPONSE) private response: Response,
     @inject('services.MailService')
     public mailService: MailService,
     @repository(CommunityRepository)
     public communityRepository: CommunityRepository,
     @inject('services.KeycloakService')
     public keycloakService: KeycloakService,
-    @inject('services.FunderService')
-    public funderService: FunderService,
-    @repository(EnterpriseRepository)
-    public enterpriseRepository: EnterpriseRepository,
+    @repository(FunderRepository)
+    public funderRepository: FunderRepository,
     @inject('services.CitizenService')
     public citizenService: CitizenService,
     @inject('services.SubscriptionService')
     public subscriptionService: SubscriptionService,
     @inject('services.JwtService')
     public jwtService: JwtService,
-    @service(UserRepository)
-    private userRepository: UserRepository,
     @inject(SecurityBindings.USER, {optional: true})
     private currentUser: IUser,
     @repository(SubscriptionRepository)
@@ -125,19 +121,7 @@ export class CitizenController {
           },
         },
       },
-      [StatusCode.NotFound]: {
-        description: "L'entreprise du salarié est inconnue",
-      },
-      [StatusCode.PreconditionFailed]: {
-        description:
-          "L'email professionnel du salarié n'est pas du domaine de son entreprise",
-      },
-      [StatusCode.Conflict]: {
-        description: "L'email personnel du salarié existe déjà",
-      },
-      [StatusCode.UnprocessableEntity]: {
-        description: "L'email professionnel du salarié existe déjà",
-      },
+      ...defaultSwaggerError,
     },
   })
   async create(
@@ -150,146 +134,14 @@ export class CitizenController {
     })
     rawCitizen: CitizenCreate,
   ): Promise<{id: string} | undefined> {
-    const result: {id: string} | undefined = await this.citizenService.createCitizen(
-      rawCitizen,
-    );
-    return result;
-  }
-
-  /**
-   * @param [status] status in `status`
-   * @param [lastName] Search in `lastName`
-   * @param [skip] records.
-   * @returns {Citizen[], number} List of salaries sorted by `lastName` and the total
-   * number of employees based on their status or lastName
-   */
-  @authenticate(AUTH_STRATEGY.KEYCLOAK)
-  @authorize({
-    allowedRoles: [Roles.SUPERVISORS, Roles.MANAGERS],
-  })
-  @get('/v1/citizens', {
-    'x-controller-name': 'Citizens',
-    summary: "Retourne les salariés d'une entreprise",
-    security: SECURITY_SPEC_KC_PASSWORD,
-    responses: {
-      [StatusCode.Success]: {
-        description: 'Search filter employees ',
-        content: {
-          'application/json': {
-            schema: {
-              type: 'array',
-              items: getModelSchemaRef(Citizen),
-            },
-          },
-        },
-      },
-    },
-  })
-  async findSalaries(
-    @param.query.string('status', {
-      description: `Filtre sur le statut de l'aide: AFFILIE | DESAFFILIE | A_AFFILIER`,
-    })
-    status?: string,
-    @param.query.string('lastName', {
-      description: `Filtre sur le nom de famille du citoyen`,
-    })
-    lastName?: string,
-    @param.query.number('skip', {
-      description: `Nombre d'éléments à sauter lors de la pagination`,
-    })
-    skip?: number,
-  ): Promise<{employees: Citizen[] | undefined; employeesCount: number}> {
-    const result = await this.citizenService.findEmployees({
-      status,
-      lastName,
-      skip,
-      limit: 10,
-    });
-
-    return result;
-  }
-
-  /**
-   * get citizens with at least one subscription
-   * @param lastName search params
-   * @param skip number of element to skip
-   */
-  @authenticate(AUTH_STRATEGY.KEYCLOAK)
-  @authorize({
-    allowedRoles: [Roles.FUNDERS],
-  })
-  @get('/v1/collectivitiesCitizens', {
-    'x-controller-name': 'Citizens',
-    summary: 'Récupère la liste des citoyens ayant au moins une demande',
-    security: SECURITY_SPEC_KC_PASSWORD,
-    responses: {
-      [StatusCode.Success]: {
-        description: 'Array of subscriptions model instance',
-        content: {
-          'application/json': {
-            schema: {
-              type: 'object',
-            },
-          },
-        },
-      },
-    },
-  })
-  async getCitizensWithSubscriptions(
-    @param.query.string('lastName', {description: 'Nom de famille du citoyen'})
-    lastName?: string,
-    @param.query.number('skip', {
-      description: "Nombre d'éléments à sauter lors de la pagination",
-    })
-    skip?: number | undefined,
-  ): Promise<AnyObject> {
-    const {incentiveType, funderName} = this.currentUser;
-
-    const match: object[] = [
-      {incentiveType: incentiveType},
-      {funderName: funderName},
-      {status: {$ne: SUBSCRIPTION_STATUS.DRAFT}},
-    ];
-
-    if (lastName) {
-      match.push({
-        lastName: new RegExp('.*' + lastName + '.*', 'i'),
-      });
+    this.response.status(201);
+    try {
+      const result: {id: string} | undefined = await this.citizenService.createCitizen(rawCitizen);
+      return result;
+    } catch (error) {
+      Logger.error(CitizenController.name, this.create.name, 'Error', error);
+      throw error;
     }
-
-    return this.subscriptionService.getCitizensWithSubscription(match, skip);
-  }
-
-  /**
-   * get citizen profile by id
-   * @param citizenId id of citizen
-   * @param filter the citizen filter
-   * @returns the profile of citizen
-   */
-  @authenticate(AUTH_STRATEGY.KEYCLOAK)
-  @authorize({voters: [canAccessHisOwnData]})
-  @get('v1/citizens/profile/{citizenId}', {
-    'x-controller-name': 'Citizens',
-    summary: "Retourne les informations d'un citoyen",
-    security: SECURITY_SPEC_KC_PASSWORD,
-    responses: {
-      [StatusCode.Success]: {
-        description: 'Citizen model instance',
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Citizen),
-          },
-        },
-      },
-    },
-  })
-  async findById(
-    @param.path.string('citizenId', {
-      description: `L'identifiant du citoyen`,
-    })
-    citizenId: string,
-  ): Promise<Citizen> {
-    return this.citizenService.getCitizenWithAffiliationById(citizenId);
   }
 
   /**
@@ -299,59 +151,67 @@ export class CitizenController {
    * @returns one citizen object
    */
   @authenticate(AUTH_STRATEGY.KEYCLOAK)
+  @authorize({
+    voters: [canAccessCitizenData],
+    allowedRoles: [Roles.MANAGERS, Roles.CITIZENS],
+  })
   @get('/v1/citizens/{citizenId}', {
     'x-controller-name': 'Citizens',
     security: SECURITY_SPEC_KC_PASSWORD,
     summary: "Retourne les informations d'un citoyen",
+    description: `Ce service permet de récupérer les informations d'un citoyen.<br>
+    Il permet également de ne renvoyer que les champs souhaités en utilisant la clause
+    fields du filtre.
+    En termes de sécurité, les scopes de données doivent être retournés uniquement si 
+    l'access token contient le scope associé comme suit : 
+    <ul>
+    <li>La partie identity est retournée si le scope profile ou le scope urn:cms:identity \
+    est dans l'access token.</li>
+    <li>La partie personalInformation est retournée si les scopes address, email, phone et\
+     le scope urn:cms:personalInformation sont dans l'access token.</li>
+     <li>La partie dgfip-information est retournée si le scope urn:cms:dgfip-informaiton est\
+      dans l'access token.</li>
+    </ul>
+    `,
     responses: {
       [StatusCode.Success]: {
-        description: 'Citizen model instance',
+        description: 'Les informations du citoyen',
         content: {
           'application/json': {
-            schema: getModelSchemaRef(Citizen),
+            schema: getModelSchemaRef(Citizen, {
+              title: 'CitizenExcludeHidden',
+              exclude: [
+                'password',
+                'tos1',
+                'tos2',
+                'terms_and_conditions',
+                'isInactivityNotificationSent',
+                'lastLoginAt',
+                'updatedAt',
+              ],
+            }),
           },
         },
       },
-      [StatusCode.NotFound]: {
-        description: "Ce citoyen n'existe pas",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 404,
-                name: 'Error',
-                message: 'Citizen not found',
-                path: '/citizenNotFound',
-                resourceName: 'Citizen',
-              },
-            },
-          },
-        },
-      },
+      ...defaultSwaggerError,
     },
   })
-  async findCitizenId(
+  async findById(
     @param.path.string('citizenId', {
       description: `L'identifiant du citoyen`,
     })
     citizenId: string,
-  ): Promise<Record<string, string>> {
-    const user: User = await this.userRepository.findById(this.currentUser?.id);
-    const citizenData: Citizen = await this.citizenService.getCitizenWithAffiliationById(
-      citizenId,
-    );
-    if (
-      user &&
-      this.currentUser?.roles?.includes('gestionnaires') &&
-      user.funderId === citizenData.affiliation?.enterpriseId
-    ) {
-      return {
-        lastName: citizenData?.identity?.lastName?.value,
-        firstName: citizenData?.identity?.firstName?.value,
-      };
-    } else {
-      throw new ValidationError('Access denied', '/authorization', StatusCode.Forbidden);
+    @param.filter(CitizenFilter, {exclude: ['skip', 'offset', 'limit', 'where', 'order', 'include']})
+    filter?: FilterCitizen,
+  ): Promise<Citizen> {
+    try {
+      const result: Citizen = await this.citizenService.getCitizenByFilter(citizenId, filter);
+      Logger.debug(CitizenController.name, this.findById.name, 'result', result);
+
+      return result;
+    } catch (error) {
+      Logger.error(CitizenController.name, this.findById.name, 'Error', error);
+      throw error;
     }
   }
 
@@ -363,23 +223,15 @@ export class CitizenController {
   @authorize({
     allowedRoles: [Roles.SUPERVISORS, Roles.MANAGERS, Roles.API_KEY, Roles.CITIZENS],
   })
-  @put('/v1/citizens/{citizenId}/affiliate', {
+  @post('/v1/citizens/{citizenId}/affiliate', {
     'x-controller-name': 'Citizens',
     summary: 'Affilie un citoyen à une entreprise',
-    security: SECURITY_SPEC_JWT_KC_PASSWORD,
+    security: SECURITY_SPEC_API_KEY_KC_PASSWORD,
     responses: {
       [StatusCode.NoContent]: {
         description: "L'affiliation est validée",
       },
-      [StatusCode.NotFound]: {
-        description: "L'affiliation n'existe pas",
-      },
-      [StatusCode.PreconditionFailed]: {
-        description: "L'affiliation n'est pas au bon status",
-      },
-      [StatusCode.UnprocessableEntity]: {
-        description: "L'affiliation n'est pas valide",
-      },
+      ...defaultSwaggerError,
     },
   })
   async validateAffiliation(
@@ -395,7 +247,7 @@ export class CitizenController {
             properties: {
               token: {
                 type: 'string',
-                example: `Un token d'affiliation`,
+                example: "un token d'affiliation",
               },
             },
           },
@@ -406,23 +258,40 @@ export class CitizenController {
       token: string;
     },
   ): Promise<void> {
-    const user = this.currentUser;
+    try {
+      const user = this.currentUser;
 
-    let citizen: Citizen | null = await this.citizenService.getCitizenWithAffiliationById(
-      citizenId,
-    );
+      let citizen: Citizen | null = await this.citizenService.getCitizenWithAffiliationById(citizenId);
 
-    if (!user.id || user.roles?.includes(Roles.CITIZENS)) {
-      citizen = await this.affiliationService.checkAffiliation(citizen, data.token);
-    }
-    citizen.affiliation!.status = AFFILIATION_STATUS.AFFILIATED;
+      Logger.debug(CitizenController.name, this.validateAffiliation.name, 'citizen', citizen);
 
-    await this.affiliationRepository.updateById(citizen.affiliation.id, {
-      status: AFFILIATION_STATUS.AFFILIATED,
-    });
+      if (!user.id || user.roles?.includes(Roles.CITIZENS)) {
+        citizen = await this.affiliationService.checkAffiliation(citizen, data.token);
+      }
+      citizen.affiliation!.status = AFFILIATION_STATUS.AFFILIATED;
 
-    if (user.id && user.funderName && citizen) {
-      await this.affiliationService.sendValidatedAffiliation(citizen, user.funderName);
+      await this.affiliationRepository.updateById(citizen.affiliation.id, {
+        status: AFFILIATION_STATUS.AFFILIATED,
+      });
+      Logger.info(
+        CitizenController.name,
+        this.validateAffiliation.name,
+        'Affiliation updated',
+        citizen.affiliation.id,
+      );
+
+      if (user.id && user.funderName && citizen) {
+        await this.affiliationService.sendValidatedAffiliation(citizen, user.funderName);
+        Logger.info(
+          CitizenController.name,
+          this.validateAffiliation.name,
+          'Affiliation email sent',
+          citizen.affiliation.id,
+        );
+      }
+    } catch (error) {
+      Logger.error(CitizenController.name, this.validateAffiliation.name, 'Error', error);
+      throw error;
     }
   }
 
@@ -434,7 +303,7 @@ export class CitizenController {
   @authorize({
     allowedRoles: [Roles.MANAGERS, Roles.SUPERVISORS],
   })
-  @put('/v1/citizens/{citizenId}/disaffiliate', {
+  @post('/v1/citizens/{citizenId}/disaffiliate', {
     'x-controller-name': 'Citizens',
     summary: "Désaffilie un citoyen d'une entreprise",
     security: SECURITY_SPEC_KC_PASSWORD,
@@ -442,29 +311,7 @@ export class CitizenController {
       [StatusCode.NoContent]: {
         description: 'La désaffiliation est validée',
       },
-      [StatusCode.NotFound]: {
-        description: "Ce citoyen n'existe pas",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 404,
-                name: 'Error',
-                message: 'Citizen not found',
-                path: '/citizenNotFound',
-                resourceName: 'Citizen',
-              },
-            },
-          },
-        },
-      },
-      [StatusCode.PreconditionFailed]: {
-        description: 'La désaffiliation est impossible',
-      },
-      [StatusCode.UnprocessableEntity]: {
-        description: "La désaffiliation n'est pas valide",
-      },
+      ...defaultSwaggerError,
     },
   })
   async disaffiliation(
@@ -473,22 +320,39 @@ export class CitizenController {
     })
     citizenId: string,
   ): Promise<void> {
-    const user = this.currentUser;
-    const citizen: Citizen = await this.citizenService.getCitizenWithAffiliationById(
-      citizenId,
-    );
-    await this.affiliationRepository.updateById(citizen.affiliation!.id, {
-      status: AFFILIATION_STATUS.DISAFFILIATED,
-    });
+    try {
+      const user = this.currentUser;
+      const citizen: Citizen = await this.citizenService.getCitizenWithAffiliationById(citizenId);
+      await this.affiliationRepository.updateById(citizen.affiliation!.id, {
+        status: AFFILIATION_STATUS.DISAFFILIATED,
+      });
+      Logger.info(
+        CitizenController.name,
+        this.disaffiliation.name,
+        'Affiliation updated',
+        citizen.affiliation.id,
+      );
 
-    if (
-      user &&
-      user?.funderName &&
-      citizen.affiliation!.status === AFFILIATION_STATUS.TO_AFFILIATE
-    ) {
-      await this.affiliationService.sendRejectedAffiliation(citizen, user?.funderName);
-    } else {
-      await this.affiliationService.sendDisaffiliationMail(this.mailService, citizen);
+      if (user && user?.funderName && citizen.affiliation!.status === AFFILIATION_STATUS.TO_AFFILIATE) {
+        await this.affiliationService.sendRejectedAffiliation(citizen, user?.funderName);
+        Logger.info(
+          CitizenController.name,
+          this.disaffiliation.name,
+          'Rejected affiliation email sent',
+          citizen.affiliation.id,
+        );
+      } else {
+        await this.affiliationService.sendDisaffiliationMail(this.mailService, citizen);
+        Logger.info(
+          CitizenController.name,
+          this.disaffiliation.name,
+          'Disaffiliation email sent',
+          citizen.affiliation.id,
+        );
+      }
+    } catch (error) {
+      Logger.error(CitizenController.name, this.disaffiliation.name, 'Error', error);
+      throw error;
     }
   }
 
@@ -507,37 +371,7 @@ export class CitizenController {
       [StatusCode.NoContent]: {
         description: 'Modification du citoyen réussie',
       },
-      [StatusCode.Unauthorized]: {
-        description: "L'utilisateur est non connecté",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: StatusCode.Unauthorized,
-                name: 'Error',
-                message: 'Authorization header not found',
-                path: '/authorization',
-              },
-            },
-          },
-        },
-      },
-      [StatusCode.Forbidden]: {
-        description: "L'utilisateur n'a pas les droits pour modifier ce citoyen",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: StatusCode.Forbidden,
-                name: 'Error',
-                message: 'Access denied',
-              },
-            },
-          },
-        },
-      },
+      ...defaultSwaggerError,
     },
   })
   async updateById(
@@ -554,100 +388,131 @@ export class CitizenController {
     })
     rawCitizen: CitizenUpdate,
   ): Promise<void> {
-    /**
-     * init a new citizen data for handling
-     */
-    let affiliationEnterprise = new Enterprise();
+    try {
+      /**
+       * init a new citizen data for handling
+       */
+      let affiliationEnterprise: Enterprise | null = null;
 
-    const newCitizen = new Citizen(rawCitizen);
+      const newCitizen = new Citizen(rawCitizen);
+      Logger.debug(CitizenController.name, this.updateById.name, 'Citizen data', newCitizen);
 
-    /**
-     * get citizen data
-     */
-    const currentCitizen: Citizen =
-      await this.citizenService.getCitizenWithAffiliationById(citizenId);
+      /**
+       * get citizen data
+       */
+      const currentCitizen: Citizen = await this.citizenService.getCitizenWithAffiliationById(citizenId);
+      Logger.debug(CitizenController.name, this.updateById.name, 'CurrentCitizen data', currentCitizen);
 
-    newCitizen.affiliation?.enterpriseId &&
-      (affiliationEnterprise = await this.enterpriseRepository.findById(
-        newCitizen.affiliation.enterpriseId,
-      ));
+      newCitizen.affiliation?.enterpriseId &&
+        (affiliationEnterprise = await this.funderRepository.getEnterpriseById(
+          newCitizen.affiliation.enterpriseId,
+        ));
 
-    // Update affiliation if modified
-    if (
-      currentCitizen.affiliation?.enterpriseEmail !==
-        newCitizen.affiliation.enterpriseEmail ||
-      currentCitizen.affiliation?.enterpriseId !== newCitizen.affiliation.enterpriseId
-    ) {
-      // Update Affiliation
-      if (currentCitizen.affiliation) {
-        if (
-          (newCitizen?.affiliation?.enterpriseId &&
-            newCitizen?.affiliation?.enterpriseEmail) ||
-          (affiliationEnterprise.hasManualAffiliation &&
-            newCitizen.affiliation.enterpriseId)
-        ) {
-          currentCitizen.affiliation.status = AFFILIATION_STATUS.TO_AFFILIATE;
+      // Update affiliation if modified
+      if (
+        currentCitizen.affiliation?.enterpriseEmail !== newCitizen.affiliation.enterpriseEmail ||
+        currentCitizen.affiliation?.enterpriseId !== newCitizen.affiliation.enterpriseId
+      ) {
+        // Update Affiliation
+        if (currentCitizen.affiliation) {
+          if (
+            (newCitizen?.affiliation?.enterpriseId && newCitizen?.affiliation?.enterpriseEmail) ||
+            (affiliationEnterprise?.enterpriseDetails.hasManualAffiliation &&
+              newCitizen.affiliation.enterpriseId)
+          ) {
+            currentCitizen.affiliation.status = AFFILIATION_STATUS.TO_AFFILIATE;
+          } else {
+            currentCitizen.affiliation.status = AFFILIATION_STATUS.UNKNOWN;
+          }
+
+          currentCitizen.affiliation.enterpriseEmail = newCitizen.affiliation.enterpriseEmail;
+          currentCitizen.affiliation.enterpriseId = newCitizen.affiliation.enterpriseId;
+          newCitizen.affiliation = currentCitizen.affiliation;
+
+          Logger.debug(
+            CitizenController.name,
+            this.updateById.name,
+            'Affiliation data',
+            newCitizen.affiliation,
+          );
+
+          // update affiliation repository
+          currentCitizen.affiliation.id &&
+            (await this.affiliationRepository.updateById(
+              currentCitizen.affiliation.id,
+              currentCitizen.affiliation,
+            ));
+          Logger.info(
+            CitizenController.name,
+            this.updateById.name,
+            'Affiliation updated',
+            currentCitizen.affiliation.id,
+          );
         } else {
-          currentCitizen.affiliation.status = AFFILIATION_STATUS.UNKNOWN;
+          currentCitizen.affiliation = newCitizen.affiliation;
+          Logger.debug(
+            CitizenController.name,
+            this.updateById.name,
+            'Affiliation data',
+            newCitizen.affiliation,
+          );
+
+          // Create affiliation
+          const affiliation: Affiliation = await this.affiliationRepository.createAffiliation(
+            currentCitizen,
+            Boolean(affiliationEnterprise?.enterpriseDetails.hasManualAffiliation),
+          );
+          Logger.info(CitizenController.name, this.updateById.name, 'Affiliation created', affiliation.id);
+
+          newCitizen.affiliation = affiliation;
         }
 
-        currentCitizen.affiliation.enterpriseEmail =
-          newCitizen.affiliation.enterpriseEmail;
-        currentCitizen.affiliation.enterpriseId = newCitizen.affiliation.enterpriseId;
-        newCitizen.affiliation = currentCitizen.affiliation;
-
-        // update affiliation repository
-        currentCitizen.affiliation.id &&
-          (await this.affiliationRepository.updateById(
-            currentCitizen.affiliation.id,
-            currentCitizen.affiliation,
-          ));
-      } else {
-        currentCitizen.affiliation = newCitizen.affiliation;
-        // Create affiliation
-        const affiliation: Affiliation =
-          await this.affiliationRepository.createAffiliation(
-            currentCitizen,
-            affiliationEnterprise.hasManualAffiliation,
+        // send mail manual affiliation
+        if (
+          !newCitizen?.affiliation.enterpriseEmail &&
+          affiliationEnterprise?.enterpriseDetails.hasManualAffiliation
+        ) {
+          await this.affiliationService.sendManualAffiliationMail(currentCitizen, affiliationEnterprise);
+          Logger.info(
+            CitizenController.name,
+            this.updateById.name,
+            'Manual Affiliation email sent',
+            newCitizen.affiliation.id,
           );
-        newCitizen.affiliation = affiliation;
+        }
       }
 
-      // send mail manual affiliation
+      // send affiliation mail
       if (
-        !newCitizen?.affiliation.enterpriseEmail &&
-        affiliationEnterprise.hasManualAffiliation
+        newCitizen?.affiliation?.status === AFFILIATION_STATUS.TO_AFFILIATE &&
+        newCitizen?.affiliation.enterpriseEmail
       ) {
-        await this.affiliationService.sendManualAffiliationMail(
-          currentCitizen,
-          affiliationEnterprise,
+        const affiliationEmailData: any = {
+          ...newCitizen,
+          id: citizenId,
+          identity: {...currentCitizen.identity},
+        };
+
+        await this.affiliationService.sendAffiliationMail(
+          this.mailService,
+          affiliationEmailData,
+          affiliationEnterprise!.name,
+        );
+        Logger.info(
+          CitizenController.name,
+          this.updateById.name,
+          'Affiliation email sent',
+          newCitizen.affiliation.id,
         );
       }
+
+      // update citizen in KC
+      await this.keycloakService.updateUserKC(currentCitizen.id, Object.assign(currentCitizen, newCitizen));
+      Logger.info(CitizenController.name, this.updateById.name, 'Citizen updated', currentCitizen.id);
+    } catch (error) {
+      Logger.error(CitizenController.name, this.updateById.name, 'Error', error);
+      throw error;
     }
-
-    // send affiliation mail
-    if (
-      newCitizen?.affiliation?.status === AFFILIATION_STATUS.TO_AFFILIATE &&
-      newCitizen?.affiliation.enterpriseEmail
-    ) {
-      const affiliationEmailData: any = {
-        ...newCitizen,
-        id: citizenId,
-        identity: {...currentCitizen.identity},
-      };
-
-      await this.affiliationService.sendAffiliationMail(
-        this.mailService,
-        affiliationEmailData,
-        affiliationEnterprise!.name,
-      );
-    }
-
-    // update citizen in KC
-    await this.keycloakService.updateUserKC(
-      currentCitizen.id,
-      Object.assign(currentCitizen, newCitizen),
-    );
   }
 
   @authenticate(AUTH_STRATEGY.KEYCLOAK)
@@ -658,13 +523,15 @@ export class CitizenController {
     security: SECURITY_SPEC_KC_PASSWORD,
     responses: {
       [StatusCode.Success]: {
-        description: 'Downloadable .xlsx file with validated aides list',
+        description:
+          'Fichier Microsoft Excel contenant les données personnelles du citoyen et ses souscriptions',
         content: {
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {
             schema: {type: 'string', format: 'base64'},
           },
         },
       },
+      ...defaultSwaggerError,
     },
   })
   async generateUserRGPDExcelFile(
@@ -675,20 +542,20 @@ export class CitizenController {
     @inject(RestBindings.Http.RESPONSE) resp: Response,
   ): Promise<Response<Excel.Buffer>> {
     try {
-      const citizen: Citizen = await this.citizenService.getCitizenWithAffiliationById(
-        citizenId,
-      );
+      const citizen: Citizen = await this.citizenService.getCitizenWithAffiliationById(citizenId);
+      Logger.debug(CitizenController.name, this.generateUserRGPDExcelFile.name, 'Citizen', citizen);
 
       const listMaas: string[] = await this.citizenService.getListMaasNames(
         citizen?.personalInformation.email.value,
       );
+      Logger.debug(CitizenController.name, this.generateUserRGPDExcelFile.name, 'List maas', listMaas);
 
       // get company name & company email from user affiliation
       let companyName: string = '';
       if (citizen.affiliation?.enterpriseId) {
-        const enterprise: Enterprise = await this.enterpriseRepository.findById(
+        const enterprise: Enterprise = (await this.funderRepository.getEnterpriseById(
           citizen.affiliation!.enterpriseId,
-        );
+        )) as Enterprise;
         companyName = enterprise.name;
       }
 
@@ -697,6 +564,12 @@ export class CitizenController {
         order: ['updatedAT ASC'],
         where: {citizenId: this.currentUser.id, status: {neq: SUBSCRIPTION_STATUS.DRAFT}},
       });
+      Logger.debug(
+        CitizenController.name,
+        this.generateUserRGPDExcelFile.name,
+        'Souscriptions',
+        subscriptions,
+      );
 
       // get all aides {id, title, specificFields}
       const incentives: Incentive[] = await this.incentiveRepository.find({
@@ -712,18 +585,15 @@ export class CitizenController {
         listMaas,
       );
 
+      Logger.info(CitizenController.name, this.generateUserRGPDExcelFile.name, 'GDPR Buffer generated');
+
       // send the file to user
       return resp
         .status(200)
         .contentType('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         .send(excelBufferRGPD);
     } catch (error) {
-      throw new ValidationError(
-        'Le téléchargement a échoué, veuillez réessayer',
-        '/downloadXlsx',
-        StatusCode.UnprocessableEntity,
-        ResourceName.Subscription,
-      );
+      throw new InternalServerError(CitizenController.name, this.generateUserRGPDExcelFile.name, error);
     }
   }
 
@@ -733,7 +603,7 @@ export class CitizenController {
    */
   @authenticate(AUTH_STRATEGY.KEYCLOAK)
   @authorize({voters: [canAccessHisOwnData]})
-  @put('/v1/citizens/{citizenId}/delete', {
+  @del('/v1/citizens/{citizenId}', {
     'x-controller-name': 'Citizens',
     summary: "Supprimer le compte d'un citoyen",
     security: SECURITY_SPEC_KC_PASSWORD,
@@ -741,39 +611,7 @@ export class CitizenController {
       [StatusCode.NoContent]: {
         description: 'La suppression est effectuée',
       },
-      [StatusCode.Unauthorized]: {
-        description: "L'utilisateur n'est pas connecté",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 401,
-                name: 'Error',
-                message: 'Authorization header not found',
-                path: '/authorization',
-              },
-            },
-          },
-        },
-      },
-      [StatusCode.Forbidden]: {
-        description:
-          "Vous n'avez pas les droits pour supprimer le compte de cet utilisateur",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 403,
-                name: 'Error',
-                message: 'Access denied',
-                path: '/authorization',
-              },
-            },
-          },
-        },
-      },
+      ...defaultSwaggerError,
     },
   })
   async deleteCitizenAccount(
@@ -782,33 +620,58 @@ export class CitizenController {
     })
     citizenId: string,
   ): Promise<void> {
-    const citizen: Citizen = await this.citizenService.getCitizenWithAffiliationById(
-      citizenId,
-    );
+    try {
+      const citizen: Citizen = await this.citizenService.getCitizenWithAffiliationById(citizenId);
+      Logger.debug(CitizenController.name, this.deleteCitizenAccount.name, 'Citizen', citizen);
 
-    if (citizen.affiliation) {
-      // Delete affiliation from MongoDB
-      await this.affiliationRepository.deleteById(citizen.affiliation.id);
-    }
+      if (citizen.affiliation) {
+        // Delete affiliation from MongoDB
+        await this.affiliationRepository.deleteById(citizen.affiliation.id);
+        Logger.info(
+          CitizenController.name,
+          this.deleteCitizenAccount.name,
+          'Affiliation deleted',
+          citizen.affiliation.id,
+        );
+      }
 
-    // Delete citizen from Keycloak
-    await this.keycloakService.deleteUserKc(citizen.id);
-
-    // ADD Flag "Compte Supprimé" to citizen Subscription
-    const citizenSubscriptions = await this.subscriptionRepository.find({
-      where: {citizenId: citizen.id},
-    });
-
-    citizenSubscriptions?.forEach(async citizenSubscription => {
-      citizenSubscription.isCitizenDeleted = true;
-      await this.subscriptionRepository.updateById(
-        citizenSubscription.id,
-        citizenSubscription,
+      // Delete citizen from Keycloak
+      await this.keycloakService.deleteUserKc(citizen.id);
+      Logger.info(
+        CitizenController.name,
+        this.deleteCitizenAccount.name,
+        'Citizen deleted in KC',
+        citizen.id,
       );
-    });
 
-    const date = formatDateInTimezone(new Date(), "dd/MM/yyyy à H'h'mm");
-    await this.citizenService.sendDeletionMail(this.mailService, citizen, date);
+      // ADD Flag "Compte Supprimé" to citizen Subscription
+      const citizenSubscriptions = await this.subscriptionRepository.find({
+        where: {citizenId: citizen.id},
+      });
+
+      citizenSubscriptions?.forEach(async citizenSubscription => {
+        citizenSubscription.isCitizenDeleted = true;
+        await this.subscriptionRepository.updateById(citizenSubscription.id, citizenSubscription);
+      });
+      Logger.info(
+        CitizenController.name,
+        this.deleteCitizenAccount.name,
+        'Citizen flag is deleted added on subscriptions',
+        citizen.id,
+      );
+
+      const date = formatDateInTimezone(new Date(), "dd/MM/yyyy à H'h'mm");
+      await this.citizenService.sendDeletionMail(this.mailService, citizen, date);
+      Logger.info(
+        CitizenController.name,
+        this.deleteCitizenAccount.name,
+        'Citizen deletion email sent',
+        citizen.id,
+      );
+    } catch (error) {
+      Logger.error(CitizenController.name, this.deleteCitizenAccount.name, 'Error', error);
+      throw error;
+    }
   }
 
   /**
@@ -818,13 +681,13 @@ export class CitizenController {
    */
   @authenticate(AUTH_STRATEGY.KEYCLOAK)
   @authorize({voters: [canAccessHisOwnData]})
-  @get('/v1/citizens/{citizenId}/linkedAccounts', {
+  @get('/v1/citizens/{citizenId}/consents', {
     'x-controller-name': 'Citizens',
     security: SECURITY_SPEC_KC_PASSWORD,
-    summary: "Retourne le nom et l'ID des clients en consentement avec le citoyen",
+    summary: 'Retourne les consentements accordés par le citoyen',
     responses: {
       [StatusCode.Success]: {
-        description: 'Modèle des informations du consentement',
+        description: 'La liste des clients présentant un consentement',
         content: {
           'application/json': {
             example: {
@@ -836,21 +699,7 @@ export class CitizenController {
           },
         },
       },
-      [StatusCode.Forbidden]: {
-        description: "Vous n'êtes autorisé à consulter que vos propres consentements",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 403,
-                name: 'Error',
-                message: 'Access denied',
-              },
-            },
-          },
-        },
-      },
+      ...defaultSwaggerError,
     },
   })
   async findConsentsById(
@@ -859,14 +708,28 @@ export class CitizenController {
     })
     citizenId: string,
   ): Promise<(ClientOfConsent | undefined)[]> {
-    const citizenConsentsList = await this.keycloakService.listConsents(citizenId);
-    const clientsList = await this.citizenService.getClientList();
+    try {
+      const citizenConsentsList = await this.keycloakService.listConsents(citizenId);
+      Logger.debug(
+        CitizenController.name,
+        this.findConsentsById.name,
+        'Citizen consent List',
+        citizenConsentsList,
+      );
 
-    const consentListData = citizenConsentsList.map((element: Consent) =>
-      clientsList.find(clt => element.clientId === clt.clientId),
-    );
+      const clientsList = await this.citizenService.getClientList();
+      Logger.debug(CitizenController.name, this.findConsentsById.name, 'Client List', clientsList);
 
-    return consentListData;
+      const consentListData = citizenConsentsList.map((element: Consent) =>
+        clientsList.find(clt => element.clientId === clt.clientId),
+      );
+      Logger.debug(CitizenController.name, this.findConsentsById.name, 'Result', consentListData);
+
+      return consentListData;
+    } catch (error) {
+      Logger.error(CitizenController.name, this.findConsentsById.name, 'Error', error);
+      throw error;
+    }
   }
 
   /**
@@ -877,7 +740,7 @@ export class CitizenController {
 
   @authenticate(AUTH_STRATEGY.KEYCLOAK)
   @authorize({voters: [canAccessHisOwnData]})
-  @del('/v1/citizens/{citizenId}/linkedAccounts/{clientId}', {
+  @del('/v1/citizens/{citizenId}/consents/{clientId}', {
     'x-controller-name': 'Citizens',
     summary: 'Supprime un consentement',
     security: SECURITY_SPEC_KC_PASSWORD,
@@ -885,37 +748,7 @@ export class CitizenController {
       [StatusCode.NoContent]: {
         description: 'Consentement supprimé',
       },
-      [StatusCode.Forbidden]: {
-        description: 'Vous ne pouvez supprimer que vos propres consentements',
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 403,
-                name: 'Error',
-                message: 'Access denied',
-              },
-            },
-          },
-        },
-      },
-      [StatusCode.NotFound]: {
-        description: 'Consentement introuvable',
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 404,
-                name: 'Error',
-                message: 'consent not found',
-                path: '/consentNotFound',
-              },
-            },
-          },
-        },
-      },
+      ...defaultSwaggerError,
     },
   })
   async deleteConsentById(
@@ -928,6 +761,12 @@ export class CitizenController {
     })
     clientId: string,
   ): Promise<void> {
-    await this.keycloakService.deleteConsent(citizenId, clientId);
+    try {
+      await this.keycloakService.deleteConsent(citizenId, clientId);
+      Logger.info(CitizenController.name, this.deleteConsentById.name, 'Consent deleted', clientId);
+    } catch (error) {
+      Logger.error(CitizenController.name, this.deleteConsentById.name, 'Error', error);
+      throw error;
+    }
   }
 }

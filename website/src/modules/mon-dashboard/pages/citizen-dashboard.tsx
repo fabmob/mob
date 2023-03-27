@@ -11,9 +11,9 @@ import Strings from './locale/fr.json';
 import './_mon-dashboard.scss';
 
 enum TABS {
-  MY_CURRENT_MOBILITY='MY_CURRENT_MOBILITY',
-  MY_REQUESTS='MY_REQUESTS',
-  MY_ACTIVATED_RESOURCES='MY_ACTIVATED_RESOURCES',
+  MY_CURRENT_MOBILITY = 'MY_CURRENT_MOBILITY',
+  MY_REQUESTS = 'MY_REQUESTS',
+  MY_ACTIVATED_RESOURCES = 'MY_ACTIVATED_RESOURCES',
 }
 
 const tabsConfig: Record<TABS, TabsMenuItem> = {
@@ -42,24 +42,26 @@ const CitizenDashboardPage: FC<PageProps> = (props) => {
   const [selectedTab, setSelectedTab] = useState<TABS>(defaultTab?.statusState);
   const [tabsList, setTabsList] = useState<TabsMenuItem[]>([]);
   const [tabContent, setTabContent] = useState<FC>();
-  
+
   useEffect(() => {
-    setTabsList(Object.values(tabsConfig).filter((item: TabsMenuItem) => !item.hidden));
+    setTabsList(
+      Object.values(tabsConfig).filter((item: TabsMenuItem) => !item.hidden)
+    );
   }, []);
 
   useEffect(() => {
     switch (selectedTab) {
       case TABS.MY_CURRENT_MOBILITY:
-        setTabContent(() => <></>)
+        setTabContent(() => <></>);
         break;
       case TABS.MY_REQUESTS:
         setTabContent(() => <MyRequestsTab {...props} />);
         break;
       case TABS.MY_ACTIVATED_RESOURCES:
-        setTabContent(() => <></>)
+        setTabContent(() => <></>);
         break;
       default:
-        setTabContent(() => <></>)
+        setTabContent(() => <></>);
         break;
     }
   }, [selectedTab]);
@@ -67,12 +69,17 @@ const CitizenDashboardPage: FC<PageProps> = (props) => {
   return (
     <Layout fullWidth pageTitle={Strings['dashboard.citizen.title']}>
       <div className="page-container">
-        <Breadcrumb crumbs={props?.pageContext?.breadcrumb?.crumbs} crumbSeparator=" > " />
+        <Breadcrumb
+          crumbs={props?.pageContext?.breadcrumb?.crumbs}
+          crumbSeparator=" > "
+        />
       </div>
       <div className="">
         <section className="page-container">
           <div className="m-yellow-bg-wrapper">
-            <Heading level="h1" className="">{Strings['dashboard.citizen.title']}</Heading>
+            <Heading level="h1" className="">
+              {Strings['dashboard.citizen.title']}
+            </Heading>
           </div>
         </section>
         <div className="mcm-home">
@@ -82,9 +89,7 @@ const CitizenDashboardPage: FC<PageProps> = (props) => {
               defaultActiveTab={defaultTab?.id}
               setSelectedIndex={setSelectedTab}
             />
-            <div className="mcm-tabs__content has-info">
-              {tabContent}
-            </div>
+            <div className="dashboard-container">{tabContent}</div>
           </div>
         </div>
       </div>

@@ -1,84 +1,33 @@
-import {
-  StubbedInstanceWithSinonAccessor,
-  createStubInstance,
-  expect,
-} from '@loopback/testlab';
+import {expect} from '@loopback/testlab';
+import {ValidationError} from 'jsonschema';
+import {Funder} from '../../models';
 
 import {FunderService} from '../../services';
-import {Collectivity, Enterprise} from '../../models';
-import {CollectivityRepository, EnterpriseRepository} from '../../repositories';
 import {FUNDER_TYPE} from '../../utils';
 
 describe('Funder services', () => {
-  let collectivityRepository: StubbedInstanceWithSinonAccessor<CollectivityRepository>,
-    enterpriseRepository: StubbedInstanceWithSinonAccessor<EnterpriseRepository>,
-    funderService: FunderService;
+  let funderService: FunderService;
 
   beforeEach(() => {
-    collectivityRepository = createStubInstance(CollectivityRepository);
-    (enterpriseRepository = createStubInstance(EnterpriseRepository)),
-      (funderService = new FunderService(collectivityRepository, enterpriseRepository));
+    funderService = new FunderService();
+    process.env.NODE_ENV = 'test';
   });
 
-  it('funderService: successfull', async () => {
-    collectivityRepository.stubs.find.resolves([mockCollectivity]);
-    enterpriseRepository.stubs.find.resolves([mockEnterprise]);
-    const result = await funderService.getFunders();
-
-    expect(result).to.deepEqual(mockReturnFunder);
+  it('should validateSchema: OK', () => {
+    const funderToValidate: Funder = new Funder({id: '', name: 'funderName', type: FUNDER_TYPE.NATIONAL});
+    const validationResult: ValidationError[] = funderService.validateSchema(
+      funderToValidate,
+      FUNDER_TYPE.NATIONAL,
+    );
+    expect(validationResult).to.deepEqual([]);
   });
 
-  it('funderService getFunderByName collectivity: successfull', async () => {
-    collectivityRepository.stubs.find.resolves([
-      new Collectivity({
-        id: 'randomInputIdCollectivity',
-        name: 'nameCollectivity',
-      }),
-    ]);
-
-    const result = await funderService.getFunderByName('name', FUNDER_TYPE.collectivity);
-
-    expect(result).to.deepEqual({
-      id: 'randomInputIdCollectivity',
-      name: 'nameCollectivity',
-      funderType: FUNDER_TYPE.collectivity,
-    });
+  it('should validateSchema: KO', () => {
+    const funderToValidate: Funder = new Funder({id: '', name: 'funderName', type: FUNDER_TYPE.ENTERPRISE});
+    const validationError: ValidationError[] = funderService.validateSchema(
+      funderToValidate,
+      FUNDER_TYPE.ENTERPRISE,
+    );
+    expect(validationError[0].message).to.equal('requires property "enterpriseDetails"');
   });
-
-  it('funderService getFunderByName enterprises: successfull', async () => {
-    enterpriseRepository.stubs.find.resolves([
-      new Enterprise({
-        id: 'randomInputEnterpriseId',
-        name: 'nameenterprises',
-      }),
-    ]);
-    const result = await funderService.getFunderByName('name', FUNDER_TYPE.enterprise);
-
-    expect(result).to.deepEqual({
-      id: 'randomInputEnterpriseId',
-      name: 'nameenterprises',
-      funderType: FUNDER_TYPE.enterprise,
-    });
-  });
-
-  const mockCollectivity = new Collectivity({
-    id: 'randomInputIdCollectivity',
-    name: 'nameCollectivity',
-    citizensCount: 10,
-    mobilityBudget: 12,
-  });
-
-  const mockEnterprise = new Enterprise({
-    id: 'randomInputIdEnterprise',
-    emailFormat: ['test@outlook.com', 'test@outlook.fr', 'test@outlook.xxx'],
-    name: 'nameEnterprise',
-    siretNumber: 50,
-    employeesCount: 2345,
-    budgetAmount: 102,
-  });
-
-  const mockReturnFunder = [
-    {...mockCollectivity, funderType: FUNDER_TYPE.collectivity},
-    {...mockEnterprise, funderType: FUNDER_TYPE.enterprise},
-  ];
 });

@@ -26,22 +26,13 @@ export class ContactService {
    * @param contactDate
    */
 
-  async sendMailClient(
-    mailService: MailService,
-    contact: Contact,
-    contactDate: string,
-  ): Promise<any> {
+  async sendMailClient(mailService: MailService, contact: Contact, contactDate: string): Promise<any> {
     const to = this._to ? this._to : EMAIL_TO;
 
-    await mailService.sendMailAsHtml(
-      contact.email!,
-      'Nous traitons votre demande !',
-      'client-contact',
-      {
-        username: capitalize(contact.firstName),
-        contactDate: contactDate,
-      },
-    );
+    await mailService.sendMailAsHtml(contact.email!, 'Nous traitons votre demande !', 'client-contact', {
+      username: capitalize(contact.firstName),
+      contactDate: contactDate,
+    });
 
     if (to) {
       await mailService.sendMailAsHtml(to, 'Soumission de formulaire MOB', 'contact', {

@@ -1,60 +1,41 @@
 import * as Excel from 'exceljs';
-import {
-  createStubInstance,
-  expect,
-  sinon,
-  StubbedInstanceWithSinonAccessor,
-} from '@loopback/testlab';
+import {createStubInstance, expect, sinon, StubbedInstanceWithSinonAccessor} from '@loopback/testlab';
 import {securityId} from '@loopback/security';
 import {AnyObject} from '@loopback/repository';
 
 import {
-  EnterpriseRepository,
   CommunityRepository,
-  UserRepository,
   IncentiveRepository,
   SubscriptionRepository,
   AffiliationRepository,
+  FunderRepository,
 } from '../../repositories';
 import {CitizenController} from '../../controllers';
 import {
   CitizenService,
-  FunderService,
   KeycloakService,
   JwtService,
   MailService,
   SubscriptionService,
   AffiliationService,
 } from '../../services';
-import {ValidationError} from '../../validationError';
 import {
   AFFILIATION_STATUS,
   CITIZEN_STATUS,
-  ResourceName,
-  StatusCode,
   SUBSCRIPTION_STATUS,
   INCENTIVE_TYPE,
   IUser,
-  GENDER,
+  StatusCode,
 } from '../../utils';
-import {
-  Enterprise,
-  Citizen,
-  User,
-  CitizenUpdate,
-  Subscription,
-  Affiliation,
-} from '../../models';
+import {Citizen, CitizenUpdate, Subscription, Affiliation, Enterprise, EnterpriseDetails} from '../../models';
 
 describe('CitizenController (unit)', () => {
   let communityRepository: StubbedInstanceWithSinonAccessor<CommunityRepository>,
     mailService: StubbedInstanceWithSinonAccessor<MailService>,
-    enterpriseRepository: StubbedInstanceWithSinonAccessor<EnterpriseRepository>,
+    funderRepository: StubbedInstanceWithSinonAccessor<FunderRepository>,
     kcService: StubbedInstanceWithSinonAccessor<KeycloakService>,
-    funderService: StubbedInstanceWithSinonAccessor<FunderService>,
     citizenService: StubbedInstanceWithSinonAccessor<CitizenService>,
     subscriptionService: StubbedInstanceWithSinonAccessor<SubscriptionService>,
-    userRepository: StubbedInstanceWithSinonAccessor<UserRepository>,
     currentUserProfile: IUser,
     jwtService: StubbedInstanceWithSinonAccessor<JwtService>,
     subscriptionsRepository: StubbedInstanceWithSinonAccessor<SubscriptionRepository>,
@@ -86,22 +67,33 @@ describe('CitizenController (unit)', () => {
 
   const enterprise: Enterprise = new Enterprise({
     name: 'enterprise',
-    emailFormat: ['@gmail.com', 'rr'],
+    enterpriseDetails: new EnterpriseDetails({
+      emailDomainNames: ['@gmail.com', 'rr'],
+    }),
   });
+
+  const response: any = {
+    status: function () {
+      return this;
+    },
+    contentType: function () {
+      return this;
+    },
+    send: (body: any) => body,
+  };
 
   beforeEach(() => {
     givenStubbedRepository();
     givenStubbedService();
     controller = new CitizenController(
+      response,
       mailService,
       communityRepository,
       kcService,
-      funderService,
-      enterpriseRepository,
+      funderRepository,
       citizenService,
       subscriptionService,
       jwtService,
-      userRepository,
       currentUserProfile,
       subscriptionsRepository,
       incentivesRepository,
@@ -111,6 +103,16 @@ describe('CitizenController (unit)', () => {
   });
 
   describe('CitizenController', () => {
+    it('CitizenController create : ERROR', async () => {
+      citizenService.stubs.createCitizen.rejects(new Error('Error'));
+
+      try {
+        await controller.create(salarie);
+      } catch (err) {
+        expect(err.message).to.equal('Error');
+      }
+    });
+
     it('CitizenController create salarie : successful', async () => {
       citizenService.stubs.createCitizen.resolves({
         id: 'randomInputId',
@@ -123,41 +125,22 @@ describe('CitizenController (unit)', () => {
       });
     });
 
-    it('CitizenController findSalarie: error', async () => {
+    it('CitizenController validateAffiliation : ERROR', async () => {
+      const token = {token: 'montoken'};
+      const citizen: any = {
+        id: 'randomId',
+        affiliation: {
+          id: 'randomAffiliationId',
+          status: AFFILIATION_STATUS.TO_AFFILIATE,
+        },
+      };
+      citizenService.stubs.getCitizenWithAffiliationById.rejects(new Error('Error'));
+
       try {
-        citizenService.stubs.findEmployees.resolves({
-          employees: [],
-          employeesCount: 0,
-        });
-        await controller.findSalaries(AFFILIATION_STATUS.AFFILIATED);
+        await controller.validateAffiliation(citizen.id, token);
       } catch (err) {
-        expect(err).to.equal(true);
+        expect(err.message).to.equal('Error');
       }
-    });
-
-    it('CitizenController findSalarie: successful', async () => {
-      citizenService.stubs.findEmployees.resolves({
-        employees: [citizen],
-        employeesCount: 1,
-      });
-
-      const result = await controller.findSalaries(AFFILIATION_STATUS.AFFILIATED);
-      expect(result).to.deepEqual({employees: [citizen], employeesCount: 1});
-    });
-
-    it('CitizenController findById : successful', async () => {
-      citizenService.stubs.getCitizenWithAffiliationById.resolves(salarie);
-      const result = await controller.findById('randomInputId');
-
-      expect(result).to.deepEqual(salarie);
-    });
-
-    it('CitizenController findCitizenId : successful', async () => {
-      userRepository.stubs.findById.resolves(user);
-      citizenService.stubs.getCitizenWithAffiliationById.resolves(mockCitizen);
-      const result = await controller.findCitizenId('randomInputId');
-
-      expect(result).to.deepEqual({lastName: 'Kenny', firstName: 'Gerard'});
     });
 
     it('CitizenController validateAffiliation : successful', async () => {
@@ -175,13 +158,9 @@ describe('CitizenController (unit)', () => {
 
       const result = await controller.validateAffiliation(citizen.id, token);
 
-      sinon.assert.calledOnceWithExactly(
-        affiliationRepository.stubs.updateById,
-        citizen.affiliation.id,
-        {
-          status: AFFILIATION_STATUS.AFFILIATED,
-        },
-      );
+      sinon.assert.calledOnceWithExactly(affiliationRepository.stubs.updateById, citizen.affiliation.id, {
+        status: AFFILIATION_STATUS.AFFILIATED,
+      });
 
       expect(affiliationService.stubs.sendValidatedAffiliation.called).true();
       expect(result).to.Null;
@@ -197,15 +176,14 @@ describe('CitizenController (unit)', () => {
         [securityId]: 'testId',
       };
       const controller = new CitizenController(
+        response,
         mailService,
         communityRepository,
         kcService,
-        funderService,
-        enterpriseRepository,
+        funderRepository,
         citizenService,
         subscriptionService,
         jwtService,
-        userRepository,
         salarie,
         subscriptionsRepository,
         incentivesRepository,
@@ -227,13 +205,9 @@ describe('CitizenController (unit)', () => {
       affiliationRepository.stubs.updateById.resolves();
       const result = await controller.validateAffiliation(citizenId, token);
 
-      sinon.assert.calledOnceWithExactly(
-        affiliationRepository.stubs.updateById,
-        citizen.affiliation.id,
-        {
-          status: AFFILIATION_STATUS.AFFILIATED,
-        },
-      );
+      sinon.assert.calledOnceWithExactly(affiliationRepository.stubs.updateById, citizen.affiliation.id, {
+        status: AFFILIATION_STATUS.AFFILIATED,
+      });
       expect(result).to.Null;
     });
 
@@ -278,15 +252,6 @@ describe('CitizenController (unit)', () => {
       }
     });
 
-    it('CitoyensController getCitizenWithDemandes : successful', () => {
-      subscriptionService.stubs.getCitizensWithSubscription.resolves(mockSubscriptions);
-      const citizensList = controller
-        .getCitizensWithSubscriptions('', 0)
-        .then(res => res)
-        .catch(err => err);
-      expect(citizensList).to.deepEqual(mockCitizens);
-    });
-
     it('CitizenController disaffiliation : success', async () => {
       citizenService.stubs.getCitizenWithAffiliationById.resolves(
         new Citizen({
@@ -322,6 +287,27 @@ describe('CitizenController (unit)', () => {
       await controller.disaffiliation('citizenId');
       expect(citizenService.stubs.getCitizenWithAffiliationById.called).true();
       expect(affiliationService.stubs.sendRejectedAffiliation.called).true();
+    });
+
+    it('CitizenController updateById : ERROR', async () => {
+      const newUserData: CitizenUpdate = {
+        city: 'Paris',
+        postcode: '75010',
+        status: CITIZEN_STATUS.EMPLOYEE,
+        affiliation: Object.assign({
+          enterpriseId: '',
+          enterpriseEmail: '',
+        }),
+        toJSON: () => ({id: 'random'}),
+        toObject: () => ({id: 'random'}),
+      };
+      citizenService.stubs.getCitizenWithAffiliationById.rejects(new Error('Error'));
+
+      try {
+        await controller.updateById('randomInputId', newUserData);
+      } catch (err) {
+        expect(err.message).to.equal('Error');
+      }
     });
 
     it('CitizenController updateById : successful', async () => {
@@ -360,7 +346,7 @@ describe('CitizenController (unit)', () => {
       };
 
       kcService.stubs.updateUserKC.resolves();
-      enterpriseRepository.stubs.findById.resolves(enterprise);
+      funderRepository.stubs.getEnterpriseById.resolves(enterprise);
       citizenService.stubs.getCitizenWithAffiliationById.resolves(mockCitizen);
       affiliationRepository.stubs.updateById.resolves();
       affiliationService.stubs.sendAffiliationMail.resolves();
@@ -370,7 +356,7 @@ describe('CitizenController (unit)', () => {
       expect(kcService.stubs.updateUserKC.called).true();
       expect(affiliationService.stubs.sendAffiliationMail.called).true();
 
-      enterpriseRepository.stubs.findById.restore();
+      funderRepository.stubs.getEnterpriseById.restore();
       affiliationService.stubs.sendAffiliationMail.restore();
     });
 
@@ -411,7 +397,7 @@ describe('CitizenController (unit)', () => {
       kcService.stubs.updateUserKC.resolves();
 
       citizenService.stubs.getCitizenWithAffiliationById.resolves(mockCitizen);
-      enterpriseRepository.stubs.findById.resolves(mockEnterprise);
+      funderRepository.stubs.getEnterpriseById.resolves(mockEnterprise);
 
       await controller.updateById('randomInputId', newUserData);
       expect(kcService.stubs.updateUserKC.called).true();
@@ -463,9 +449,7 @@ describe('CitizenController (unit)', () => {
       });
 
       kcService.stubs.updateUserKC.resolves();
-      citizenService.stubs.getCitizenWithAffiliationById.resolves(
-        mockCitizenWithoutAffiliation as Citizen,
-      );
+      citizenService.stubs.getCitizenWithAffiliationById.resolves(mockCitizenWithoutAffiliation as Citizen);
       affiliationRepository.stubs.createAffiliation.resolves({
         id: 'affiliationId',
         citizenId: 'randomInputId',
@@ -480,7 +464,7 @@ describe('CitizenController (unit)', () => {
       expect(affiliationService.stubs.sendAffiliationMail.called).false();
       expect(affiliationRepository.stubs.updateById.called).false();
 
-      enterpriseRepository.stubs.findById.restore();
+      funderRepository.stubs.getEnterpriseById.restore();
       citizenService.stubs.getCitizenWithAffiliationById.restore();
       affiliationRepository.stubs.createAffiliation.restore();
     });
@@ -489,7 +473,7 @@ describe('CitizenController (unit)', () => {
       const workbook = new Excel.Workbook();
       citizenService.stubs.generateExcelGDPR.resolves(await workbook.xlsx.writeBuffer());
       citizenService.stubs.getCitizenWithAffiliationById.resolves(mockCitizen);
-      enterpriseRepository.stubs.findById.resolves(mockEnterprise);
+      funderRepository.stubs.getEnterpriseById.resolves(mockEnterprise);
       incentivesRepository.stubs.find.resolves([]);
       subscriptionsRepository.stubs.find.resolves([]);
       const response: any = {
@@ -502,21 +486,41 @@ describe('CitizenController (unit)', () => {
         send: (buffer: Buffer) => buffer,
       };
       try {
-        const result = await controller.generateUserRGPDExcelFile(
-          'randomInputId',
-          response,
-        );
+        const result = await controller.generateUserRGPDExcelFile('randomInputId', response);
         expect(result).to.be.instanceOf(Buffer);
       } catch (error) {
         sinon.assert.fail();
       }
     });
 
+    it('CitoyensController generateUserRGPDExcelFile : fail', async () => {
+      const workbook = new Excel.Workbook();
+      citizenService.stubs.generateExcelGDPR.resolves(await workbook.xlsx.writeBuffer());
+      citizenService.stubs.getCitizenWithAffiliationById.resolves(mockCitizen);
+      funderRepository.stubs.getEnterpriseById.resolves(mockEnterprise);
+      incentivesRepository.stubs.find.resolves([]);
+      subscriptionsRepository.stubs.find.rejects([]);
+      const response: any = {
+        status: function () {
+          return this;
+        },
+        contentType: function () {
+          return this;
+        },
+        send: (buffer: Buffer) => buffer,
+      };
+      try {
+        const result = await controller.generateUserRGPDExcelFile('randomInputId', response);
+        expect(result).to.be.instanceOf(Buffer);
+      } catch (error) {
+        expect(error.message).equal('Error');
+        expect(error.statusCode).equal(StatusCode.InternalServerError);
+      }
+    });
+
     it('CitizenController deleteCitizenAccount : successful', async () => {
       // Stub method
-      citizenService.stubs.getCitizenWithAffiliationById
-        .withArgs('randomInputId')
-        .resolves(mockCitizen);
+      citizenService.stubs.getCitizenWithAffiliationById.withArgs('randomInputId').resolves(mockCitizen);
       affiliationRepository.stubs.deleteById.resolves();
       kcService.stubs.deleteUserKc.resolves({
         id: 'randomInputId',
@@ -531,6 +535,14 @@ describe('CitizenController (unit)', () => {
       expect(kcService.stubs.deleteUserKc.called).true();
       expect(citizenService.stubs.sendDeletionMail.called).true();
       expect(result).to.Null;
+    });
+
+    it('CitizenController deleteCitizenAccount : fail', async () => {
+      try {
+        await controller.deleteCitizenAccount('randomInputId');
+      } catch (error) {
+        expect(error.message).equal("Cannot read properties of undefined (reading 'affiliation')");
+      }
     });
   });
 
@@ -556,6 +568,17 @@ describe('CitizenController (unit)', () => {
     citizenService.stubs.getClientList.restore();
   });
 
+  it('CitizenController findConsentsById : fail', async () => {
+    try {
+      kcService.stubs.listConsents.rejects();
+
+      await controller.findConsentsById('randomId');
+    } catch (error) {
+      expect(error.message).equal('Error');
+    }
+    kcService.stubs.listConsents.restore();
+  });
+
   it('CitizenController deleteConsentById : successful', async () => {
     kcService.stubs.deleteConsent.resolves();
 
@@ -566,10 +589,32 @@ describe('CitizenController (unit)', () => {
     kcService.stubs.deleteConsent.restore();
   });
 
+  it('CitizenController deleteConsentById : fail', async () => {
+    try {
+      kcService.stubs.deleteConsent.rejects();
+      await controller.deleteConsentById('randomId', 'randomClientId');
+    } catch (error) {
+      expect(error.message).equal('Error');
+    }
+  });
+
+  it('CitizenController findById : fail', async () => {
+    try {
+      citizenService.stubs.getCitizenByFilter.rejects();
+      await controller.findById('randomId');
+    } catch (error) {
+      expect(error.message).equal('Error');
+    }
+  });
+
+  it('CitizenController findById : success', async () => {
+    citizenService.stubs.getCitizenByFilter.resolves(mockCitizen);
+    const result = await controller.findById('randomId');
+    expect(result).to.deepEqual(mockCitizen);
+  });
+
   function givenStubbedRepository() {
-    funderService = createStubInstance(FunderService);
-    enterpriseRepository = createStubInstance(EnterpriseRepository);
-    userRepository = createStubInstance(UserRepository);
+    funderRepository = createStubInstance(FunderRepository);
     incentivesRepository = createStubInstance(IncentiveRepository);
     subscriptionsRepository = createStubInstance(SubscriptionRepository);
     affiliationRepository = createStubInstance(AffiliationRepository);
@@ -616,16 +661,6 @@ const clients = [
     clientId: 'paris-maas-client',
   },
 ];
-
-const user = new User({
-  id: 'idUser',
-  email: 'random@random.fr',
-  firstName: 'firstName',
-  lastName: 'lastName',
-  funderId: 'someFunderId',
-  roles: ['gestionnaires'],
-  communityIds: ['id1', 'id2'],
-});
 
 const citizen = new Citizen({
   identity: Object.assign({
@@ -682,105 +717,15 @@ const mockCitizen = new Citizen({
 
 const mockEnterprise = new Enterprise({
   id: 'randomInputIdEntreprise',
-  emailFormat: ['test@outlook.com', 'test@outlook.fr', 'test@outlook.xxx'],
   name: 'nameEntreprise',
   siretNumber: 50,
-  budgetAmount: 102,
-  employeesCount: 100,
-  hasManualAffiliation: true,
+  mobilityBudget: 102,
+  citizensCount: 100,
+  enterpriseDetails: new EnterpriseDetails({
+    emailDomainNames: ['test@outlook.com', 'test@outlook.fr', 'test@outlook.xxx'],
+    hasManualAffiliation: true,
+  }),
 });
-
-const mockCitizens: Promise<AnyObject> = new Promise(() => {
-  return [
-    {
-      citizensData: [
-        {
-          citizenId: '260a6356-3261-4335-bca8-4c1f8257613d',
-          lastName: 'leYellow',
-          firstName: 'Bob',
-        },
-      ],
-      totalCitizens: 1,
-    },
-  ];
-});
-
-const mockSubscriptions: Record<string, unknown>[] = [
-  {
-    id: 'randomInputId',
-    incentiveId: 'incentiveId',
-    funderName: 'funderName',
-    incentiveType: INCENTIVE_TYPE.TERRITORY_INCENTIVE,
-    incentiveTitle: 'incentiveTitle',
-    citizenId: 'email@gmail.com',
-    lastName: 'lastName',
-    firstName: 'firstName',
-    email: 'email@gmail.com',
-    incentiveTransportList: ['vélo'],
-    consent: true,
-    specificFields: [
-      {
-        title: 'newField1',
-        inputFormat: 'listeChoix',
-        choiceList: {
-          possibleChoicesNumber: 2,
-          inputChoiceList: [
-            {
-              inputChoice: 'newField1',
-            },
-            {
-              inputChoice: 'newField11',
-            },
-          ],
-        },
-      },
-      {
-        title: 'newField2',
-        inputFormat: 'Texte',
-      },
-    ],
-    status: SUBSCRIPTION_STATUS.VALIDATED,
-    createdAt: new Date('2021-04-06T09:01:30.778Z'),
-    updatedAt: new Date('2021-04-06T09:01:30.778Z'),
-  },
-  {
-    id: 'randomInputId1',
-    incentiveId: 'incentiveId',
-    funderName: 'funderName',
-    incentiveType: INCENTIVE_TYPE.TERRITORY_INCENTIVE,
-    incentiveTitle: 'incentiveTitle',
-    citizenId: 'email@gmail.com',
-    lastName: 'lastName',
-    firstName: 'firstName',
-    email: 'email@gmail.com',
-    incentiveTransportList: ['vélo'],
-    consent: true,
-    specificFields: [
-      {
-        title: 'newField1',
-        inputFormat: 'listeChoix',
-        choiceList: {
-          possibleChoicesNumber: 2,
-          inputChoiceList: [
-            {
-              inputChoice: 'newField1',
-            },
-            {
-              inputChoice: 'newField11',
-            },
-          ],
-        },
-      },
-      {
-        title: 'newField2',
-        inputFormat: 'Texte',
-      },
-    ],
-    status: SUBSCRIPTION_STATUS.VALIDATED,
-    createdAt: new Date('2021-04-06T09:01:30.778Z'),
-    updatedAt: new Date('2021-04-06T09:01:30.778Z'),
-  },
-];
 
 const subscription = new Subscription({
   id: 'randomInputId',

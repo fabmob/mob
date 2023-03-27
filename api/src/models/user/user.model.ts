@@ -1,4 +1,7 @@
-import {model, property} from '@loopback/repository';
+import {model, property, belongsTo, referencesMany} from '@loopback/repository';
+
+import {Funder} from '../funder';
+import {Community} from '../community';
 
 import {Keycloak} from '..';
 
@@ -15,25 +18,33 @@ export class User extends Keycloak {
   })
   id: string;
 
-  @property({
-    type: 'string',
-    description: `Identifiant du financeur de l'utilisateur`,
-    required: true,
-    jsonSchema: {
-      example: ``,
+  @belongsTo(
+    () => Funder,
+    {name: 'funder'},
+    {
+      type: 'string',
+      required: true,
+      description: `Identifiant du financeur de l'utilisateur`,
+      jsonSchema: {
+        example: ``,
+      },
     },
-  })
+  )
   funderId: string;
 
-  @property({
-    type: 'array',
-    description: `Identifiants des communautés du périmètre\
-       d'intervention de l'utilisateur financeur si gestionnaire`,
-    itemType: 'string',
-    jsonSchema: {
-      example: ``,
+  @referencesMany(
+    () => Community,
+    {name: 'community'},
+    {
+      type: 'array',
+      itemType: 'string',
+      description: `Identifiants des communautés du périmètre\
+      d'intervention de l'utilisateur financeur si gestionnaire`,
+      jsonSchema: {
+        example: ``,
+      },
     },
-  })
+  )
   communityIds: string[];
 
   @property({

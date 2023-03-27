@@ -14,6 +14,15 @@ interface Fr {
   'aides.create.success': string;
   'aides.create.title': string;
   'incentiveEligibilityChecks.error': string;
+  'incentive.mainCharacteristics.title': string;
+  'incentive.detailsInfo.title': string;
+  'incentive.subscription.management.title' : string;
+  'incentive.subscription.form.title' : string;
+  'incentive.subscription.communication.title' : string;
+  'incentive.subscription.treatment.title' : string;
+  'incentive.specificFields' : string;
+  'incentive.mob.title' : string;
+  'incentive.timestamp.title' : string;
 }
 declare const value: Fr;
 export = value;

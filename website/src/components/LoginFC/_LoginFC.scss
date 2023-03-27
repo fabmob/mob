@@ -1,0 +1,94 @@
+.insert_container {
+  border-radius: 8px;
+  background: var(--color-grey-ultralight);
+  margin-bottom: var(--spacing-m);
+}
+
+.insert_content_container {
+  display: flex;
+  position: relative;
+  border-radius: 8px;
+  flex-direction: row;
+  align-items: center;
+  background: var(--color-grey-ultralight);
+  padding: 32px 18px 32px 32px;
+
+  p {
+    flex: 1;
+    margin-right: 30px;
+  }
+
+  .FC_checked_message {
+    margin-left: 18px;
+  }
+
+  button.arrow_button_up {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+  }
+
+  button.arrow_button_down {
+    position: absolute;
+    top: 21px;
+    right: 10px;
+  }
+}
+
+.fc_insert_padding {
+  padding: 20px 18px 20px 32px;
+}
+
+.fc_buttons_container {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  margin-right: 50px;
+
+  a {
+    font-size: 15px;
+    color: blue;
+    text-decoration-line: none !important;
+  }
+
+  a:hover {
+    text-decoration-line: underline !important;
+  }
+
+  a:visited {
+    color: purple;
+  }
+}
+
+.franceconnect_link {
+  background: url('../../assets/svg/franceconnect-btn.svg') no-repeat;
+  height: 70px;
+  width: 230px;
+  align-self: center;
+}
+
+.franceconnect_link:hover {
+  background: url('../../assets/svg/franceconnect-btn-hover.svg') no-repeat
+    left top !important;
+  height: 70px;
+  width: 230px;
+}
+
+@media screen and (max-width: 1024px) {
+  .responsive_content {
+    flex-direction: column;
+    padding: 65px 15px 32px 15px;
+  }
+
+  .fc_buttons_container {
+    margin-top: 30px;
+    margin-right: 0;
+  }
+
+  p.responsive_align {
+    text-align: center;
+    margin-right: 0;
+  }
+}

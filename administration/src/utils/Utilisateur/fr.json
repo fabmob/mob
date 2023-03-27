@@ -3,5 +3,11 @@
   "users.roles.error": "Problème durant la récupération des roles",
   "users.error.roles.mismatch": "Les roles selectionnés ne sont pas adéquats",
   "users.error.communities.mismatch": "Les communautés selectionnées ne sont pas adéquates",
-  "email.error.emailFormat": "L'email ne respecte pas les formats de l'entreprise"
+  "email.error.emailFormat": "L'email ne respecte pas les formats de l'entreprise",
+  "utilisateur.aside.title": "Créer un utilisateur financeur",
+  "utilisateur.aside.message1": "Mon Compte Mobilité s’adapte à l’organisation interne de chaque partenaire, que ce soit une collectivité ou une entreprise. Le rôle à attribuer à l’utilisateur financeur est communiqué par le partenaire en amont.",
+  "utilisateur.aside.message2": "Gestionnaire : je suis en charge de traiter les aides quotidiennement sur la plateforme. Le gestionnaire peut également suivre et piloter sa politique de mobilité grâce à la remontée d’indicateurs de suivi dans les tableaux de bord moB.",
+  "utilisateur.aside.message3": "Superviseur : je peux accéder à l’outil et visualiser les demandes d’aides en cours et traitées mais je ne suis pas en charge de traiter les demandes directement.",
+  "utilisateur.aside.message4": "Attention, pour créer une aide de type 'Aide de mon employeur' il est nécessaire de créer un utilisateur financeur."
+
 }

@@ -1,9 +1,10 @@
-import {Entity, model, property} from '@loopback/repository';
+import {Entity, model, property, referencesMany, belongsTo} from '@loopback/repository';
 
 import {SpecificField} from '../subscription/specificField.model';
 import {INCENTIVE_TYPE, SUBSCRIPTION_CHECK_MODE, TRANSPORTS} from '../../utils';
 import {Link} from '../links.model';
 import {Territory} from '../territory';
+import {Funder} from '../funder';
 import {EligibilityCheck} from './eligibilityCheck.model';
 
 @model({
@@ -56,18 +57,32 @@ export class Incentive extends Entity {
   })
   territoryName: string;
 
-  @property({type: Territory, required: true})
-  territory: Territory;
+  // Only one territory linked to an incentive
+  @referencesMany(
+    () => Territory,
+    {name: 'territories'},
+    {
+      type: 'array',
+      itemType: 'string',
+      required: true,
+      description: `Liste des Id des territoires de l'aide`,
+      jsonSchema: {
+        example: ``,
+        minItems: 1,
+        maxItems: 1,
+      },
+    },
+  )
+  territoryIds: string[];
 
   @property({
     type: 'string',
-    required: true,
     description: `Financeur de l'aide`,
     jsonSchema: {
       example: `Mulhouse`,
     },
   })
-  funderName: string;
+  funderName?: string;
 
   @property({
     type: 'string',
@@ -231,8 +246,7 @@ export class Incentive extends Entity {
     description: `Lien externe de souscription si non possible via MCM`,
     jsonSchema: {
       example: `https://www.mulhouse.fr`,
-      pattern:
-        "^(?:http(s)?:\\/\\/)[\\w.-]+(?:\\.[\\w\\.-]+)+[\\w\\-\\._~:%/?#[\\]@!\\$&'\\(\\)*\\+,;=.]+$",
+      pattern: "^(?:http(s)?:\\/\\/)[\\w.-]+(?:\\.[\\w\\.-]+)+[\\w\\-\\._~:%/?#[\\]@!\\$&'\\(\\)*\\+,;=.]+$",
     },
   })
   subscriptionLink?: string;
@@ -257,14 +271,19 @@ export class Incentive extends Entity {
   })
   updatedAt?: Date;
 
-  @property({
-    description: `L'identifiant du financeur de l'aide présent ou non en fonction de isMCMStaff`,
-    type: 'string',
-    jsonSchema: {
-      example: ``,
+  @belongsTo(
+    () => Funder,
+    {name: 'funder'},
+    {
+      type: 'string',
+      required: true,
+      description: `L'identifiant du financeur de l'aide`,
+      jsonSchema: {
+        example: ``,
+      },
     },
-  })
-  funderId?: string;
+  )
+  funderId: string;
 
   @property.array(Link)
   links?: Link[];
@@ -281,7 +300,7 @@ export class Incentive extends Entity {
 
   @property({
     type: 'boolean',
-    description: `Désactive l'envoi de notifications à l'utilisateur sur le suivi de ses demandes`,
+    description: `Désactive l'envoi de notifications à l'utilisateur sur le suivi de ses souscriptions`,
     jsonSchema: {
       example: false,
     },
@@ -297,7 +316,7 @@ export class Incentive extends Entity {
 }
 
 export interface IncentiveRelations {
-  // describe navigational properties here
+  territories?: Territory[];
 }
 
 export type IncentiveWithRelations = Incentive & IncentiveRelations;

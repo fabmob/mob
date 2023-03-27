@@ -11,11 +11,11 @@ import {
   _Object,
   DeleteObjectsCommandOutput,
 } from '@aws-sdk/client-s3'; // ES Modules import
-import {logger, streamToString, StatusCode} from '../utils';
+import {Logger, streamToString} from '../utils';
 import {Readable} from 'stream';
 import {Express} from 'express';
 import {S3Config} from '../config';
-import {ValidationError} from '../validationError';
+import {InternalServerError} from '../validationError';
 
 export interface FileToUpload {
   fileName: string;
@@ -59,6 +59,7 @@ export class S3Service extends S3Config {
       // Create bucket if it does not exist
       if (!(await this.checkBucketExists(bucketName))) {
         await this.createBucket(bucketName);
+        Logger.debug(S3Service.name, this.uploadFileListIntoBucket.name, 'Bucket created', bucketName);
       }
       // Upload all files
       return await Promise.all(
@@ -72,8 +73,7 @@ export class S3Service extends S3Config {
         }),
       );
     } catch (error) {
-      logger.error(`uploadFileListIntoBucket : ${error}`);
-      throw new Error(`An error occurred: ${error}`);
+      throw new InternalServerError(S3Service.name, this.uploadFileListIntoBucket.name, error);
     }
   }
 
@@ -109,7 +109,7 @@ export class S3Service extends S3Config {
         }),
       );
     } catch (error) {
-      throw new Error(`An error occurred: ${error}`);
+      throw new InternalServerError(S3Service.name, this.createBucket.name, error);
     }
   }
 
@@ -132,7 +132,7 @@ export class S3Service extends S3Config {
         }),
       );
     } catch (error) {
-      throw new Error(`An error occurred: ${error}`);
+      throw new InternalServerError(S3Service.name, this.createBucket.name, error);
     }
   }
 
@@ -168,7 +168,7 @@ export class S3Service extends S3Config {
     try {
       return await this.s3Client.send(new DeleteObjectsCommand(deleteParams));
     } catch (error) {
-      throw new Error(`Could not delete folder from S3`);
+      throw new InternalServerError(S3Service.name, this.deleteObjectFile.name, error);
     }
   }
 
@@ -180,11 +180,7 @@ export class S3Service extends S3Config {
    * @returns Promise<Object>
    */
 
-  async downloadFileBuffer(
-    bucket: string,
-    fileDirectory: string,
-    file: string,
-  ): Promise<{}> {
+  async downloadFileBuffer(bucket: string, fileDirectory: string, file: string): Promise<{}> {
     try {
       const getParams: {Bucket: string; Key: string} = {
         Bucket: bucket,
@@ -198,11 +194,7 @@ export class S3Service extends S3Config {
       const bodyContents = await streamToString(Body as Readable);
       return bodyContents;
     } catch (error) {
-      throw new ValidationError(
-        'Filename does not exist',
-        '/attachments',
-        StatusCode.NotFound,
-      );
+      throw new InternalServerError(S3Service.name, this.downloadFileBuffer.name, file);
     }
   }
 
@@ -221,9 +213,7 @@ export class S3Service extends S3Config {
    * @param fileList Express.Multer.File
    */
   hasValidMimeType(fileList: Express.Multer.File[]): Boolean {
-    return fileList.every((file: Express.Multer.File) =>
-      this.ALLOWED_MIME_TYPE_LIST.includes(file.mimetype),
-    );
+    return fileList.every((file: Express.Multer.File) => this.ALLOWED_MIME_TYPE_LIST.includes(file.mimetype));
   }
 
   /**
@@ -232,8 +222,6 @@ export class S3Service extends S3Config {
    * @param fileList Express.Multer.File
    */
   hasValidFileSize(fileList: Express.Multer.File[]): Boolean {
-    return fileList.every(
-      (file: Express.Multer.File) => file.size <= this.ALLOWED_FILE_SIZE,
-    );
+    return fileList.every((file: Express.Multer.File) => file.size <= this.ALLOWED_FILE_SIZE);
   }
 }

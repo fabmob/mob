@@ -1,12 +1,8 @@
 import {Entity, model, property, hasMany} from '@loopback/repository';
-
 import {KeycloakGroup, UserGroupMembership, UserAttribute, Citizen} from '..';
 
 @model({
-  settings: {
-    idInjection: false,
-    postgresql: {schema: 'idp_db', table: 'user_entity'},
-  },
+  settings: {idInjection: false, postgresql: {schema: 'idp_db', table: 'user_entity'}},
 })
 export class UserEntity extends Entity {
   @property({
@@ -16,11 +12,11 @@ export class UserEntity extends Entity {
     id: 1,
     postgresql: {
       columnName: 'id',
-      dataType: 'varchar',
+      dataType: 'character varying',
       dataLength: 36,
       dataPrecision: null,
       dataScale: null,
-      nullable: 'N',
+      nullable: 'NO',
     },
   })
   id: string;
@@ -30,11 +26,11 @@ export class UserEntity extends Entity {
     length: 255,
     postgresql: {
       columnName: 'email',
-      dataType: 'varchar',
+      dataType: 'character varying',
       dataLength: 255,
       dataPrecision: null,
       dataScale: null,
-      nullable: 'Y',
+      nullable: 'YES',
     },
   })
   email?: string;
@@ -44,55 +40,53 @@ export class UserEntity extends Entity {
     length: 255,
     postgresql: {
       columnName: 'email_constraint',
-      dataType: 'varchar',
+      dataType: 'character varying',
       dataLength: 255,
       dataPrecision: null,
       dataScale: null,
-      nullable: 'Y',
+      nullable: 'YES',
     },
   })
   emailConstraint?: string;
 
   @property({
-    type: 'Binary',
+    type: 'boolean',
     required: true,
-    precision: 1,
     postgresql: {
       columnName: 'email_verified',
-      dataType: 'bit',
+      dataType: 'boolean',
       dataLength: null,
-      dataPrecision: 1,
+      dataPrecision: null,
       dataScale: null,
-      nullable: 'N',
+      nullable: 'NO',
     },
   })
-  emailVerified: Boolean;
+  emailVerified: boolean;
 
   @property({
-    type: 'Binary',
+    type: 'boolean',
     required: true,
-    precision: 1,
     postgresql: {
       columnName: 'enabled',
-      dataType: 'bit',
+      dataType: 'boolean',
       dataLength: null,
-      dataPrecision: 1,
+      dataPrecision: null,
       dataScale: null,
-      nullable: 'N',
+      nullable: 'NO',
     },
   })
-  enabled: Boolean;
+  enabled: boolean;
 
   @property({
     type: 'string',
     length: 255,
     postgresql: {
       columnName: 'federation_link',
-      dataType: 'varchar',
+      dataType: 'character varying',
       dataLength: 255,
       dataPrecision: null,
       dataScale: null,
-      nullable: 'Y',
+      nullable: 'YES',
     },
   })
   federationLink?: string;
@@ -102,11 +96,11 @@ export class UserEntity extends Entity {
     length: 255,
     postgresql: {
       columnName: 'first_name',
-      dataType: 'varchar',
+      dataType: 'character varying',
       dataLength: 255,
       dataPrecision: null,
       dataScale: null,
-      nullable: 'Y',
+      nullable: 'YES',
     },
   })
   firstName?: string;
@@ -116,11 +110,11 @@ export class UserEntity extends Entity {
     length: 255,
     postgresql: {
       columnName: 'last_name',
-      dataType: 'varchar',
+      dataType: 'character varying',
       dataLength: 255,
       dataPrecision: null,
       dataScale: null,
-      nullable: 'Y',
+      nullable: 'YES',
     },
   })
   lastName?: string;
@@ -130,11 +124,11 @@ export class UserEntity extends Entity {
     length: 255,
     postgresql: {
       columnName: 'realm_id',
-      dataType: 'varchar',
+      dataType: 'character varying',
       dataLength: 255,
       dataPrecision: null,
       dataScale: null,
-      nullable: 'Y',
+      nullable: 'YES',
     },
   })
   realmId?: string;
@@ -144,26 +138,25 @@ export class UserEntity extends Entity {
     length: 255,
     postgresql: {
       columnName: 'username',
-      dataType: 'varchar',
+      dataType: 'character varying',
       dataLength: 255,
       dataPrecision: null,
       dataScale: null,
-      nullable: 'Y',
+      nullable: 'YES',
     },
   })
   username?: string;
 
   @property({
     type: 'number',
-    precision: 19,
     scale: 0,
     postgresql: {
       columnName: 'created_timestamp',
       dataType: 'bigint',
       dataLength: null,
-      dataPrecision: 19,
+      dataPrecision: null,
       dataScale: 0,
-      nullable: 'Y',
+      nullable: 'YES',
     },
   })
   createdTimestamp?: number;
@@ -173,11 +166,11 @@ export class UserEntity extends Entity {
     length: 255,
     postgresql: {
       columnName: 'service_account_client_link',
-      dataType: 'varchar',
+      dataType: 'character varying',
       dataLength: 255,
       dataPrecision: null,
       dataScale: null,
-      nullable: 'Y',
+      nullable: 'YES',
     },
   })
   serviceAccountClientLink?: string;
@@ -185,15 +178,14 @@ export class UserEntity extends Entity {
   @property({
     type: 'number',
     required: true,
-    precision: 10,
     scale: 0,
     postgresql: {
       columnName: 'not_before',
-      dataType: 'int',
+      dataType: 'integer',
       dataLength: null,
-      dataPrecision: 10,
+      dataPrecision: null,
       dataScale: 0,
-      nullable: 'N',
+      nullable: 'NO',
     },
   })
   notBefore: number;
@@ -221,38 +213,29 @@ export class UserEntity extends Entity {
     };
     const rawCitizenAttributes: {[key: string]: any} = {id: this.id};
 
-    this.userAttributes.forEach((userAttribute: UserAttribute) => {
+    this.userAttributes?.forEach(({name, value}) => {
       // Identify CMS fields with '.' , ex : 'identity.firstName'
       // Used to map with CMS types
       // ex : {name:'identity.firstName', value: 'Bob'} =>  {identity : {firstName: 'Bob'}}
-      if (userAttribute.name.includes('.')) {
+      if (name.includes('.')) {
         // Identity CMS Attributes
-        const splittedUserAttributeName = [...userAttribute.name.split('.')];
-        if (userAttribute.name.includes('identity')) {
-          Object.assign(rawCMSAttributes.identity, {
-            [splittedUserAttributeName[1]]: JSON.parse(userAttribute.value!),
-          });
-        }
-        // PersonalInfo CMS Attributes
-        if (userAttribute.name.includes('personalInformation')) {
-          Object.assign(rawCMSAttributes.personalInformation, {
-            [splittedUserAttributeName[1]]: JSON.parse(userAttribute.value!),
-          });
-        }
-        // DGFIP CMS Attributes
-        if (userAttribute.name.includes('dgfipInformation')) {
-          Object.assign(rawCMSAttributes.dgfipInformation, {
-            [splittedUserAttributeName[1]]: JSON.parse(userAttribute.value!),
-          });
+        const [cmsName, attribute] = name.split('.');
+        if (cmsName in rawCMSAttributes) {
+          rawCMSAttributes[cmsName][attribute] = JSON.parse(value!);
         }
       } else {
         // Citizen Attributes to map with name: value, ex : {name:'status', value: 'etudiant'} => status: 'etudiant'
-        Object.assign(rawCitizenAttributes, {[userAttribute.name]: userAttribute.value});
+        Object.assign(rawCitizenAttributes, {[name]: value});
       }
     });
 
+    // Delete empty objects
+    const cmsAttributes: {[key: string]: any} = Object.fromEntries(
+      Object.entries(rawCMSAttributes).filter(([_, attrs]) => Object.keys(attrs).length > 0),
+    );
+
     // Assign CMS object to citizen
-    Object.assign(rawCitizenAttributes, rawCMSAttributes);
+    Object.assign(rawCitizenAttributes, cmsAttributes);
 
     return new Citizen(rawCitizenAttributes);
   }

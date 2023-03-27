@@ -21,6 +21,43 @@ services:
     status:
       loadBalancer: {}
 
+autoscaling:
+  metadata:
+    annotations:
+      app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+      app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+      kompose.service.type: clusterip
+      kubernetes.io/ingress.class: traefik
+    enabled: true
+    name: clamav
+  spec:
+    scaleTargetRef:
+      kind: Deployment
+      name: clamav
+      apiVersion: apps/v1
+    minReplicas: 2
+    maxReplicas: 8
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 80
+      - type: Resource
+        resource:
+          name: memory
+          target:
+            type: Utilization
+            averageUtilization: 80
+    behavior:
+      scaleDown:
+        stabilizationWindowSeconds: 300
+        policies:
+          - type: Pods
+            value: 1
+            periodSeconds: 300
+
 deployments:
   - metadata:
       annotations:
@@ -57,8 +94,31 @@ deployments:
             ports:
               - containerPort: 3310
             resources:
-              requests:
+              limits:
                 memory: 4Gi
+              requests:
+                memory: 2Gi
+            startupProbe:
+              tcpSocket:
+                port: 3310
+              initialDelaySeconds: 60
+              periodSeconds: 30
+              failureThreshold: 3
+              timeoutSeconds: 1
+            livenessProbe:
+              tcpSocket:
+                port: 3310
+              initialDelaySeconds: 300
+              periodSeconds: 10
+              failureThreshold: 3
+              timeoutSeconds: 1
+            readinessProbe:
+              tcpSocket:
+                port: 3310
+              initialDelaySeconds: 90
+              periodSeconds: 10
+              failureThreshold: 3
+              timeoutSeconds: 1
           imagePullSecrets:
             - name: ${PROXY_IMAGE_PULL_SECRET_NAME}
           restartPolicy: Always

@@ -1,7 +1,7 @@
 import {injectable, BindingScope} from '@loopback/core';
 import {MailConfig} from '../config';
-import {generateTemplateAsHtml, ResourceName, StatusCode} from '../utils';
-import {ValidationError} from '../validationError';
+import {generateTemplateAsHtml} from '../utils';
+import {InternalServerError} from '../validationError';
 
 @injectable({scope: BindingScope.TRANSIENT})
 export class MailService {
@@ -23,12 +23,7 @@ export class MailService {
    * @param templateName nom du template de l'email
    * @param data variable data in email
    */
-  async sendMailAsHtml(
-    to: string,
-    subject: string,
-    templateName: string,
-    data?: Object,
-  ): Promise<any> {
+  async sendMailAsHtml(to: string, subject: string, templateName: string, data?: Object): Promise<any> {
     try {
       const html = await generateTemplateAsHtml(templateName, data);
       const mailerInfos = this.mailConfig.configMailer();
@@ -39,12 +34,7 @@ export class MailService {
         html: html,
       });
     } catch (err) {
-      throw new ValidationError(
-        `email.server.error`,
-        '/emailSend',
-        StatusCode.InternalServerError,
-        ResourceName.Email,
-      );
+      throw new InternalServerError(MailService.name, this.sendMailAsHtml.name, err);
     }
   }
 }

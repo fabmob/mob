@@ -23,6 +23,7 @@ import { Incentive } from '@utils/aides';
 import { useGetFunder } from '@utils/keycloakUtils';
 import { formattedDateFile } from '@utils/helpers';
 import { Community } from '@utils/funders';
+import { IFilter } from '@utils/api';
 
 import { useUser } from '../../../context';
 
@@ -96,7 +97,17 @@ const AdministrerDemandes: FC<PageProps> = ({
   }, [selectedTab, activeFiltersAides, termSearch, activeFiltersCommunities]);
 
   useEffect(() => {
-    listAide<{ id: string; title: string }[]>()
+    const filter: IFilter<Incentive> = {
+      where: {
+        funderId: userFunder.funderId
+      },
+      fields: {
+        id: 'true',
+        title: 'true',
+      },
+    };
+
+    listAide<{ id: string; title: string }[]>(filter)
       .then((result: { id: string; title: string }[]) => {
         if (result && result.length > 0) {
           setAides(result);

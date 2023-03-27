@@ -1,6 +1,7 @@
-import {Entity, model, property} from '@loopback/repository';
+import {belongsTo, Entity, model, property} from '@loopback/repository';
 
 import {AFFILIATION_STATUS} from '../../utils';
+import {UserEntity} from '../idp';
 
 @model()
 export class Affiliation extends Entity {
@@ -15,13 +16,17 @@ export class Affiliation extends Entity {
   })
   id: string;
 
-  @property({
-    description: `Identifiant du citoyen affilié`,
-    required: true,
-    jsonSchema: {
-      example: ``,
+  @belongsTo(
+    () => UserEntity,
+    {name: 'user'},
+    {
+      description: `Identifiant du citoyen affilié`,
+      required: true,
+      jsonSchema: {
+        example: ``,
+      },
     },
-  })
+  )
   citizenId: string;
 
   @property({

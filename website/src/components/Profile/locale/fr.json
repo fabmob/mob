@@ -7,7 +7,7 @@
   "citoyens.error.required": "Attention, ce champ est obligatoire",
   "citoyens.error.postcode.type": "Le code postal doit être un nombre",
   "citoyens.error.postcode.format": "Attention, le format de votre code postal est incorrect",
-  "citoyens.error.emailCompany.pattern": "Ce format de votre adresse email comporte une erreur. Votre adresse professionnelle doit correspondre au format mail de l'entreprise à laquelle vous souhaitez vous affilier",
+  "citizen.email.professional.error.format": "Ce format de votre adresse email comporte une erreur. Votre adresse professionnelle doit correspondre au format mail de l'entreprise à laquelle vous souhaitez vous affilier",
   "email.error.format": "Attention, le format de votre email est incorrect",
   "email.resend.affiliation.notification.success": "Un email d'affiliation a été envoyé avec succès",
   "update.notification.success": "Votre profil a été mis à jour avec succès",
@@ -37,6 +37,7 @@
   "profile.label.pro.status2": "Quel est votre statut ?",
   "profile.label.enterprise": "Entreprise",
   "profile.label.collectivity": "Collectivité",
+  "profile.label.nationalAdministration": "Administration Nationale",
   "profile.label.pro.email": "Email professionnel",
   "profile.label.affiliation.status": "Statut d'affiliation",
   "profile.label.gender": "Civilité",
@@ -78,5 +79,9 @@
   "citizen.deleteConsent.modal.body": "Vous devrez réitérer la liaison pour accéder à vos données depuis votre application de mobilité.",
   "citizen.empty.consents": "Vous ne disposez d'aucun compte lié avec votre compte moB.",
   "citizen.who.to.link.account": "Afin de lier un compte à votre compte moB, rendez-vous directement sur les APP de Mobilité de nos partenaires (Île-de-France Mobilités et Mulhouse Alsace Agglomération).",
-  "citizen.consent.actif": "Actif"
+  "citizen.consent.actif": "Actif",
+  "profile.unextended.login.FC.message": "Faciliter vos demandes de subvention avec FranceConnect.",
+  "profile.Extended.login.FC.question": "Vous souhaitez faciliter vos demandes de subvention ?",
+  "profile.Extended.login.FC.message1": "Réconciliez votre compte moB avec FranceConnect pour valider votre identité.",
+  "profile.Extended.login.FC.message2": "En cliquant sur le bouton de droite, vous pourrez vous connecter avec FranceConnect et serez déconnecté de votre compte moB."
 }

@@ -17,24 +17,40 @@ const showToastrError = (err: any) => {
   ) {
     const { resourceName } = err.data.error;
     switch (err.data.error.statusCode) {
-      case StatusCode.PreconditionFailed:
-        if (resourceName === 'Disaffiliation') {
-          message = Strings['handle.error.message.afilliation'];
-        } else if (resourceName === 'emailProfessionnel') {
-          message = Strings['handle.error.message.profssional.mail'];
-        } else if (resourceName === 'Subscription Attachments') {
+      case StatusCode.BadRequest:
+        if (resourceName === 'Subscription Attachments') {
           message = Strings['handle.error.message.justification.size'];
-        } else if (resourceName === 'Type of subscription Attachments') {
-          message = Strings['handle.error.message.justification.type'];
-        } else if (resourceName === 'Affiliation Already Treated') {
-          message = Strings['handle.error.message.treated.affiliation'];
         } else {
-          message = `${Strings['handle.error.message.justification.this']} ${resourceName} ${Strings['handle.error.message.justification.already.treated']}`;
+          message = Strings['handle.error.message.main.justification.badRequest'];
         }
         break;
-
+      case StatusCode.NotFound:
+        // TODO set the appropriate message once we have it
+        if (resourceName === 'Incentive') {
+          message = Strings['handle.error.message.aides.unavailable'];
+        } else {
+          message = `${Strings['handle.error.message.resource.unavailable.part1']} ${resourceName} ${Strings['handle.error.message.resource.unavailable.part2']}`;
+        }
+        break;
+      case StatusCode.Conflict:
+        if (resourceName === 'Affiliation Already Treated') {
+          message = Strings['handle.error.message.treated.affiliation'];
+        } else {
+          // TODO set the appropriate message once we have it
+          message = `${Strings['handle.error.message.justification.conflict.part1']} ${resourceName}${Strings['handle.error.message.justification.conflict.part2']}`;
+        }
+        break;
+      case StatusCode.UnsupportedMediaType:
+        if (resourceName === 'Type of subscription Attachments') {
+          message = Strings['handle.error.message.justification.type'];
+        } else {
+          message = `${Strings['handle.error.message.justification.unsupportedMediaType']}`;
+        }
+        break;
       case StatusCode.UnprocessableEntity:
-        if (resourceName === 'Antivirus') {
+        if (resourceName === 'Disaffiliation') {
+          message = Strings['handle.error.message.afilliation'];
+        } else if (resourceName === 'Antivirus') {
           message = Strings['handle.error.message.justification.corrupt'];
         } else if (resourceName === 'Encryption Key') {
           message = Strings['handle.error.message.encryptionKey'];
@@ -43,23 +59,6 @@ const showToastrError = (err: any) => {
           message = `${Strings['handle.error.message.justification.probleme.part1']} ${resourceName}${Strings['handle.error.message.justification.probleme.part2']}`;
         }
         break;
-
-      case StatusCode.Conflict:
-        // TODO set the appropriate message once we have it
-        message = `${Strings['handle.error.message.justification.conflict.part1']} ${resourceName}${Strings['handle.error.message.justification.conflic.part2']}`;
-        break;
-
-      case StatusCode.NotFound:
-        // TODO set the appropriate message once we have it
-        if (resourceName === 'Incentive') {
-          message = Strings['handle.error.message.aides.unavailable'];
-        } else if (resourceName === 'Encryption Key') {
-          message = Strings['handle.error.message.encryptionKey'];
-        } else {
-          message = `${Strings['handle.error.message.resource.unavailable.part1']} ${resourceName} ${Strings['handle.error.message.resource.unavailable.part2']}`;
-        }
-        break;
-
       default:
         break;
     }

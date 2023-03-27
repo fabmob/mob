@@ -79,7 +79,12 @@ const authYoungClient = {
   token,
 };
 
-const mockUseKeycloak = { isKCInit: true, keycloak: authClient };
+const mockUseKeycloak = {
+  isKCInit: true,
+  keycloak: authClient,
+  isInsertOpen: true,
+  closeInsertFC: () => false,
+};
 
 const mockUseKeycloakYoungUser = { isKCInit: true, keycloak: authYoungClient };
 

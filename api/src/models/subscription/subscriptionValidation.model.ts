@@ -17,7 +17,7 @@ export class CommonValidation extends Model {
   mode: string;
 
   @property({
-    description: `Message indiquant un commentaire relatif au traitement de la demande`,
+    description: `Message indiquant un commentaire relatif au traitement de la souscription`,
     jsonSchema: {
       example: `Le montant de paiement est à titre indicatif et vous sera transmis plus tard`,
     },
@@ -34,7 +34,7 @@ export class CommonValidation extends Model {
 export class ValidationSinglePayment extends CommonValidation {
   @property({
     type: 'number',
-    description: `Montant en euros alloué à la demande`,
+    description: `Montant en euros alloué à la souscription`,
     minimum: 0,
     exclusiveMinimum: true,
     jsonSchema: {
@@ -79,7 +79,7 @@ export class ValidationMultiplePayment extends CommonValidation {
 
   @property({
     type: 'number',
-    description: `Montant en euros alloué à la demande`,
+    description: `Montant en euros alloué à la souscription`,
     minimum: 0,
     exclusiveMinimum: true,
     jsonSchema: {

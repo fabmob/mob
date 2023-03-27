@@ -1,8 +1,4 @@
-import {
-  convertPhoneNumber,
-  removeWhiteSpace,
-  truncateName,
-} from '../controllers/utils/helpers';
+import {convertPhoneNumber, removeWhiteSpace, truncateName} from '../controllers/utils/helpers';
 import {convertToISODate} from './date';
 import {OperatorData} from './interface';
 

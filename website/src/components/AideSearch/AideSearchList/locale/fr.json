@@ -1,3 +1,4 @@
 {
-  "show.result": "Afficher plus de résultats"
+  "show.result": "Afficher plus de résultats",
+  "incentives.limit.message": "Nous affichons les {0} premières aides. Vous avez la possibilité de filtrer si vous souhaitez consulter une aide spécifique"
 }

@@ -358,41 +358,38 @@ const ProcessSubscription: FC<Props> = ({ query, location }) => {
   };
 
   /**
+  
    * Handle steps and associated api calls
    * @param step SUBSCRIPTION_STEP
    */
+
   const handleStep = (nextStep: number) => {
     window.scrollTo(0, 0);
     if (nextStep === 1) {
-      const executeHandleSubmit = handleSubmit(
-        (formData: { [key: string]: string | string[] }) => {
-          setSummarySpecificFields(formData);
-          onSubmit(formData);
-        }
-      );
-      executeHandleSubmit();
+      handleSubmit((formData: { [key: string]: string | string[] }) => {
+        setSummarySpecificFields(formData);
+        onSubmit(formData);
+      })();
     }
     if (nextStep === 2) {
       if (metadataId || attachment.length) {
         setIsDisabled(true);
-        const formData = new FormData();
+        const dataFormat = new FormData();
         metadataId &&
-          formData.append('data', JSON.stringify({ metadataId: metadataId }));
+          dataFormat.append('data', JSON.stringify({ metadataId: metadataId }));
         attachment.forEach((element) => {
-          formData.append('files', element);
+          dataFormat.append('files', element);
         });
-        postV1SubscriptionAttachments(subscriptionId, formData)
+        postV1SubscriptionAttachments(subscriptionId, dataFormat)
           .then(() => {
             toast.success(Strings['subscription.justif.success.message']);
             setBtnLabel(Strings['subscription.next']);
           })
           .then(() => {
             setStep(2);
-            setIsDisabled(false);
           })
-          .catch((err: any) => {
-            setIsDisabled(false);
-          });
+          .catch((err: any) => {});
+        setIsDisabled(false);
       } else {
         setStep(2);
         setBtnLabel(Strings['subscription.next']);

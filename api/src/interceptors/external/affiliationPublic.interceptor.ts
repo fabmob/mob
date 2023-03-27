@@ -11,8 +11,8 @@ import {repository} from '@loopback/repository';
 import {SecurityBindings} from '@loopback/security';
 
 import {IncentiveRepository} from '../../repositories';
-import {INCENTIVE_TYPE, StatusCode, ResourceName, IUser} from '../../utils';
-import {ValidationError} from '../../validationError';
+import {INCENTIVE_TYPE, StatusCode, ResourceName, IUser, Logger} from '../../utils';
+import {ForbiddenError, NotFoundError} from '../../validationError';
 
 @injectable({tags: {key: AffiliationPublicInterceptor.BINDING_KEY}})
 export class AffiliationPublicInterceptor implements Provider<Interceptor> {
@@ -40,37 +40,41 @@ export class AffiliationPublicInterceptor implements Provider<Interceptor> {
    * @param invocationCtx - Invocation context
    * @param next - A function to invoke next interceptor or the target method
    */
-  async intercept(
-    invocationCtx: InvocationContext,
-    next: () => ValueOrPromise<InvocationResult>,
-  ) {
+  async intercept(invocationCtx: InvocationContext, next: () => ValueOrPromise<InvocationResult>) {
     const {methodName, args} = invocationCtx;
     const {roles} = this.currentUserProfile;
-
-    if (roles && roles.includes('service_maas')) {
-      // Find IncentiveById
-      if (methodName === 'findIncentiveById') {
-        const incentiveId = args[0];
-        const incentive = await this.incentiveRepository.findOne({
-          where: {id: incentiveId},
-        });
-        if (!incentive) {
-          throw new ValidationError(
-            `Incentive not found`,
-            '/incentiveNotFound',
-            StatusCode.NotFound,
-            ResourceName.Incentive,
-          );
-        }
-        if (incentive?.incentiveType === INCENTIVE_TYPE.EMPLOYER_INCENTIVE) {
-          throw new ValidationError(
-            'Access denied',
-            '/authorization',
-            StatusCode.Forbidden,
-          );
+    try {
+      if (roles && roles.includes('service_maas')) {
+        // Find IncentiveById
+        if (methodName === 'findIncentiveById') {
+          const incentiveId = args[0];
+          const incentive = await this.incentiveRepository.findOne({
+            where: {id: incentiveId},
+          });
+          if (!incentive) {
+            throw new NotFoundError(
+              AffiliationPublicInterceptor.name,
+              invocationCtx.methodName,
+              `Incentive not found`,
+              '/incentiveNotFound',
+              ResourceName.Incentive,
+              incentiveId,
+            );
+          }
+          if (incentive?.incentiveType === INCENTIVE_TYPE.EMPLOYER_INCENTIVE) {
+            throw new ForbiddenError(
+              AffiliationPublicInterceptor.name,
+              invocationCtx.methodName,
+              incentive?.incentiveType,
+              INCENTIVE_TYPE.EMPLOYER_INCENTIVE,
+            );
+          }
         }
       }
+      return next();
+    } catch (error) {
+      Logger.error(AffiliationPublicInterceptor.name, methodName, 'Error', error);
+      throw error;
     }
-    return next();
   }
 }

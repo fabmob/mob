@@ -1,16 +1,25 @@
-import {inject} from '@loopback/core';
-import {DefaultCrudRepository} from '@loopback/repository';
+import {Getter, inject} from '@loopback/core';
+import {BelongsToAccessor, DefaultCrudRepository, repository} from '@loopback/repository';
 
 import {MongoDsDataSource} from '../datasources';
-import {Affiliation, Citizen} from '../models';
+import {Affiliation, Citizen, UserEntity} from '../models';
 import {AFFILIATION_STATUS} from '../utils';
+import {UserEntityRepository} from './idp';
 
 export class AffiliationRepository extends DefaultCrudRepository<
   Affiliation,
   typeof Affiliation.prototype.id
 > {
-  constructor(@inject('datasources.mongoDS') dataSource: MongoDsDataSource) {
+  public readonly user: BelongsToAccessor<UserEntity, typeof Affiliation.prototype.id>;
+
+  constructor(
+    @inject('datasources.mongoDS') dataSource: MongoDsDataSource,
+    @repository.getter('UserEntityRepository')
+    userEntityRepositoryGetter: Getter<UserEntityRepository>,
+  ) {
     super(Affiliation, dataSource);
+    this.user = this.createBelongsToAccessorFor('user', userEntityRepositoryGetter);
+    this.registerInclusionResolver('user', this.user.inclusionResolver);
   }
 
   /**
@@ -19,10 +28,7 @@ export class AffiliationRepository extends DefaultCrudRepository<
    * @param hasManualAffiliation boolean
    * @returns Promise<Affiliation>
    */
-  async createAffiliation(
-    citizen: Citizen,
-    hasManualAffiliation: boolean,
-  ): Promise<Affiliation> {
+  async createAffiliation(citizen: Citizen, hasManualAffiliation: boolean): Promise<Affiliation> {
     // Create object : affiliation
     const rawAffiliation: Affiliation = new Affiliation(citizen.affiliation);
     // Set enterpriseEmail & enterpriseId to null if not present
@@ -32,9 +38,7 @@ export class AffiliationRepository extends DefaultCrudRepository<
     // Handle affiliation status
     if (
       (rawAffiliation.enterpriseEmail && rawAffiliation.enterpriseId) ||
-      (!rawAffiliation.enterpriseEmail &&
-        rawAffiliation.enterpriseId &&
-        hasManualAffiliation)
+      (!rawAffiliation.enterpriseEmail && rawAffiliation.enterpriseId && hasManualAffiliation)
     ) {
       rawAffiliation.status = AFFILIATION_STATUS.TO_AFFILIATE;
     } else {

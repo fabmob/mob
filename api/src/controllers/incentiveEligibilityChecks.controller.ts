@@ -4,7 +4,8 @@ import {authenticate} from '@loopback/authentication';
 import {authorize} from '@loopback/authorization';
 import {IncentiveEligibilityChecks} from '../models';
 import {IncentiveEligibilityChecksRepository} from '../repositories';
-import {AUTH_STRATEGY, SECURITY_SPEC_KC_PASSWORD, StatusCode, Roles} from '../utils';
+import {AUTH_STRATEGY, SECURITY_SPEC_KC_PASSWORD, StatusCode, Roles, Logger} from '../utils';
+import {defaultSwaggerError} from './utils/swagger-errors';
 
 export class IncentiveEligibilityChecksController {
   constructor(
@@ -22,7 +23,7 @@ export class IncentiveEligibilityChecksController {
     security: SECURITY_SPEC_KC_PASSWORD,
     responses: {
       [StatusCode.Success]: {
-        description: 'La liste des contrôles est retournée',
+        description: 'La liste des contrôles',
         content: {
           'application/json': {
             schema: {
@@ -32,42 +33,15 @@ export class IncentiveEligibilityChecksController {
           },
         },
       },
-      [StatusCode.Unauthorized]: {
-        description: "L'utilisateur est non connecté",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 401,
-                name: 'Error',
-                message: 'Authorization header not found',
-                path: '/authorization',
-              },
-            },
-          },
-        },
-      },
-      [StatusCode.Forbidden]: {
-        description:
-          "L'utilisateur n'a pas les droits pour accéder à la liste des vérifications d'éligibilités",
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Error),
-            example: {
-              error: {
-                statusCode: 403,
-                name: 'Error',
-                message: 'Access denied',
-                path: '/authorization',
-              },
-            },
-          },
-        },
-      },
+      ...defaultSwaggerError,
     },
   })
   async getEligibilityChecks(): Promise<IncentiveEligibilityChecks[]> {
-    return this.incentiveEligibilityChecksRepository.find();
+    try {
+      return await this.incentiveEligibilityChecksRepository.find();
+    } catch (error) {
+      Logger.error(IncentiveEligibilityChecksController.name, this.getEligibilityChecks.name, 'Error', error);
+      throw error;
+    }
   }
 }

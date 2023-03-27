@@ -1,17 +1,9 @@
 import * as yup from 'yup';
 import { isMatch } from 'date-fns';
 
-import { validateEmailPattern } from '../../../utils/form';
 import { regexSchema } from '../../../constants';
 
 import Strings from './locale/fr.json';
-
-interface CompanyOption {
-  id: string;
-  value: string;
-  label: string;
-  formats: string[];
-}
 
 const checkAgeCitizen = (value: string | undefined, dateFormat: string) => {
   if (value && isMatch(value, dateFormat)) {
@@ -98,21 +90,7 @@ const schema = yup.object().shape({
         is: (hasNoEnterpriseEmail: boolean) => hasNoEnterpriseEmail === false,
         then: yup.string().required(defaultRequiredMessage),
         otherwise: yup.string().nullable(),
-      })
-      .test(
-        'pattern-company',
-        Strings['citizens.error.enterpriseEmail.pattern'],
-        (email: string | undefined, testContext: yup.TestContext) => {
-          const { enterpriseId } = testContext.parent;
-          const { companyOptions } = testContext.options.context! as {
-            companyOptions: CompanyOption[];
-          };
-          if (email && companyOptions?.length) {
-            return validateEmailPattern(email, companyOptions, enterpriseId);
-          }
-          return true;
-        }
-      ),
+      }),
   }),
   tos1: yup.bool().oneOf([true], Strings['citizens.error.tos1.false']),
   tos2: yup.bool().oneOf([true], Strings['citizens.error.tos2.false']),

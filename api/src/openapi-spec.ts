@@ -1,7 +1,7 @@
 import {ApplicationConfig} from '@loopback/core';
 
 import {App} from './application';
-import {logger} from './utils';
+import {Logger} from './utils';
 
 /**
  * Export the OpenAPI spec from the application
@@ -20,7 +20,7 @@ async function exportOpenApiSpec(): Promise<void> {
 }
 
 exportOpenApiSpec().catch(err => {
-  logger.error(`Fail to export OpenAPI spec from the application: ${err}`);
+  Logger.error('LB4', 'exportOpenApiSpec', 'Fail to export OpenAPI spec from the application', err);
 
   process.exit(1);
 });
