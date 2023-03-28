@@ -24,7 +24,6 @@ import {MongoDsDataSource} from './datasources';
 import {LoggerProvider} from './providers';
 import {Logger} from './utils';
 import {LoggerBindings} from './keys';
-import {MigrationScript1210} from './migrations/1.21.0.migration';
 import {
   RabbitmqCronJob,
   SubscriptionCronJob,
@@ -32,6 +31,7 @@ import {
   InactiveAccountNotificationCronJob,
   InactiveAccountDeletionCronJob,
 } from './cronjob';
+import {MigrationScript1212} from './migrations/1.21.2.migration';
 
 export class App extends BootMixin(ServiceMixin(RepositoryMixin(RestApplication))) {
   constructor(options: ApplicationConfig = {}) {
@@ -69,10 +69,10 @@ export class App extends BootMixin(ServiceMixin(RepositoryMixin(RestApplication)
     this.static('/', path.join(__dirname, '../public'));
     // Configure migration componentcd
     this.bind(MigrationBindings.CONFIG).to({
-      appVersion: '1.21.0',
+      appVersion: '1.21.2',
       dataSourceName: MongoDsDataSource.dataSourceName,
       modelName: 'Migration',
-      migrationScripts: [MigrationScript1210],
+      migrationScripts: [MigrationScript1212],
     });
     // Bind migration component related elements
     this.component(MigrationComponent);
