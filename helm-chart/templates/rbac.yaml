@@ -25,6 +25,6 @@ roleRef:
   name: {{ .metadata.name }}
 subjects:
   - kind: ServiceAccount
-    name: {{ .metadata.name }}
+    name: {{ .serviceAccountName }}
     namespace: {{ .metadata.namespace }}
 {{- end }}
