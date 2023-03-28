@@ -1,6 +1,6 @@
 {
   "name": "administration",
-  "version": "1.21.0",
+  "version": "1.21.2",
   "author": "Mon Compte Mobilité",
   "private": true,
   "dependencies": {

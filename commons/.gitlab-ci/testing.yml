@@ -236,7 +236,7 @@ mongo_testing_clean_data:
   fi
   echo "---------"
   echo "GET GROUPS"
-  GROUP_LIST_ID=$(kubectl exec $IDP_POD_NAME -n $IDP_NAMESPACE -c idp -- sh -c "/opt/jboss/keycloak/bin/kcadm.sh get groups -r mcm" | jq -r '.[] | select( .name == "entreprises" or .name == "collectivités") | .subGroups | .[] | .id')
+  GROUP_LIST_ID=$(kubectl exec $IDP_POD_NAME -n $IDP_NAMESPACE -c idp -- sh -c "/opt/jboss/keycloak/bin/kcadm.sh get groups -r mcm" | jq -r '.[] | select( .name == "entreprises" or .name == "collectivités" or .name == "administrations_nationales") | .subGroups | .[] | .id')
   echo $GROUP_LIST_ID
   if [ -z "$GROUP_LIST_ID" ]
   then

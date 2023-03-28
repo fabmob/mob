@@ -1,6 +1,6 @@
 {
   "name": "cypress-mcm",
-  "version": "1.21.0",
+  "version": "1.21.2",
   "description": "",
   "main": "index.js",
   "scripts": {

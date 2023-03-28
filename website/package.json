@@ -1,7 +1,7 @@
 {
   "name": "@mcm/mcm-website",
   "description": "JAMstack project based on Gatsby and Netlify CMS",
-  "version": "1.21.0",
+  "version": "1.21.2",
   "author": "Capgemini",
   "dependencies": {
     "@datapunt/matomo-tracker-react": "0.5.1",
