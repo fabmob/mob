@@ -20,7 +20,7 @@ describe('Subscription finalize Interceptor', () => {
   const inputSubscriptionNotBrouillon = new Subscription({
     id: 'idSubscription',
     citizenId: 'citizenId',
-    status: SUBSCRIPTION_STATUS.VALIDATED,
+    status: SUBSCRIPTION_STATUS.ERROR,
   });
 
   const inputSubscriptionFail = new Subscription({
@@ -54,7 +54,7 @@ describe('Subscription finalize Interceptor', () => {
     }
   });
 
-  it('SubscriptionFinalizeInterceptor args: error Subscription not BROUILLON', async () => {
+  it('SubscriptionFinalizeInterceptor args: error Subscription not BROUILLON, VALIDEE, REJETEE', async () => {
     try {
       subscriptionRepository.stubs.findById.resolves(inputSubscriptionNotBrouillon);
       await interceptor.intercept(invocationContextArgsOK);

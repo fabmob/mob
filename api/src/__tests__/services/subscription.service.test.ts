@@ -1233,6 +1233,7 @@ describe('Subscriptions service', () => {
 
   const requestBodyExample: OperatorData = {
     journey_type: 'short',
+    identity_key: 'f44ff5364363e53da750d8b7b44fa3176ea36228c5f951a9c1e606c915093d30',
     driving_license: '051227308989',
     last_name_trunc: 'TTT',
     operator_journey_id: 'operator_journey_id',

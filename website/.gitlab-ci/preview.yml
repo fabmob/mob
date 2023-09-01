@@ -5,39 +5,18 @@ website_image_build:
   needs: ['website_build']
 
 .website_test_script: &website_test_script |
-  yarn test --coverage --ci --reporters=default --reporters=jest-junit
+  yarn test
 
-website_test:
-  image: ${NODE_BASE_IMAGE_NAME}
-  extends:
-    - .test-job
-    - .website-base
-  script:
-    - *website_test_script
-  artifacts:
-    when: always
-    paths:
-      - ${MODULE_PATH}/coverage/lcov.info
-    expire_in: 5 days
-  needs: ['website_build']
-
-website_verify:
-  extends:
-    - .verify-job
-    - .website-base
-  variables:
-    SONAR_SOURCES: .
-  needs: ['website_test']
-
-website_preview_deploy:
-  extends:
-    - .preview-deploy-job
-    - .website-base
-  needs: ['website_image_build']
-  environment:
-    on_stop: website_preview_cleanup
-
-website_preview_cleanup:
-  extends:
-    - .commons_preview_cleanup
-    - .website-base
+# website_test:
+#   image: ${NODE_BASE_IMAGE_NAME}
+#   extends:
+#     - .test-job
+#     - .website-base
+#   script:
+#     - *website_test_script
+#   artifacts:
+#     when: always
+#     paths:
+#       - ${MODULE_PATH}/coverage/lcov.info
+#     expire_in: 5 days
+#   needs: ['website_build']

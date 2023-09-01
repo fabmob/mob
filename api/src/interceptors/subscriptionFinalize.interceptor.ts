@@ -71,7 +71,12 @@ export class SubscriptionFinalizeInterceptor implements Provider<Interceptor> {
       }
 
       // Check subscription status
-      if (subscription?.status !== SUBSCRIPTION_STATUS.DRAFT) {
+      // MODEV-15135: we allow to verify again subscriptions that have "VALIDEE" and "REJETEE" status
+      if (
+        subscription?.status !== SUBSCRIPTION_STATUS.DRAFT &&
+        subscription?.status !== SUBSCRIPTION_STATUS.REJECTED &&
+        subscription?.status !== SUBSCRIPTION_STATUS.VALIDATED
+      ) {
         throw new ConflictError(
           SubscriptionFinalizeInterceptor.name,
           invocationCtx.methodName,

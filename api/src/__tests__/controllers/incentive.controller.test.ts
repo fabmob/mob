@@ -405,7 +405,7 @@ describe('Incentives Controller', () => {
       incentiveMockNational,
     ]);
 
-    affiliationRepository.stubs.findById.resolves({
+    affiliationRepository.stubs.findOne.resolves({
       enterpriseId: 'funderId',
       status: AFFILIATION_STATUS.AFFILIATED,
     } as Affiliation);
@@ -462,7 +462,10 @@ describe('Incentives Controller', () => {
 
     await givenIncentives([incentiveMockEmployee, incentiveMockTerritory, incentiveMockNational]);
 
-    affiliationRepository.stubs.findById.resolves({status: AFFILIATION_STATUS.TO_AFFILIATE} as Affiliation);
+    affiliationRepository.stubs.findOne.resolves({
+      enterpriseId: 'funderId',
+      status: AFFILIATION_STATUS.TO_AFFILIATE,
+    } as Affiliation);
 
     const controller = new IncentiveController(
       responseOk,
@@ -510,7 +513,7 @@ describe('Incentives Controller', () => {
       incentiveMockNational,
     ]);
 
-    affiliationRepository.stubs.findById.resolves({
+    affiliationRepository.stubs.findOne.resolves({
       enterpriseId: 'differentFunderId',
       status: AFFILIATION_STATUS.AFFILIATED,
     } as Affiliation);
@@ -556,6 +559,48 @@ describe('Incentives Controller', () => {
         ]),
       ]),
     );
+  });
+
+  it('GET /v1/incentives should return an error if no affiliation is found for a citizen', async () => {
+    const currentUserServiceMaas: IUser = {
+      clientName: 'maas-client',
+      emailVerified: undefined,
+      funderName: undefined,
+      funderType: undefined,
+      groups: undefined,
+      id: 'maasId',
+      roles: ['default-roles-mcm', 'offline_access', 'citoyens', 'uma_authorization', 'maas'],
+      [securityId]: 'maasId',
+    };
+
+    affiliationRepository.stubs.findOne.resolves(null);
+
+    const controller = new IncentiveController(
+      responseOk,
+      incentiveRepositoryReelDatabase,
+      funderRepository,
+      repositoryTerritory,
+      eligibilityChecksRepository,
+      affiliationRepository,
+      incentiveService,
+      territoryService,
+      citizenService,
+      geoApiGouvService,
+      currentUserServiceMaas,
+    );
+
+    const filter: Filter<Incentive> = {
+      fields: {
+        updatedAt: false,
+        transportList: false,
+      },
+    };
+
+    try {
+      await controller.find(filter);
+    } catch (err) {
+      expect(err.message).to.equal('affiliation.not.found.for.citizen.id');
+    }
   });
 
   it('GET /v1/incentives should return err when only inaccessible fields are requested', async () => {

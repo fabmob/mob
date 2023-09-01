@@ -1,4 +1,10 @@
-import {convertPhoneNumber, removeWhiteSpace, truncateName} from '../controllers/utils/helpers';
+import {
+  computeIdentityKey,
+  convertPhoneNumber,
+  formatLastNameCee,
+  removeWhiteSpace,
+  truncateName,
+} from '../controllers/utils/helpers';
 import {convertToISODate} from './date';
 import {OperatorData} from './interface';
 
@@ -18,7 +24,13 @@ const convertSpecificFields = (
     lowerCaseKeys[newKey] = specificFields[key];
   }
 
+  const identity_key = computeIdentityKey(
+    formatLastNameCee(lastname),
+    convertPhoneNumber(lowerCaseKeys['numéro de téléphone'], {truncate: false}),
+  );
+
   let operatorData = <OperatorData>{
+    identity_key,
     last_name_trunc: truncateName(lastname),
     driving_license: lowerCaseKeys['numéro de permis de conduire'],
   };

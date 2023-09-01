@@ -1,3 +1,4 @@
+
 ARG NODE_IMAGE_NAME
 FROM ${NODE_IMAGE_NAME}
 
@@ -25,19 +26,13 @@ WORKDIR /home/node/app
 # Install and build are supposed to be yet done
 ARG CI_PROJECT_ID
 ENV CI_PROJECT_ID=${CI_PROJECT_ID}
-ARG GITLAB_REGISTRY_NPM_TOKEN
-ENV GITLAB_REGISTRY_NPM_TOKEN=${GITLAB_REGISTRY_NPM_TOKEN}
-ARG NEXUS_NPM_PROXY_TOKEN
-ENV NEXUS_NPM_PROXY_TOKEN=${NEXUS_NPM_PROXY_TOKEN}
-ARG PACKAGE_VERSION
-ENV PACKAGE_VERSION=${PACKAGE_VERSION}
 
 # Install app dependencies
 # A wildcard is used to ensure both package.json AND package-lock.json are copied
 # where available (npm@5+)
 COPY --chown=node package.json ./
 COPY --chown=node yarn.lock ./
-COPY --chown=node .npmrc ./
+#COPY --chown=node .npmrc ./
 
 RUN yarn install
 #COPY --chown=node node_modules ./node_modules

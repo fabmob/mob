@@ -196,6 +196,7 @@ type longDistance = 'long';
 
 export interface ShortDistanceData {
   journey_type: shortDistance;
+  identity_key: string;
   driving_license: string;
   last_name_trunc: string;
   operator_journey_id: string;
@@ -204,6 +205,7 @@ export interface ShortDistanceData {
 
 export interface LongDistanceData {
   journey_type: longDistance;
+  identity_key: string;
   driving_license: string;
   last_name_trunc: string;
   phone_trunc: string;

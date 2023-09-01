@@ -4,7 +4,6 @@ api_image_build:
     - .api-base
   needs: ['api_build']
 
-# Unit test of api with the yarn cache
 .api_test_script: &api_test_script |
   yarn test --reporter mocha-junit-reporter --reporter-options mochaFile=./junit.xml
   yarn coverage
@@ -22,37 +21,3 @@ api_test:
       - ${MODULE_PATH}/coverage/lcov.info
     expire_in: 5 days
   needs: ['api_build']
-
-# Quality of code test in sonarqube with verify-job from common
-api_verify:
-  extends:
-    - .verify-job
-    - .api-base
-  variables:
-    SONAR_SOURCES: .
-    SONAR_EXCLUSIONS: 'sonar.exclusions=**/node_modules/**, dist/**, databaseConfig/**, public/**, coverage/**, **/__tests__/**, **.yml, **.json, **.md, eslintrc.js'
-    SONAR_CPD_EXCLUSIONS: '**/__tests__/**, src/datasources/**, src/models/**, src/repositories/**'
-  needs: ['sonarqube-verify-image-build', 'api_test']
-
-api_preview_deploy:
-  extends:
-    - .preview-deploy-job
-    - .api-base
-  script:
-    - |
-      deploy
-      wait_pod mongo
-      config_volume mongo
-  needs: ['api_image_build']
-  environment:
-    on_stop: api_preview_cleanup
-
-api_preview_documentation:
-  extends:
-    - .preview-env-vars
-    - .api-documentation-job
-
-api_preview_cleanup:
-  extends:
-    - .commons_preview_cleanup
-    - .api-base

@@ -1,8 +1,8 @@
 interface Fr {
   'search.head.page.title': string;
   'search.head.title.separator': string;
-  'search.head.title.siteName' : string;
-  'search.head.description' : string;
+  'search.head.title.siteName': string;
+  'search.head.description': string;
   'search.incentive.text': string;
   'search.incentive.authenticated.text': string;
   'search.subtitle.non.authenticated.text': string;
@@ -147,11 +147,11 @@ interface Fr {
   'cgu.infos.part1.line2': string;
   'cgu.infos.part1.line3': string;
   'cgu.infos.part1.line4': string;
-  'cgu.infos.part1.line5': string;
   'cgu.infos.and': string;
   'cgu.infos.part2.line1': string;
   'cgu.infos.part2.line2': string;
   'cgu.infos.part2.line3': string;
+  'cgu.infos.part2.line4': string;
   'cgu.infos.host': string;
   'cgu.infos.host.line1': string;
   'cgu.infos.host.line2': string;

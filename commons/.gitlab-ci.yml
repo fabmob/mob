@@ -1,79 +1,33 @@
 include:
-  - local: "commons/kubetools/.gitlab-ci.yml"
-  - local: "commons/sonarqube/.gitlab-ci.yml"
+  - local: 'commons/.gitlab-ci/preview.yml'
     rules:
       - if: $CI_COMMIT_BRANCH !~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger" && $CI_PIPELINE_SOURCE != "schedule"
-  - local: "commons/.gitlab-ci/preview.yml"
-    rules:
-      - if: $CI_COMMIT_BRANCH !~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger" && $CI_PIPELINE_SOURCE != "schedule"
-  - local: "commons/.gitlab-ci/testing.yml"
-    rules:
-      - if: $CI_COMMIT_BRANCH =~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger"
-  - local: "commons/.gitlab-ci/helm.yml"
-    rules:
-      - if: $CI_PIPELINE_SOURCE == "trigger"
-
-validate_env:
-  stage: .pre
-  extends:
-    - .only-branches
-    - .except-release
-  image: ${NEXUS_DOCKER_REPOSITORY_URL}/ubuntu:22.04
-  script:
-    - |
-      if [ -z ${BASE_DOMAIN} ]; then echo "BASE_DOMAIN must be set"; exit 1; fi
 
 .cd-to-module: &cd-to-module |
   export MODULE_PATH=${MODULE_PATH:-${MODULE_NAME}}
   [ "${GIT_STRATEGY}" != "none" ] && [ "${MODULE_PATH}" != "" ] && cd ${MODULE_PATH}
 
+.predicate-clean-yes: &predicate-clean-yes $CLEAN_DATA == "yes"
+
+.predicate-skip-tests-verify-yes: &predicate-skip-tests-verify-yes $SKIP_TEST == "yes"
+
 .commons:
   variables:
-    NAMESPACE: ${MODULE_NAME}-${CI_COMMIT_REF_SLUG}-${LANDSCAPE}
+    MODULE_NAME: ''
+    MODULE_PATH: ''
     GIT_STRATEGY: clone
-    MODULE_NAME: ""
-    MODULE_PATH: ""
-    COMMON_NAME: common
-    SAST_IMAGE_NAME: ${CI_REGISTRY_IMAGE}/sast-audit:1.0
-    #DOCKER_TLS_CERTDIR: ""
-    #DOCKER_DRIVER: overlay2
-    KUBETOOLS_IMAGE_TAGNAME: ${CI_REGISTRY}/${CI_PROJECT_PATH}/kubetools:${CI_COMMIT_REF_SLUG}-${CI_PIPELINE_ID}
-    IMAGE_PULL_SECRET_PREFIX: gitlab-registry
-    PROXY_IMAGE_PULL_SECRET_PREFIX: nexus-registry
-    GITLAB_PROJECT_PATH: ${CI_PROJECT_PATH}
-    GITLAB_BRANCH: ${CI_COMMIT_REF_NAME}
-    GITLAB_URL: ${CI_SERVER_URL}
-    BRANCH_NAME: ${CI_COMMIT_REF_SLUG}
+    IMAGE_TAG_NAME: ${CI_COMMIT_REF_SLUG}-${CI_PIPELINE_ID}
+    BUILD_IMAGE_NAME: node:16.14.2-alpine
     REGISTRY_USER: ${CI_REGISTRY_USER}
     REGISTRY_PASSWORD: ${CI_REGISTRY_PASSWORD}
-    REGISTRY_BASE_NAME: ${CI_REGISTRY_IMAGE}
     REGISTRY_URL: ${CI_REGISTRY}
-    NEXUS_DOCKER_REGISTRY_URL: ${NEXUS_DOCKER_REPOSITORY_URL}
-    NEXUS_USER_NAME: ${NEXUS_DEV_USER}
-    NEXUS_USER_PWD: ${NEXUS_DEV_PASSWORD}
-    NEXUS_DOCKER_REGISTRY_HANDOVER_URL: ${NEXUS_DOCKER_REGISTRY_HANDOVER_URL}
-    BUILD_IMAGE_NAME: ${NEXUS_DOCKER_REPOSITORY_URL}/node:16.14.2-alpine
-    VERIFY_IMAGE_NAME: ${CI_REGISTRY_IMAGE}/mcm-verify:${CI_COMMIT_REF_SLUG}-${CI_PIPELINE_ID}
-    TEST_IMAGE_NAME: ${NEXUS_DOCKER_REPOSITORY_URL}/node:16.14.2-alpine
-    IMAGE_TAG_NAME: ${CI_COMMIT_REF_SLUG}-${CI_PIPELINE_ID}
+    REGISTRY_BASE_NAME: ${CI_REGISTRY_IMAGE}
+    TEST_IMAGE_NAME: node:16.14.2-alpine
+    NEXUS_DOCKER_REGISTRY_URL: docker-registry.streetsmart.parkeon.com:5000
+    NEXUS_USER_NAME: ${streetsmart_nexus_username}
+    NEXUS_USER_PWD: ${streetsmart_nexus_password}
   before_script:
     - *cd-to-module
-
-.subdomains:
-  variables:
-    api_subdomain: "api-${CI_COMMIT_REF_SLUG}"
-    analytics_subdomain: "analytics-${CI_COMMIT_REF_SLUG}"
-    s3_subdomain: "s3-${CI_COMMIT_REF_SLUG}"
-    admin_subdomain: "admin-${CI_COMMIT_REF_SLUG}"
-    idp_subdomain: "idp-${CI_COMMIT_REF_SLUG}"
-    vault_subdomain: "vault-${CI_COMMIT_REF_SLUG}"
-    website_subdomain: "website-${CI_COMMIT_REF_SLUG}"
-    maas_subdomain: "simulation-mass-${CI_COMMIT_REF_SLUG}"
-    mailhog_subdomain: "mailhog-${CI_COMMIT_REF_SLUG}"
-
-.no-git-clone:
-  variables:
-    GIT_STRATEGY: none
 
 .no-dependencies:
   dependencies: []
@@ -84,33 +38,6 @@ validate_env:
 .manual:
   when: manual
 
-.only-master:
-  only:
-    refs:
-      - master
-
-.only-branches:
-  only:
-    refs:
-      - branches
-
-# Schedule pipeline
-.predicate-schedule: &predicate-schedule $CI_PIPELINE_SOURCE == "schedule"
-
-.only-schedule:
-  only:
-    variables:
-      - *predicate-schedule
-
-.predicate-skip-tests-verify-yes: &predicate-skip-tests-verify-yes $SKIP_TEST == "yes"
-
-.predicate-clean-yes: &predicate-clean-yes $CLEAN_DATA == "yes"
-
-.only-clean:
-  only:
-    variables:
-      - *predicate-clean-yes
-
 .except-clean-or-release:
   except:
     variables:
@@ -118,21 +45,17 @@ validate_env:
     refs:
       - triggers
 
-.except-release:
-  except:
+.only-branches:
+  only:
     refs:
-      - triggers
+      - branches
 
-.except-all:
-  except:
-    variables:
-      - *predicate-clean-yes
-      - *predicate-skip-tests-verify-yes
+.only-master:
+  only:
     refs:
-      - triggers
+      - master
 
-# Helper templates to specify intents of jobs, and select appropriate runners
-
+# Commons job dedicated to build application
 .build-job-tags:
   tags:
     - os:linux
@@ -141,18 +64,8 @@ validate_env:
 .build-n-sast-job-tags:
   tags:
     - os:linux
-    - task:build-n-sast
-
-.image-job-tags:
-  tags:
-    - os:linux
-    - task:image
-
-.test-job-tags:
-  tags:
-    - os:linux
-    - task:test
-
+    # - task:build-n-sast
+    #
 .build-job:
   extends:
     - .commons
@@ -162,13 +75,20 @@ validate_env:
   stage: build
   image: ${BUILD_IMAGE_NAME}
 
+# Commons jobs dedicated to build docker image of application
 .declare-image-functions: &declare-image-functions |
   function image {
     docker login -u ${REGISTRY_USER} -p ${REGISTRY_PASSWORD} ${REGISTRY_URL}
     docker login -u ${NEXUS_USER_NAME} -p ${NEXUS_USER_PWD} ${NEXUS_DOCKER_REGISTRY_URL}
+
     docker-compose --file ${COMPOSE_FILENAME} build
     docker-compose --file ${COMPOSE_FILENAME} push
   }
+
+.image-job-tags:
+  tags:
+    - os:linux
+    - task:image
 
 .image-job:
   extends:
@@ -179,7 +99,7 @@ validate_env:
   stage: image
   variables:
     COMPOSE_FILENAME: kompose.yml
-  image: ${NEXUS_DOCKER_REGISTRY_URL}/tiangolo/docker-with-compose:2021-09-18
+  image: tiangolo/docker-with-compose:2021-09-18
   before_script:
     - *cd-to-module
     - *declare-image-functions
@@ -188,10 +108,25 @@ validate_env:
       image
 
 .default-image-job:
-  variables:
-    IMAGE_TAG_NAME: ${CI_COMMIT_REF_SLUG}-${CI_PIPELINE_ID}
   extends:
     - .image-job
+  variables:
+    IMAGE_TAG_NAME: ${CI_COMMIT_REF_SLUG}-${CI_PIPELINE_ID}
+
+# Commons jobs dedicated to test application
+
+.test-job-tags:
+  tags:
+    - os:linux
+    - task:test
+
+.except-all:
+  except:
+    variables:
+      - *predicate-clean-yes
+      - *predicate-skip-tests-verify-yes
+    refs:
+      - triggers
 
 .test-job:
   stage: test
@@ -208,109 +143,4 @@ validate_env:
     reports:
       junit:
         - ${MODULE_PATH:-${MODULE_NAME}}/junit.xml
-    expire_in: 5 days
-
-.archive_sast_script: &archive_sast_script |
-  # Check if node_modules exists
-  if [ ! -d node_modules ]; then
-      echo "node_modules is not there, SAST analysis can not be performed" && exit 1
-  fi
-  # Create an archive with data to scan
-  echo "Create archive "${RELEASE_NAME}.zip" with data to scan..."
-  zip -u -qq -r ${RELEASE_NAME}.zip .
-  echo "...archive created"
-
-.run_sast_script: &run_sast_script |
-  # Create a new FoD release if it not exists
-  [ -z '${SDLC_STATUS}' ] && export SDLC_STATUS=3
-
-  touch ${SAST_LOG_FILE}
-  touch ${SAST_RESULT_FILE}
-
-  ls -altr .
-  runCommandExit=""
-  echo "COPY_FROM_RELEASE" ${COPY_FROM_RELEASE}
-
-  releaseId=""
-  if [ $RELEASE_NAME = "website" ]; then releaseId=115062
-   elif [ $RELEASE_NAME = "api" ]; then releaseId=115060
-   elif [ $RELEASE_NAME = "admin" ]; then releaseId=115061
-   else releaseId=""
-  fi
-
-  echo "releaseId" ${releaseId}
-  optionArgs=""
-
-  [ ${ALLOW_POLICY_FAIL} = 'true' ] && optionArgs="${optionArgs} -policy"
-  [ ${INCLUDE_THIRD_PARTY_LIBS} = 'true' ] && optionArgs="${optionArgs} -itp"
-  [ ${RUN_SONATYPE_SCAN} = 'true' ] && optionArgs="${optionArgs} -oss"
-
-  # Run the scan
-  runCommandExit=`java -jar /usr/lib/FodAPIClient.jar ${FOD_AUTHENTICATION_ARGS} static-scan -z ${RELEASE_NAME}.zip -tid ${FORTIFY_TENANT_ID} -rid $releaseId -I ${POLLING_INTERVAL}${optionArgs} -pp ${IN_PROGRESS_SCAN_ACTION_TYPE} -rp ${REMEDIATION_SCAN_PREFERENCE_TYPE} -tech ${TECHNOLOGY_TYPE} -o ${SAST_RESULT_FILE}`
-  echo "runCommandExit" ${runCommandExit}
-
-  echo "Processing output..."
-  scanId=`echo $runCommandExit | grep -o -P "Scan.?[0-9]*" | awk -F 'Scan ' '{print($2)}'`
-  echo "scanId=$scanId" >> ${SAST_LOG_FILE}
-  echo "Download FPR at ${FORTIFY_PORTAL_URL}/Releases/$releaseId/Scans" >> ${SAST_LOG_FILE}
-
-  cat ${SAST_RESULT_FILE}
-
-  ls -altr .
-
-  echo "Done..."
-
-# .send_email: &send_email |
-#   echo "Convert rapport to base64"
-#   BASE64_RESULT_FILE="$(base64 -w ${SAST_RESULT_FILE})"
-
-#   echo "Create variables for email"
-#   PERSONALIZATIONS=[{"to": [{ "email": "${HANDOVER_GITLAB_EMAIL}" }]}]
-#   FROM={ "email": "gitlab@moncomptemobilite.fr", "name": "Gitlab"}
-#   SUBJECT="SAST REPORT ${MODULE_NAME}-${CI_COMMIT_REF}"
-#   CONTENT=[{"type": "text/html", "value": "<p>This is an automatic email sent after SAST analysis is being performed<p>"}]
-#   ATTACHMENTS=[{"content": "$BASE64_RESULT_FILE", "filename": "SAST_REPORT_${MODULE_NAME}.json", "type": "text/plain", "disposition": "attachment"}]
-
-#   curl -X POST "https://api.sendgrid.com/v3/mail/send" \
-#   --header "Authorization: Bearer ${SENDGRID_API_KEY}" \
-#   --header "Content-Type: application/json" \
-#   --data '{ "personalizations": $PERSONALIZATIONS, "from": $FROM, "subject": $SUBJECT, "content": $CONTENT, "attachments": $ATTACHMENTS }'
-
-.sast-job:
-  stage: utils
-  extends:
-    - .commons
-    - .build-n-sast-job-tags
-    - .only-schedule
-  image: ${SAST_IMAGE_NAME}
-  variables:
-    FOD_AUTHENTICATION_ARGS: -ac ${FORTIFY_API_KEY} ${FORTIFY_API_ACCESS_KEY} -tc ${FORTIFY_TENANT_CODE} -aurl ${FORTIFY_API_URL} -purl ${FORTIFY_PORTAL_URL}
-    # Should be the name of an existing release. Keep empty to create a proper new version
-    COPY_FROM_RELEASE: ${MODULE_NAME}
-    RELEASE_DESCRIPTION: "Scan for ${MODULE_NAME}"
-    RELEASE_NAME: ${MODULE_NAME}
-    # [1:Production, 2:QA, 3:Development, 4:Retired]
-    SDLC_STATUS: 1
-    SAST_RESULT_FILE: result_summary.json
-    SAST_LOG_FILE: sast_data_${RELEASE_NAME}.log
-    # Polling interval for retrieving results. If 0, the scan will be performed asynchronously. Value in minutes
-    POLLING_INTERVAL: 2
-    ALLOW_POLICY_FAIL: "true"
-    # [0:DoNotStartScan, 1:CancelInProgressScan, 2:Queue]
-    IN_PROGRESS_SCAN_ACTION_TYPE: 2
-    INCLUDE_THIRD_PARTY_LIBS: "false"
-    RUN_SONATYPE_SCAN: "true"
-    # [0:RemediationScanIfAvailable, 1:RemediationScanOnly, 2:NonRemediationScanOnly]
-    REMEDIATION_SCAN_PREFERENCE_TYPE: 2
-    TECHNOLOGY_TYPE: JS/TS/HTML
-  script:
-    - *archive_sast_script
-    - *run_sast_script
-    # - *send_email
-  artifacts:
-    paths:
-      # The result file may be empty regarding to the value passed to POLLING_INTERVAL
-      # whereas the log file will contain the release ID and the scan ID
-      - ${MODULE_PATH:-${MODULE_NAME}}/${SAST_LOG_FILE}
-      - ${MODULE_PATH:-${MODULE_NAME}}/${SAST_RESULT_FILE}
     expire_in: 5 days

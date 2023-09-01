@@ -2,18 +2,12 @@ include:
   - local: 'website/.gitlab-ci/preview.yml'
     rules:
       - if: $CI_COMMIT_BRANCH !~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger" && $CI_PIPELINE_SOURCE != "schedule"
-  - local: 'website/.gitlab-ci/testing.yml'
-    rules:
-      - if: $CI_COMMIT_BRANCH =~ /rc-.*/ && $CI_PIPELINE_SOURCE != "trigger"
-  - local: 'website/.gitlab-ci/helm.yml'
-    rules:
-      - if: $CI_PIPELINE_SOURCE == "trigger"
 
 .website-base:
   variables:
     MODULE_NAME: website
     MODULE_PATH: ${MODULE_NAME}
-    NODE_BASE_IMAGE_NAME: ${NEXUS_DOCKER_REPOSITORY_URL}/node:16.15.0-stretch
+    NODE_BASE_IMAGE_NAME: node:16.15.0-stretch
     MATOMO_ID: ${ANALYTICS_MCM_WEBSITE_ID}
     PATH_API: '/api'
     GATSBY_DESIGNER_URL: https://${BASE_DOMAIN}
@@ -23,9 +17,9 @@ include:
     GATSBY_CI_COMMIT_SHA: ${CI_COMMIT_SHA}
     GATSBY_CI_PIPELINE_ID: ${CI_PIPELINE_ID}
     GATSBY_CI_PIPELINE_URL: ${CI_PIPELINE_URL}
-    NEXUS_IMAGE_NGINX: ${NEXUS_DOCKER_REPOSITORY_URL}/nginx:1.21
+    NEXUS_IMAGE_NGINX: nginx:1.21
     NETLIFYCMS_APP_ID: ${NETLIFYCMS_APP_ID}
-    WEBSITE_IMAGE_NAME: ${REGISTRY_BASE_NAME}/website:${IMAGE_TAG_NAME}
+    WEBSITE_IMAGE_NAME: ${REGISTRY_BASE_NAME}/fabmob-website-ui:${IMAGE_TAG_NAME}
   only:
     changes:
       - '*'
@@ -52,11 +46,3 @@ website_build:
       - ${MODULE_PATH}/node_modules/
       - ${MODULE_PATH}/public
     expire_in: 5 days
-
-# Static Application Security Testing for known vulnerabilities
-website_sast:
-  extends:
-    - .sast-job
-    - .build-n-sast-job-tags
-    - .website-base
-  needs: ['website_build']

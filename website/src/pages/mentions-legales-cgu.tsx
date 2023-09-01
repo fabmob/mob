@@ -32,8 +32,6 @@ const CGU: FC<CGUProps> = ({ pageContext }) => {
           {Strings['cgu.infos.part1.line3']}
           <br></br>
           {Strings['cgu.infos.part1.line4']}
-          <br></br>
-          {Strings['cgu.infos.part1.line5']}
         </p>
         <p>{Strings['cgu.infos.and']}</p>
         <p>
@@ -42,6 +40,8 @@ const CGU: FC<CGUProps> = ({ pageContext }) => {
           {Strings['cgu.infos.part2.line2']}
           <br></br>
           {Strings['cgu.infos.part2.line3']}
+          <br></br>
+          {Strings['cgu.infos.part2.line4']}
         </p>
         <p>
           <b>{Strings['cgu.infos.host']}</b>

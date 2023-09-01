@@ -59,7 +59,7 @@ import {
 } from '../utils';
 import {incentiveExample} from './utils/incentiveExample';
 import {LIMIT_DEFAULT, TAG_MAAS, WEBSITE_FQDN} from '../constants';
-import {BadRequestError} from '../validationError';
+import {BadRequestError, NotFoundError} from '../validationError';
 import {defaultSwaggerError} from './utils/swagger-errors';
 import express, {Request, Response} from 'express';
 
@@ -247,7 +247,7 @@ export class IncentiveController {
     Si l'authentifié est un compte de service, seules les aides publiques \
     (types AideNationale|AideTerritoire) sont retournées.<br>
     Si l'authentifié est un citoyen, les aides de type AideEmployeur sont \
-    retournées si les 2 conditions suivantes sont réunies : 
+    retournées si les 2 conditions suivantes sont réunies :
     <ul>
     <li>le citoyen connecté est affilié</li>\
     <li>le type d'aide AideEmployeur est spécifié dans la clause \
@@ -258,7 +258,7 @@ export class IncentiveController {
     d'acquérir les identifiants des territoires correspondants via la requête GET /v1/territories. \
     Ensuite, ces identifiants doivent être intégrés dans la clause "where" du filtre de la requête \
     comme ceci :
-    </p> 
+    </p>
     <code>{"where": {"territoryIds": {"inq" : ["TerritoireID1","TerritoireID2"]}}}</code><br>`,
     security: SECURITY_SPEC_JWT_KC_PASSWORD_KC_CREDENTIALS,
     tags: ['Incentives', TAG_MAAS],
@@ -332,7 +332,19 @@ export class IncentiveController {
 
         // Get the current user's affiliation if belongs to citizen group
         if (isCitizen) {
-          const {enterpriseId, status} = await this.affiliationRepository.findById(id);
+          const affiliation = await this.affiliationRepository.findOne({where: {citizenId: id}});
+          if (!affiliation) {
+            throw new NotFoundError(
+              IncentiveController.name,
+              this.find.name,
+              'affiliation.not.found.for.citizen.id',
+              '/incentives',
+              ResourceName.Citizen,
+              id,
+            );
+          }
+
+          const {enterpriseId, status} = affiliation;
 
           Logger.debug(IncentiveController.name, this.find.name, 'Enterprise ID', enterpriseId);
           Logger.debug(IncentiveController.name, this.find.name, 'Affiliation Status', status);

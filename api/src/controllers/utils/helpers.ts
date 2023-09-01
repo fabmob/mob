@@ -1,5 +1,6 @@
 import {Subscription} from '../../models';
 import {IDashboardCitizenIncentiveList, INCENTIVE_TYPE} from '../../utils';
+import {createHash} from 'crypto';
 
 /**
  * INTERFACES
@@ -125,13 +126,39 @@ export const removeWhiteSpace = (word: string): string => {
  * Returns the three first letters from name with white spaces if necessary
  */
 export const truncateName = (name: string) => {
-  let prenom = name.toUpperCase().substring(0, 3); // Get the first three letters of the name
+  let lastName = formatLastNameCee(name); // Get the first three letters of the name
 
-  // Complete with spaces until the name got 3 letters
-  while (prenom.length < 3) {
-    prenom += ' ';
+  while (lastName.length < 3) {
+    lastName += ' ';
   }
-  return prenom;
+  // Complete with spaces until the name got 3 letters
+  return lastName.substring(0, 3);
+};
+
+/**
+ * Format last name according to cee requirements
+ * - remove diacritics
+ * - replace hyphens by whitespace
+ * - use uppercase letters
+ */
+export const formatLastNameCee = (str: string) => {
+  return str
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/'|-/g, ' ')
+    .toUpperCase();
+};
+
+/**
+ * Compute the identity key to send to CEE api
+ *
+ * format is: sha256(phone_number-last_name)
+ * where:
+ * phone_number is E.164 compliant
+ * last_name is in uppercase letters w/o accents and hyphens are replaced by whitespace
+ */
+export const computeIdentityKey = (lastName: string, phoneNumber: string) => {
+  return createHash('sha256').update(`${phoneNumber}-${lastName}`).digest('hex');
 };
 
 /**
@@ -146,16 +173,25 @@ export const isE164ForFrance = (phoneNumber: string): Boolean => {
  * Check if phone number is already converted
  * IF NOT convert it to the ITU-T E.164 format for France
  * At the end, Check if the area code is starting with 0, if yes remove it
- * Then slice the 10 caracters
+ * Then slice the 10 caracters if truncate option is set to true
  */
-export const convertPhoneNumber = (phoneNumber: string): string => {
+export const convertPhoneNumber = (
+  phoneNumber: string,
+  opts: {truncate: boolean} = {truncate: true},
+): string => {
+  const {truncate} = opts;
+  let formattedNumber;
+
   if (isE164ForFrance(phoneNumber)) {
-    const formattedNumber = phoneNumber.replace(/^\+33(0)/, '+33');
-    return formattedNumber.substring(0, 10);
+    formattedNumber = phoneNumber.replace(/^\+33(0)/, '+33');
   } else if (/^[0].{7,9}$/.test(phoneNumber)) {
-    const formattedNumber = '+33' + phoneNumber.substring(1);
-    return formattedNumber.substring(0, 10);
+    formattedNumber = '+33' + phoneNumber.substring(1);
   } else {
     return phoneNumber;
   }
+
+  if (truncate) {
+    return formattedNumber.substring(0, 10);
+  }
+  return formattedNumber;
 };
