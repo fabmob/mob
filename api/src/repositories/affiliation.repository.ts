@@ -26,12 +26,13 @@ export class AffiliationRepository extends DefaultCrudRepository<
    * Creates affiliation based on enterpriseEmail, enterpriseId and enterprise manual affiliation
    * @param citizen Citizen
    * @param hasManualAffiliation boolean
+   * @param isAutoAffiliated boolean
    * @returns Promise<Affiliation>
    */
-  async createAffiliation(citizen: Citizen, hasManualAffiliation: boolean): Promise<Affiliation> {
-    // Create object : affiliation
+  async createAffiliation(citizen: Citizen, hasManualAffiliation: boolean, isAutoAffiliated?: boolean): Promise<Affiliation> {
+     // Create object : affiliation
     const rawAffiliation: Affiliation = new Affiliation(citizen.affiliation);
-    // Set enterpriseEmail & enterpriseId to null if not present
+   // Set enterpriseEmail & enterpriseId to null if not present
     rawAffiliation.enterpriseEmail = rawAffiliation?.enterpriseEmail || null;
     rawAffiliation.enterpriseId = rawAffiliation?.enterpriseId || null;
 
@@ -43,6 +44,10 @@ export class AffiliationRepository extends DefaultCrudRepository<
       rawAffiliation.status = AFFILIATION_STATUS.TO_AFFILIATE;
     } else {
       rawAffiliation.status = AFFILIATION_STATUS.UNKNOWN;
+    }
+
+    if (isAutoAffiliated) {
+      rawAffiliation.status = AFFILIATION_STATUS.AFFILIATED;
     }
 
     // Assign citizenId

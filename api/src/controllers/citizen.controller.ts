@@ -42,6 +42,7 @@ import {
   CitizenCreate,
   Funder,
   CitizenFilter,
+  AffiliationCreate,
 } from '../models';
 import {InternalServerError} from '../validationError';
 import {
@@ -291,6 +292,85 @@ export class CitizenController {
       }
     } catch (error) {
       Logger.error(CitizenController.name, this.validateAffiliation.name, 'Error', error);
+      throw error;
+    }
+  }
+
+  /**
+   * autoaffiliate connected citizen
+   * @param data has token needed to affiliate connected citizen
+   */
+  @authenticate(AUTH_STRATEGY.KEYCLOAK, AUTH_STRATEGY.API_KEY)
+  @authorize({
+    allowedRoles: [Roles.SUPERVISORS, Roles.MANAGERS, Roles.API_KEY, Roles.CITIZENS],
+  })
+  @post('/v1/citizens/{citizenId}/autoaffiliate', {
+    'x-controller-name': 'Citizens',
+    summary: 'Affilie directement un citoyen à une entreprise',
+    security: SECURITY_SPEC_API_KEY_KC_PASSWORD,
+    responses: {
+      [StatusCode.NoContent]: {
+        description: "L'affiliation est validée",
+      },
+      ...defaultSwaggerError,
+    },
+  })
+  async createAffiliation(
+    @param.path.string('citizenId', {
+      description: `L'identifiant du citoyen`,
+    })
+    citizenId: string,
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            properties: {
+              enterpriseId: {
+                type: 'string',
+                example: "Identifiant de l'entreprise professionnelle du citoyen",
+              },
+            },
+          },
+        },
+      },
+    })
+    data: {
+      enterpriseId: string;
+    },
+  ): Promise<void> {
+    try {
+      //const user = this.currentUser;
+      // TODO: should probably check that current user is allowed (a.k.a is the citizen), here or in interceptor
+      let citizen: Citizen | null = await this.citizenService.getCitizenWithAffiliationById(citizenId);
+
+      Logger.debug(CitizenController.name, this.createAffiliation.name, 'citizen', citizen);
+
+      if (citizen.affiliation && citizen.affiliation.id) {
+        // Affiliation already exists, erase it with this one
+        // IDEA: maybe be smarter here ? This is pretty brutal
+        await this.affiliationRepository.updateById(citizen.affiliation.id, {
+          status: AFFILIATION_STATUS.AFFILIATED,
+          enterpriseId: data.enterpriseId,
+          enterpriseEmail: null
+        });
+      } else {
+
+        citizen.affiliation = {enterpriseId: data.enterpriseId} as Affiliation
+
+        // TODO: Not adding an entrepriseEmail doesn't seem to cause too many issues, but it might be smart to put one anyway
+        // ^ Especially if this results in a stuck user trying to update his profile (will entrepriseEmail be mandatory ?)
+        //citizen.affiliation.enterpriseEmail = citizen.personalInformation.email
+        const affiliation: Affiliation = await this.affiliationRepository.createAffiliation(
+          citizen,
+          false, // hasManualAffiliation
+          true // isAutoAffiliated
+        );
+
+        citizen.affiliation = affiliation
+      }
+    } catch (error) {
+      Logger.error(CitizenController.name, this.createAffiliation.name, 'Error', error);
       throw error;
     }
   }
