@@ -121,6 +121,17 @@ export const requestCitizenAffiliation = async (
   return data;
 };
 
+export const requestCitizenAutoAffiliation = async (
+  citizenId: string,
+  enterpriseId: string
+): Promise<{}> => {
+  const { data } = await https.post(
+    `v1/citizens/${citizenId}/autoaffiliate`,
+    JSON.stringify({ enterpriseId })
+  );
+  return data;
+};
+
 export const requestCitizenDesaffiliation = async (
   citizenId: string
 ): Promise<{}> => {
