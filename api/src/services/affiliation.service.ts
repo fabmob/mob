@@ -59,7 +59,7 @@ export class AffiliationService {
    * @param enterpriseEmails[]: string[] - email patterns of the enterprise citizen want to be member
    */
   isValidEmailProPattern(emailCitizen: string, enterpriseEmails: string[]): Boolean {
-    return enterpriseEmails.includes(emailCitizen.replace(/^.+@/, '@'));
+    return enterpriseEmails.map(email => email.toLowerCase()).includes(emailCitizen.replace(/^.+@/, '@').toLowerCase());
   }
 
   /**
