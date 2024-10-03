@@ -44,6 +44,7 @@
   "profile.label.gender.male": "M.",
   "profile.label.gender.female": "Mme.",
   "profile.phrase.not.affiliated": "Non Affilié",
+  "profile.phrase.not.affiliated.waiting": "En cours de validation par votre employeur",
   "profile.tooltip.linked.accounts": "Rendez-vous sur votre application régionale de mobilité pour lier vos comptes et profiter de l'ensemble des fonctionnalités MOB",
   "profile.tooltip.refresh.page": "Veuillez rafraîchir cette page pour visualiser le changement de statut",
   "profile.modal.validate.button": "Valider ma désaffiliation",

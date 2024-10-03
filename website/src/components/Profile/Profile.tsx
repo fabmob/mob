@@ -415,7 +415,7 @@ const Profile: FC<ProfileProps> = ({ crumbs }) => {
             </div>
           </>
         ) : (
-          Strings['profile.phrase.not.affiliated']
+          Strings['profile.phrase.not.affiliated.waiting']
         )
       ) : (
         UserAffiliationStatus[
