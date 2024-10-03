@@ -413,6 +413,9 @@ const RechercheComponent: FC<RechercheProps> = ({ pageContext }) => {
         ...previousState,
         employerIncentives: employerIncentivesCount?.count,
       }));
+      if (employerIncentivesCount?.count > 0 && !routeSelectedTab) {
+        setSelectedTab(INCENTIVE_TYPE.EMPLOYER_INCENTIVE)
+      }
     }
   }, [employerIncentivesCount]);
 
