@@ -19,7 +19,8 @@
             <p class="retour-ligne">${kcSanitize(msg("activeAccountDescription2"))?no_esc}</p>
             <div class="button-redirect">
                 <a id="button-activated" href="${properties.redirectToLoginPage}">${kcSanitize(msg("btnLogIn"))?no_esc}</a>
-            <div>
+            </div>
+            <p class="retour-ligne" style="margin-top: 35px">${kcSanitize(msg("activeAccountDescription3"))?no_esc}</p>
         <#else>
             <#if pageRedirectUri?has_content>
                 <p><a href="${pageRedirectUri}">${kcSanitize(msg("backToApplication"))?no_esc}</a></p>

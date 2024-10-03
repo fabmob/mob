@@ -298,5 +298,8 @@
   "search.incentive.tabs.all.incentives": "Toutes les aides {0}",
   "search.incentive.tabs.territory.incentives": "Aides territoriales {0}",
   "search.incentive.tabs.employees.incentives": "Aides employeur {0}",
-  "search.incentive.tabs.nationals.incentives": "Aides nationales {0}"
+  "search.incentive.tabs.nationals.incentives": "Aides nationales {0}",
+  "search.incentive.affiliation.toast.part1": "Votre affiliation employeur n'est pas finalisée, un email a du vous être envoyé sur l'adresse ",
+  "search.incentive.affiliation.toast.part2": "Consultez votre profil pour plus d'information, ou pour renvoyer l'email",
+  "search.incentive.affiliation.toast.close": "Fermer"
 }

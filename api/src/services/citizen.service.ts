@@ -605,7 +605,7 @@ export class CitizenService {
 
         // Send a manual affiliation mail to the company's funders accepting the manual affiliation or to citizen
         if (affiliation.status === AFFILIATION_STATUS.TO_AFFILIATE) {
-          if (enterprise!.enterpriseDetails.hasManualAffiliation) {
+          if (enterprise!.enterpriseDetails.hasManualAffiliation && !citizen.affiliation.enterpriseEmail) {
             await this.affiliationService.sendManualAffiliationMail(citizen, enterprise!);
             Logger.info(
               CitizenService.name,

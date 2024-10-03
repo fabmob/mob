@@ -1,4 +1,4 @@
-import React, { FC, useState } from 'react';
+import React, { FC, useEffect, useState } from 'react';
 import classNames from 'classnames';
 
 import './_tabs.scss';
@@ -19,6 +19,9 @@ const Tab: FC<TabProps> = ({ tabs, setSelectedIndex, defaultActiveTab }) => {
   const [activeTab, setActiveTab] = useState<number>(
     defaultActiveTab || tabs[0]?.id
   );
+  useEffect(() => {
+    setActiveTab(defaultActiveTab || tabs[0]?.id)
+  }, [defaultActiveTab])
 
   const handleTabClick = (tabID: React.SetStateAction<number>) => {
     setActiveTab(tabID);

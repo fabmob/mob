@@ -3,6 +3,7 @@ import { Breadcrumb } from 'gatsby-plugin-breadcrumb/';
 import { useQueryParam, StringParam } from 'use-query-params';
 import { useQueryClient, useQuery } from 'react-query';
 import { useMatomo } from '@datapunt/matomo-tracker-react';
+import toast from 'react-hot-toast';
 
 import { AuthorizationRoute } from '@modules/routes';
 
@@ -32,6 +33,7 @@ import Strings from './locale/fr.json';
 import { Helmet } from 'react-helmet';
 
 import mobLogo from '../../static/mob-favicon.png';
+import { navigate } from 'gatsby';
 
 interface RechercheProps {
   pageContext: { breadcrumb: { crumbs: string } };
@@ -381,6 +383,23 @@ const RechercheComponent: FC<RechercheProps> = ({ pageContext }) => {
   };
 
   useEffect(() => {
+    if (authenticated && citizen && citizen.affiliation && citizen.affiliation.status === "A_AFFILIER" && citizen.affiliation.enterpriseEmail) {
+      toast.loading((t) => (
+        <div>
+          <p>{Strings['search.incentive.affiliation.toast.part1']} {citizen.affiliation.enterpriseEmail}.</p>
+          <p>{Strings['search.incentive.affiliation.toast.part2']}: <button className="link-in-text" onClick={() => navigate('/mon-profil/', { replace: true })}>Mon Profil</button>.</p>
+          <button className="link-in-text" onClick={() => toast.dismiss(t.id)}>{Strings['search.incentive.affiliation.toast.close']}</button>
+        </div>
+      ),   {
+        style: {
+          minWidth: '50%',
+        }
+      })
+    }
+    return toast.dismiss
+  }, [])
+
+  useEffect(() => {
     if (allIncentivesCount) {
       setIncentivesCount((previousState) => ({
         ...previousState,
@@ -413,6 +432,9 @@ const RechercheComponent: FC<RechercheProps> = ({ pageContext }) => {
         ...previousState,
         employerIncentives: employerIncentivesCount?.count,
       }));
+      if (employerIncentivesCount?.count > 0 && !routeSelectedTab) {
+        setSelectedTab(INCENTIVE_TYPE.EMPLOYER_INCENTIVE)
+      }
     }
   }, [employerIncentivesCount]);
 
@@ -433,7 +455,7 @@ const RechercheComponent: FC<RechercheProps> = ({ pageContext }) => {
     territoryFilter,
     transportsFilter,
   ]);
-
+  
   return (
     <Layout
       footer={{

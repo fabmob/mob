@@ -44,6 +44,7 @@ interface Fr {
   'profile.label.gender.female': string;
   'profile.label.gender.male': string;
   'profile.phrase.not.affiliated': string;
+  'profile.phrase.not.affiliated.waiting': string;
   'profile.tooltip.linked.accounts': string;
   'profile.tooltip.refresh.page': string;
   'profile.modal.validate.button': string;

@@ -204,7 +204,7 @@ const GererSalaries: FC<GestionSalarierProps> = ({ location, pageContext }) => {
   const renderSalaries = (): ReactNode => {
     if (salaries && salaries.length) {
       return salaries.map(
-        ({ id, firstName, lastName, enterpriseEmail, email, birthDate }) => {
+        ({ id, firstName, lastName, enterpriseEmail, email, birthdate }) => {
           return (
             <CardLine key={id} classnames="salaries-card">
               <CardLineContent classnames="salaries-card__name span">
@@ -222,7 +222,7 @@ const GererSalaries: FC<GestionSalarierProps> = ({ location, pageContext }) => {
                       <Button
                         secondary
                         onClick={() => {
-                          openModal(id, lastName, firstName, email, birthDate);
+                          openModal(id, lastName, firstName, email, birthdate);
                         }}
                       >
                         {
@@ -438,7 +438,7 @@ const GererSalaries: FC<GestionSalarierProps> = ({ location, pageContext }) => {
   };
 
   /*
-   * Open Modal Delete Affiliation
+   * Open any Modal 
    */
   const openModal = (
     citizen: string,
@@ -458,7 +458,7 @@ const GererSalaries: FC<GestionSalarierProps> = ({ location, pageContext }) => {
   };
 
   /*
-   * Close Modal Delete Affiliation
+   * Close any Modal 
    */
   const closeModal = () => {
     setShowModal(false);
