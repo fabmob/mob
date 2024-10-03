@@ -4,7 +4,7 @@ import {SecurityBindings, UserProfile} from '@loopback/security';
 
 import {capitalize} from 'lodash';
 
-import {WEBSITE_FQDN} from '../constants';
+import {IDP_FQDN, realmName, WEBSITE_FQDN} from '../constants';
 import {Affiliation, Citizen, User, Enterprise, Funder} from '../models';
 import {
   AffiliationRepository,
@@ -178,7 +178,7 @@ export class AffiliationService {
    * @param enterpriseName entreprise to be affiliated to
    */
   async sendValidatedAffiliation(citizen: Citizen, enterpriseName: string) {
-    const websiteLink = `${WEBSITE_FQDN}/recherche`;
+    const websiteLink = `${IDP_FQDN}/auth/realms/${realmName}/protocol/openid-connect/auth?client_id=platform&redirect_uri=${WEBSITE_FQDN}/recherche&response_mode=fragment&response_type=code`;
     await this.mailService.sendMailAsHtml(
       citizen.personalInformation.email.value!,
       "Votre demande d'affiliation a été acceptée !",
