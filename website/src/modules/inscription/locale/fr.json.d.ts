@@ -6,6 +6,7 @@ interface Fr {
   'affiliation.success': string;
   'affiliation.success.action': string;
   'affiliation.success.button': string;
+  'affiliation.success.button.incentives': string;
   'affiliation.title': string;
   'affiliation.button': string;
   'affiliation.profile': string;
