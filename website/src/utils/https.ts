@@ -61,7 +61,7 @@ class Https {
 
     https.interceptors.request.use(
       (config) => {
-        this.showToaster();
+        //this.showToaster();
         return injectToken(config);
       },
       (error) => Promise.reject(error)
@@ -69,11 +69,11 @@ class Https {
 
     https.interceptors.response.use(
       (response) => {
-        this.dismissToaster();
+        //this.dismissToaster();
         return response;
       },
       (error) => {
-        this.dismissToaster();
+        //this.dismissToaster();
         const { response } = error;
         return this.handleError(response);
       }
