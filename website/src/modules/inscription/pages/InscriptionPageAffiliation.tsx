@@ -24,11 +24,13 @@ import { StatusCode } from '@utils/https';
 import { matomoTrackEvent } from '@utils/matomo';
 import { useMatomo } from '@datapunt/matomo-tracker-react';
 
+import { useUser } from '../../../context';
 import Strings from '../locale/fr.json';
 
 const InscriptionPageAffiliation: FC<RouteComponentProps> = () => {
   const [token] = useQueryParam('token', StringParam);
   const { trackEvent } = useMatomo();
+  const { citizen, refetchCitizen } = useUser();
   const { error, refetch, isIdle, isLoading, isSuccess, isError } = useQuery(
     'affiliate',
     async () => {
@@ -50,8 +52,11 @@ const InscriptionPageAffiliation: FC<RouteComponentProps> = () => {
     }
   }, []);
 
-  const handleClick = (): void => {
-    refetch();
+  const handleClick = async (): Promise<void> => {
+    await refetch();
+    if (citizen) {
+      refetchCitizen();
+    }
   };
 
   const renderMessage = (): React.ReactNode => {
