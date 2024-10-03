@@ -28,10 +28,10 @@ const toastOptions = {
   },
 };
 const containerStyle = {
-  top: 0,
+  top: "115px",
   left: 0,
   bottom: 0,
-  right: 0,
+  right: 0
 };
 
 const Toast: FC = () => {
