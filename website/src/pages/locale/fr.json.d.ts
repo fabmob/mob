@@ -299,6 +299,9 @@ interface Fr {
   'search.incentive.tabs.territory.incentives': string;
   'search.incentive.tabs.employees.incentives': string;
   'search.incentive.tabs.nationals.incentives': string;
+  'search.incentive.affiliation.toast.part1': string;
+  'search.incentive.affiliation.toast.part2': string;
+  'search.incentive.affiliation.toast.close': string;
 }
 
 declare const value: Fr;
