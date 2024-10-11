@@ -17,6 +17,9 @@ export class Voucher extends Entity {
   @property({
     type: 'string',
     required: true,
+    index: {
+      unique: true
+    }
   })
   value: string;
   
@@ -28,6 +31,12 @@ export class Voucher extends Entity {
     },
   })
   status: VOUCHER_STATUS;
+
+  @property({
+    type: 'string',
+    default: ''
+  })
+  amount?: string;
 
   @property({
     type: 'string',
