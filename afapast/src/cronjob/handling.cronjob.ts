@@ -6,6 +6,7 @@ import { repository } from '@loopback/repository';
 import { TrackedIncentivesRepository, VoucherRepository } from '../repositories';
 import { VOUCHER_STATUS } from '../models/voucher.model';
 import { MailService } from '../services/mail.service';
+import { generateCertificatePdf } from '../utils/pdf-certificate-gen';
 
 function capitalize(str: string) {
   return str.charAt(0).toUpperCase() + str.slice(1);
@@ -80,11 +81,21 @@ export class HandlingCronJob extends CronJob {
         const voucher = vouchers[0]
         console.debug("Got an unused voucher : " + voucher.id)
 
+        // Employer certifcate pdf
+        const pdfCertificateBuffer = await generateCertificatePdf(subscription)
+        const attachements = [
+          {
+            filename: 'attestation_employeur.pdf',
+            content: pdfCertificateBuffer,
+            contentType: 'application/pdf',
+          }
+        ]
+
         // MAIL !
         await this.mailService.sendMailAsHtml(subscription.email, "Votre bon de réduction Airweb", "voucher-airweb", {
           username: capitalize(subscription.firstName),
           voucher: voucher.value
-        })
+        }, attachements)
         console.debug("mail sent to " + subscription.email)
 
         // If mail ok, mark the voucher as used

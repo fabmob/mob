@@ -28,7 +28,7 @@ export class MailService {
    * @param templateName ejs template to be used
    * @param data dict with params used in template
    */
-  async sendMailAsHtml(to: string, subject: string, templateName: string, data?: Object): Promise<any> {
+  async sendMailAsHtml(to: string, subject: string, templateName: string, data?: Object, attachements?: Array<Object>): Promise<any> {
     const html = await generateTemplateAsHtml(templateName, data);
     const mailerInfos = this.mailConfig.configMailer();
     await mailerInfos.mailer.sendMail({
@@ -36,6 +36,7 @@ export class MailService {
         to: to,
         subject: subject,
         html: html,
+        attachments: attachements
     });
   }
 }

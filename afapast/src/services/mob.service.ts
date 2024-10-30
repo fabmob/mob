@@ -1,14 +1,14 @@
 import axios from 'axios';
 import {injectable, BindingScope} from '@loopback/core';
 
-enum SUBSCRIPTION_STATUS {
+export enum SUBSCRIPTION_STATUS {
   ERROR = 'ERREUR',
   TO_PROCESS = 'A_TRAITER',
   VALIDATED = 'VALIDEE',
   REJECTED = 'REJETEE',
   DRAFT = 'BROUILLON',
 }
-type Subscription = {
+export type Subscription = {
   id: string;
   incentiveId: string;
   funderName: string;
@@ -31,6 +31,7 @@ type Subscription = {
   specificFields?: {[prop: string]: any};
   isCitizenDeleted: boolean;
   enterpriseEmail?: string;
+  subscriptionValidation?: object;
 }
 
 // TODO: move params & URLs to env

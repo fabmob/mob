@@ -13,6 +13,7 @@
   },
   "scripts": {
     "build": "lb-tsc",
+    "postbuild": "npm run copy-png-files",
     "build:watch": "lb-tsc --watch",
     "lint": "npm run eslint && npm run prettier:check",
     "lint:fix": "npm run eslint:fix && npm run prettier:fix",
@@ -34,7 +35,8 @@
     "prestart": "npm run rebuild",
     "start": "node -r source-map-support/register .",
     "clean": "lb-clean dist *.tsbuildinfo .eslintcache",
-    "rebuild": "npm run clean && npm run build"
+    "rebuild": "npm run clean && npm run build",
+    "copy-png-files": "copyfiles -u 1 src/**/**.png dist/"
   },
   "repository": {
     "type": "git",
@@ -58,10 +60,12 @@
     "@loopback/rest": "^14.0.6",
     "@loopback/rest-explorer": "^7.0.6",
     "@loopback/service-proxy": "^7.0.6",
+    "copyfiles": "^2.4.1",
     "ejs": "^3.1.10",
     "loopback-connector-openapi": "^6.2.0",
     "loopback-connector-sqlite3": "^3.0.0",
     "nodemailer": "^6.9.15",
+    "pdfkit": "^0.15.0",
     "sqlite3": "^5.1.7",
     "tslib": "^2.0.0"
   },
@@ -72,6 +76,7 @@
     "@types/ejs": "^3.1.5",
     "@types/node": "^16.18.101",
     "@types/nodemailer": "^6.4.16",
+    "@types/pdfkit": "^0.13.5",
     "eslint": "^8.57.0",
     "source-map-support": "^0.5.21",
     "typescript": "~5.2.2"
