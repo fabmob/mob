@@ -1,7 +1,7 @@
 import axios from 'axios';
 import {injectable, BindingScope} from '@loopback/core';
 
-export enum SUBSCRIPTION_STATUS {
+export enum SubscriptionStatus {
   ERROR = 'ERREUR',
   TO_PROCESS = 'A_TRAITER',
   VALIDATED = 'VALIDEE',
@@ -24,11 +24,11 @@ export type Subscription = {
   birthdate: string;
   communityId?: string;
   consent: boolean;
-  status: SUBSCRIPTION_STATUS;
+  status: SubscriptionStatus;
   createdAt: string;
   updatedAt: string;
   funderId: string;
-  specificFields?: {[prop: string]: any};
+  specificFields?: {[prop: string]: object | string};
   isCitizenDeleted: boolean;
   enterpriseEmail?: string;
   subscriptionValidation?: object;
@@ -37,12 +37,12 @@ export type Subscription = {
 // TODO: move params & URLs to env
 async function getAccessToken(): Promise<string> {
   const tokenUrl = process.env.MOB_TOKEN_URL ?? 'http://localhost:9000/auth/realms/mcm/protocol/openid-connect/token'
-  const client_id = process.env.MOB_CLIENT_ID ?? 'simulation-maas-backend'
-  const client_secret = process.env.MOB_CLIENT_SECRET ?? '4x1zfk4p4d7ZdLPAsaWBhd5mu86n5ZWN'
+  const clientId = process.env.MOB_CLIENT_ID ?? 'simulation-maas-backend'
+  const clientSecret = process.env.MOB_CLIENT_SECRET ?? '4x1zfk4p4d7ZdLPAsaWBhd5mu86n5ZWN'
   const data = new URLSearchParams({
       grant_type: 'client_credentials',
-      client_id: client_id,
-      client_secret: client_secret,
+      client_id: clientId,
+      client_secret: clientSecret,
   });
 
   try {

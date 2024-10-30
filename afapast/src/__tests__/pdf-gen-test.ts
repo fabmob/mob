@@ -1,5 +1,5 @@
 import { expect } from '@loopback/testlab';
-import { Subscription, SUBSCRIPTION_STATUS } from '../services';
+import { Subscription, SubscriptionStatus } from '../services';
 import { generateCertificatePdf } from '../utils/pdf-certificate-gen'
 import fs from "fs"
 
@@ -18,7 +18,7 @@ describe('pdf-certificate-gen', () => {
     city: 'Paris',
     postcode: '75000',
     birthdate: '1961-10-18T00:00:00.000Z',
-    status: SUBSCRIPTION_STATUS.VALIDATED,
+    status: SubscriptionStatus.VALIDATED,
     createdAt: '2024-09-13T14:19:21.361Z',
     updatedAt: '2024-09-13T14:21:57.874Z',
     funderId: '2219e721-ac71-4a65-a202-37675c74ba58',

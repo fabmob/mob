@@ -1,5 +1,5 @@
 import {Entity, model, property} from '@loopback/repository';
-export enum VOUCHER_STATUS {
+export enum VoucherStatus {
   UNUSED = "UNUSED",
   USED = "USED",
   REVOKED = "REVOKED"
@@ -25,12 +25,12 @@ export class Voucher extends Entity {
   
   @property({
     type: 'string',
-    default: VOUCHER_STATUS.UNUSED,
+    default: VoucherStatus.UNUSED,
     jsonSchema: {
-      enum: Object.values(VOUCHER_STATUS),
+      enum: Object.values(VoucherStatus),
     },
   })
-  status: VOUCHER_STATUS;
+  status: VoucherStatus;
 
   @property({
     type: 'string',

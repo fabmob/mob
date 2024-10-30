@@ -4,7 +4,7 @@ import {CronJob, cronJob} from '@loopback/cron';
 import {MobService} from '../services';
 import { repository } from '@loopback/repository';
 import { TrackedIncentivesRepository, VoucherRepository } from '../repositories';
-import { VOUCHER_STATUS } from '../models/voucher.model';
+import { VoucherStatus } from '../models/voucher.model';
 import { MailService } from '../services/mail.service';
 import { generateCertificatePdf } from '../utils/pdf-certificate-gen';
 
@@ -42,15 +42,12 @@ export class HandlingCronJob extends CronJob {
   private async performJob(): Promise<void> {
     console.debug("doing the job !")
     const trackedIncentives = await this.trackedIncentivesRepository.find()
-    for (let i = 0; i < trackedIncentives.length; i++) {
-      const trackedIncentive = trackedIncentives[i];
+    for (const trackedIncentive of trackedIncentives) {
       const subscriptions = await this.mobService.subscriptionsFind(trackedIncentive.incentiveId, "VALIDEE")
       console.debug(subscriptions.length + " subs loaded from api")
 
       let nbSubsHandled = 0
-      for (let j = 0; j < subscriptions.length; j++) {
-        const subscription = subscriptions[j];
-
+      for (const subscription of subscriptions) {
         if (process.env.MINIMAL_SUBSCRIPTION_START_DATE && subscription.updatedAt < process.env.MINIMAL_SUBSCRIPTION_START_DATE) {
           // Sub is too old, ignore it
           continue
@@ -69,7 +66,7 @@ export class HandlingCronJob extends CronJob {
         // Get a voucher
         const vouchers = await this.voucherRepository.find({
           where: {
-            status: VOUCHER_STATUS.UNUSED
+            status: VoucherStatus.UNUSED
           },
           limit: 1
         })
@@ -100,7 +97,7 @@ export class HandlingCronJob extends CronJob {
 
         // If mail ok, mark the voucher as used
         await this.voucherRepository.updateById(voucher.id, {
-          status: VOUCHER_STATUS.USED,
+          status: VoucherStatus.USED,
           subscriptionId: subscription.id,
           citizenId: subscription.citizenId,
           incentiveId: trackedIncentive.incentiveId,
@@ -113,7 +110,7 @@ export class HandlingCronJob extends CronJob {
 
       await this.trackedIncentivesRepository.updateById(trackedIncentive.id, {
         lastNbSubs: subscriptions.length,
-        nbSubsHandled: (trackedIncentive.nbSubsHandled || 0) + nbSubsHandled,
+        nbSubsHandled: (trackedIncentive.nbSubsHandled ?? 0) + nbSubsHandled,
         lastReadTime: new Date().toISOString()
       })
       console.debug("Incentive updated, added " + nbSubsHandled + " subs handled")

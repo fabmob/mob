@@ -6,7 +6,7 @@ export const generateTemplateAsHtml = async (
     templateName: string,
     data?: Object | undefined,
   ): Promise<string> => {
-    return await ejs.renderFile(
+    return ejs.renderFile(
     `./templates/${templateName}.ejs`,
     data ?? {},
     );
@@ -28,7 +28,7 @@ export class MailService {
    * @param templateName ejs template to be used
    * @param data dict with params used in template
    */
-  async sendMailAsHtml(to: string, subject: string, templateName: string, data?: Object, attachements?: Array<Object>): Promise<any> {
+  async sendMailAsHtml(to: string, subject: string, templateName: string, data?: Object, attachements?: Array<Object>) {
     const html = await generateTemplateAsHtml(templateName, data);
     const mailerInfos = this.mailConfig.configMailer();
     await mailerInfos.mailer.sendMail({
