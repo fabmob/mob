@@ -88,12 +88,24 @@ export class HandlingCronJob extends CronJob {
           }
         ]
 
-        // MAIL !
+        // MAIL to employee !
         await this.mailService.sendMailAsHtml(subscription.email, "Votre bon de réduction Airweb", "voucher-airweb", {
           username: capitalize(subscription.firstName),
           voucher: voucher.value
         }, attachements)
         console.debug("mail sent to " + subscription.email)
+
+        // MAIL to CC if any
+        if (trackedIncentive.ccContacts) {
+          const ccContacts = trackedIncentive.ccContacts.split(',')
+          for (const ccContact of ccContacts) {
+            await this.mailService.sendMailAsHtml(ccContact, `Notification : nouvelle validation de droit Tiers payant (pour l'employeur ${subscription.funderName})`, "rtcr-confirmation", {
+              subscription: subscription,
+              voucher: voucher.value
+            }, attachements)
+            console.debug("mail sent to " + ccContact)
+          }
+        }
 
         // If mail ok, mark the voucher as used
         await this.voucherRepository.updateById(voucher.id, {

@@ -32,6 +32,13 @@ export class TrackedIncentives extends Entity {
   })
   nbSubsHandled?: number;
   
+  @property({
+    type: 'string',
+    description: 'Contacts that will also receive the emails, alongside the employee. Comma separated list of emails',
+    default: '',
+  })
+  ccContacts?: string;
+
   constructor(data?: Partial<TrackedIncentives>) {
     super(data);
   }

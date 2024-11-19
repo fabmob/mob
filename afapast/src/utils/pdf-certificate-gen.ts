@@ -48,6 +48,9 @@ export const generateCertificatePdf = async (subscription: Subscription) => {
         .text("Il agit de fait comme une attestation que " + subscription.firstName + " " + subscription.lastName + " est actuellement employé chez " + subscription.funderName + ".", 50)
         .moveDown()
 
+        .text("Cette attestation marque l'autorisation de prise en charge de l'aide " + subscription.incentiveTitle + ", avec la modalité: " + subscription.specificFields!["Type d'abonnement"] + ".", 50)
+        .moveDown()
+
         .text("Date de la validation : " + new Date(subscription.updatedAt).toLocaleString("FR-fr") + ".", 50)
     
     

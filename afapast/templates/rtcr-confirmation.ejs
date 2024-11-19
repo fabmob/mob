@@ -1,0 +1,30 @@
+<%- include('css/style'); %> <%- include('commons/header'); %>
+
+<table style="max-width: 640px; width: 640px">
+  <tr>
+    <td>
+      <div style="margin-bottom: 40px">
+        <div>
+          <p>Bonjour,</p>
+          <p>
+            Nous vous informons qu'un gestionnaire de l'entreprise <%= subscription.funderName %> vient de valider une demande.
+          </p>
+          <ul>
+            <li>Salarié concerné : <%= subscription.firstName %> <%= subscription.lastName %></li>
+            <li>Autorisé à bénéficier de la prise en charge de l'aide <%= subscription.incentiveTitle %></li>
+            <li>Avec la modalité: <%= subscription.specificFields["Type d'abonnement"] %></li>
+          </ul>
+          <p>
+            Si besoin, vous trouverez ci-joint une attestation employeur reprenant ces informations.
+          </p>
+          <div>
+            <p>Merci pour votre confiance,</p>
+            <p>L’équipe Mon Compte Mobilité</p>
+          </div>
+        </div>
+      </div>
+    </td>
+  </tr>
+</table>
+
+<%- include('commons/footer'); %>
