@@ -10,7 +10,7 @@
             Nous vous informons qu'un gestionnaire de l'entreprise <%= subscription.funderName %> vient de valider une demande.
           </p>
           <ul>
-            <li>Salarié concerné : <%= subscription.firstName %> <%= subscription.lastName %></li>
+            <li>Salarié concerné : <%= subscription.firstName %> <%= subscription.lastName %> (<%= subscription.email %>)</li>
             <li>Autorisé à bénéficier de la prise en charge de l'aide <%= subscription.incentiveTitle %></li>
             <li>Avec la modalité: <%= subscription.specificFields["Type d'abonnement"] %></li>
           </ul>
