@@ -3,8 +3,13 @@ import {juggler} from '@loopback/repository';
 
 const config = {
   name: 'db',
-  connector: 'loopback-connector-sqlite3',
-  file: './data/db.sqlite'
+  connector: 'postgresql',
+  host: process.env.DB_HOST ?? 'localhost',
+  port: process.env.DB_PORT ?? 5432,
+  user: process.env.DB_SERVICE_USER ?? 'afapast',
+  password: process.env.DB_SERVICE_PASSWORD ?? 'afapast',
+  database: process.env.DB_DATABASE ?? 'afapast_db',
+  ssl: null // TODO ?
 };
 
 // Observe application's life cycle to disconnect the datasource when

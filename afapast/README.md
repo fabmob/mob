@@ -41,3 +41,8 @@ Open http://127.0.0.1:3002 in your browser.
 | MOB_CLIENT_ID            | oidc client id to fetch a token                              | No          | 'simulation-maas-backend' |
 | MOB_CLIENT_SECRET        | oidc client secret to fetch a token                          | No          | '4x1zfk4p4d7ZdLPAsaWBhd5mu86n5ZWN' |
 | MOB_API_SUBSCRIPTION_URL | subscription url                                             | No          | 'http://localhost:3000/v1/subscriptions' |
+| DB_HOST                  | database host                                                | No          | 'localhost' |
+| DB_PORT                  | database port                                                | No          | 5432 |
+| DB_SERVICE_USER          | database user                                                | No          | 'afapast' |
+| DB_SERVICE_PASSWORD      | database password                                            | No          | 'afapast' |
+| DB_DATABASE              | database name                                                | No          | 'afapast_db' |
