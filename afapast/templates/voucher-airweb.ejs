@@ -1,0 +1,25 @@
+<%- include('css/style'); %> <%- include('commons/header'); %>
+
+<table style="max-width: 640px; width: 640px">
+  <tr>
+    <td>
+      <div style="margin-bottom: 40px">
+        <div>
+          <p>Bonjour <%= username %>,</p>
+          <p>
+            Voici votre code promo à utiliser lors de l'achat de votre titre de transport chez Airweb : <%= voucher %>
+          </p>
+          <p>
+            Vous trouverez aussi ci-joint votre attestation employeur. Cette dernière pourra vous être demandée lors du parcours d'achat Airweb.
+          </p>
+          <div>
+            <p>Merci pour votre confiance,</p>
+            <p>L’équipe Mon Compte Mobilité</p>
+          </div>
+        </div>
+      </div>
+    </td>
+  </tr>
+</table>
+
+<%- include('commons/footer'); %>

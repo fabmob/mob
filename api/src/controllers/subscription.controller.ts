@@ -62,6 +62,7 @@ import {
   StatusCode,
   SECURITY_SPEC_KC_PASSWORD,
   SECURITY_SPEC_KC_CREDENTIALS_KC_PASSWORD,
+  SECURITY_SPEC_JWT_KC_PASSWORD_KC_CREDENTIALS,
   INCENTIVE_TYPE,
   Roles,
   SUBSCRIPTION_STATUS,
@@ -448,11 +449,11 @@ export class SubscriptionController {
    * @param citizenId the citizen id
    * @returns subscription list
    */
-  @authorize({allowedRoles: [Roles.MAAS, Roles.MANAGERS, Roles.CITIZENS]})
+  @authorize({allowedRoles: [Roles.MAAS, Roles.MANAGERS, Roles.CITIZENS, Roles.MAAS_BACKEND]})
   @get('/v1/subscriptions', {
     'x-controller-name': 'Subscriptions',
     summary: 'Retourne les souscriptions',
-    security: SECURITY_SPEC_JWT_KC_PASSWORD,
+    security: SECURITY_SPEC_JWT_KC_PASSWORD_KC_CREDENTIALS,
     responses: {
       [StatusCode.Success]: {
         description: 'La liste des souscriptions',
