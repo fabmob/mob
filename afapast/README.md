@@ -4,11 +4,9 @@ A voucher distribution tool, reading mob subscription API and sending emails wit
 
 Also an API in itself to manage tracked incentives and vouchers.
 
-## Install dependencies
+## Dependencies
 
-By default, dependencies were installed when this application was generated.
-Whenever dependencies in `package.json` are changed, run the following command:
-
+Tested on node v20.18.0. Install deps with
 ```sh
 npm install
 ```
@@ -16,7 +14,9 @@ npm install
 
 ## Run the application
 
-Migrate the db if it's the first time
+Make sure to have the DB env variables set.
+
+Migrate the db if it's the first time.
 ```sh
 yarn migrate
 ```
